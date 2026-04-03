@@ -217,11 +217,126 @@ Key insight from Frank: Internal roles stack upward (4>3>2A>1A). External is a c
 - `ee4a861` — Update HANDOFF.md and HISTORY.md for session 2
 - `020b6eb` — Accordion sidebar with SVG icons and drag-and-drop reordering
 
-### What's NOT Done Yet
+### What's NOT Done Yet (End of Session 2)
 - Role gating currently hardcoded to Tier 4 — needs to read from Supabase auth
 - TextSidebar sub-items are all placeholders
 - External partner view defined but not tested
 - No database schema for orgs, roles, permissions, apps
 - No app suite 2-layer toggle model
+- No light mode, no responsive layout
+- No white-label tenant config
+
+---
+
+## Session 3 — April 3, 2026
+
+### Context
+Picked up from Session 2. Portal had scaffold with dual sidebars, 23 placeholder pages, role-gated navigation. This session built the Dashboard home page and 4 admin pages with full Supabase CRUD.
+
+Frank provided 4 screenshots from the old CCS portal as **visual reference only** (no code copied). Also studied the old portal's data models via GitHub MCP (Coastal-Claims-Services/coastalclaims-employee-portal) — extracted field structures and business logic, wrote everything from scratch.
+
+### Supabase Schema (6 new tables)
+
+All tables created via Supabase MCP migration `dashboard_tables` + `leaderboard_active_flag`:
+
+**`company_updates`** — id, org_id, title, content, type (news/event/announcement), priority (low/medium/high/urgent), is_published, pinned, visible_to_all, author_id, author_name, published_at, expires_at, created_at, updated_at
+
+**`action_items`** — id, org_id, title, description, item_type (task/claim), assigned_to, assigned_by, assigned_to_name, assigned_by_name, status (pending/in_progress/completed/cancelled), priority, due_date, completed_at, created_at, updated_at
+
+**`notifications`** — id, org_id, recipient_id, title, message, type (info/warning/error/success), sender_name, read_at, action_url, action_label, expires_at, created_at
+
+**`user_pinned_apps`** — id, user_id, org_id, name, description, url, icon_url, category, is_custom, sort_order, created_at
+
+**`leaderboard_config`** — id, org_id, metric_name, metric_key, is_active, created_at, updated_at
+
+**`leaderboard_entries`** — id, org_id, config_id, user_id, user_name, value, rank, period, created_at
+
+All have RLS enabled, org_id FK to public.orgs, appropriate select/insert/update/delete policies.
+
+**Seed data inserted:** 3 company updates, 3 action items, 3 notifications, 6 pinned apps, 1 leaderboard config with 5 entries (Frank #1 at $142,500).
+
+### What Was Built
+
+**Dashboard page** (`/dashboard/page.tsx`) — 5 sections:
+1. Welcome header — "Welcome back, {firstName}" + formatted date
+2. Company Updates — card grid (3 cols on lg), type badge (blue/green/purple) + priority badge (green/yellow/red), expandable content with "Read More", author + date footer
+3. Quick Access — horizontal row of pinned apps with letter avatar gradients, "View All" link to /applications
+4. Bottom 3-column grid:
+   - My Action Items — pending tasks with checkbox, priority badge, due date, "From:" assignee
+   - Leaderboard — top 5 from active config, medals for top 3, gold highlight on #1, dollar formatted values
+   - Recent Notifications — unread only, color-coded dots by type, time-ago stamps, "View All" link
+
+**Company Updates admin** (`/dashboard/company-updates/page.tsx`):
+- Full list showing all updates (published + drafts at 60% opacity)
+- Badges: type, priority, Published/Draft status
+- Expandable content preview (click title)
+- Inline actions: pin/unpin (filled/unfilled icon), publish/unpublish (eye icon), edit (pencil), delete (trash + confirm)
+- Create/Edit modal: title, content textarea, type dropdown, priority dropdown, checkboxes (Publish Now, Pin to top, Visible to all), expiration date picker
+
+**Notifications admin** (`/dashboard/notifications/page.tsx`):
+- Full list with color-coded dots (info=blue, warning=yellow, error=red, success=green)
+- Type badge, read/unread dimming (55% opacity for read)
+- Filters: status (all/unread/read) + type (all/info/warning/error/success)
+- Unread count badge in header
+- Actions: mark read (checkmark), mark unread (dot), mark all read (bulk), delete + confirm
+- Action URL/label rendered as link on each notification
+- Send Notification modal: title, message textarea, type dropdown, sender name, action URL + label, expiration
+
+**Action Items admin** (`/dashboard/action-items/page.tsx`):
+- Full list with checkbox (click to complete/uncomplete), strikethrough on completed
+- Badges: type (task=purple, claim=blue), priority, status (pending=yellow, in_progress=blue, completed=green, cancelled=gray)
+- Filters: status (5 options) + priority (5 options), colored filter text
+- Pending + in progress counts in header
+- Status dropdown: change to any status inline
+- Overdue detection: due dates in past show red + "(Overdue)" text
+- Create/Edit modal: title, description textarea, type dropdown, priority dropdown, assign to (name text), due date
+
+**Leaderboard admin** (`/dashboard/leaderboard/page.tsx`):
+- Multiple leaderboard support via tab bar
+- Active/Inactive lifecycle: view toggle with counts, Deactivate button (shelves board, keeps data), Reactivate button (brings it back)
+- Create leaderboard modal: name + metric key (auto-generated from name if blank)
+- Add Entry modal: name + value (number)
+- Auto-ranking: re-ranks all entries by value (descending) on every add/edit/delete
+- Medals for top 3, gold background highlight on #1
+- Edit/delete entries inline, edit/delete/deactivate boards
+- "Delete Forever" is separate from deactivate — permanently removes board + all entries
+- Dashboard widget only pulls `is_active = true` config
+
+### Sidebar Changes
+- **Notifications** moved from User tier (1A) → Admin tier (2A)
+- **Leaderboard** added to Admin tier (2A) with trophy SVG icon
+- Both sit next to Company Updates and Action Items in the Admin section
+
+### Badge Color System (used consistently across all pages)
+
+**Type badges:**
+- news / info: blue (#1e3a5f bg, #60a5fa text)
+- event / success: green (#1a3a2a bg, #4ade80 text)
+- announcement: purple (#2d1b4e bg, #a78bfa text)
+- task: purple (#2d1b4e bg, #a78bfa text)
+- claim: blue (#1e3a5f bg, #60a5fa text)
+
+**Priority badges:**
+- low: green (#1a3a2a bg, #4ade80 text)
+- medium: yellow (#3a3520 bg, #facc15 text)
+- high: red (#3a1a1a bg, #f87171 text)
+- urgent: dark red (#4a1a1a bg, #ef4444 text)
+
+**Status badges:**
+- pending: yellow
+- in_progress: blue
+- completed: green
+- cancelled: gray
+
+### Commits
+- `e888d2f` — Dashboard + 4 admin pages wired to Supabase
+
+### What's NOT Done Yet (End of Session 3)
+- Role gating currently hardcoded to Tier 4 — needs to read from Supabase auth
+- TextSidebar sub-items are all placeholders
+- External partner view defined but not tested
+- User management page — needed for notification recipient picker and action item assignment by user ID
+- Application Vault page — needed for Quick Access add/remove pinned apps
+- App suite 2-layer toggle model not built
 - No light mode, no responsive layout
 - No white-label tenant config
