@@ -1,26 +1,78 @@
 "use client";
 
+// Contextual sub-items for each page — placeholder data for now
 const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
   dashboard: [
-    { group: "OVERVIEW", items: ["Home", "Activity", "Notifications"] },
+    { group: "OVERVIEW", items: ["Home", "Activity", "Recent"] },
   ],
-  users: [
-    { group: "MANAGEMENT", items: ["All Users", "Departments", "Pending Approval"] },
-    { group: "EXTERNAL", items: ["Partner Firms", "Invitations"] },
+  applications: [
+    { group: "APPS", items: ["All Apps", "Installed", "Available"] },
   ],
-  apps: [
-    { group: "APPLICATIONS", items: ["App Directory", "Installed Apps"] },
-    { group: "CONFIGURATION", items: ["App Settings"] },
+  "teams-chat": [
+    { group: "MESSAGING", items: ["Inbox", "Channels", "Direct Messages"] },
   ],
-  messages: [
-    { group: "MESSAGING", items: ["Inbox", "Sent", "Drafts"] },
+  calendar: [
+    { group: "SCHEDULE", items: ["Day View", "Week View", "Month View"] },
+  ],
+  university: [
+    { group: "LEARNING", items: ["My Courses", "Browse", "Certificates"] },
+  ],
+  directory: [
+    { group: "PEOPLE", items: ["All Staff", "By Department", "Search"] },
   ],
   documents: [
     { group: "FILES", items: ["All Documents", "Shared With Me", "Upload"] },
   ],
-  settings: [
-    { group: "ACCOUNT", items: ["Profile", "Preferences"] },
-    { group: "ORGANIZATION", items: ["General", "Roles & Permissions", "Billing"] },
+  ai: [
+    { group: "AI TOOLS", items: ["Chat", "Analysis", "Reports"] },
+  ],
+  notifications: [
+    { group: "ALERTS", items: ["All", "Unread", "Settings"] },
+  ],
+  compliance: [
+    { group: "COMPLIANCE", items: ["Requirements", "My Status", "Training"] },
+  ],
+  "user-management": [
+    { group: "USERS", items: ["All Users", "Roles", "Permissions"] },
+  ],
+  "pending-users": [
+    { group: "APPROVALS", items: ["Pending", "Approved", "Denied"] },
+  ],
+  "action-items": [
+    { group: "TASKS", items: ["My Items", "Assigned", "Completed"] },
+  ],
+  training: [
+    { group: "PROGRAMS", items: ["Active", "Scheduled", "Completed"] },
+  ],
+  "company-updates": [
+    { group: "NEWS", items: ["Latest", "Announcements", "Archive"] },
+  ],
+  departments: [
+    { group: "DEPARTMENTS", items: ["All", "My Department", "Structure"] },
+  ],
+  crm: [
+    { group: "CRM", items: ["Contacts", "Cases", "Pipeline"] },
+  ],
+  "ai-agents": [
+    { group: "AGENTS", items: ["Active", "Configure", "Logs"] },
+  ],
+  "app-management": [
+    { group: "MANAGEMENT", items: ["All Apps", "Install", "Permissions"] },
+  ],
+  "compliance-settings": [
+    { group: "SETTINGS", items: ["Rules", "Schedules", "Notifications"] },
+  ],
+  "claim-calculator-settings": [
+    { group: "CALCULATOR", items: ["Formulas", "Rates", "Defaults"] },
+  ],
+  "system-settings": [
+    { group: "SYSTEM", items: ["General", "Security", "Integrations"] },
+  ],
+  "talent-partner-network": [
+    { group: "PARTNERS", items: ["All Partners", "Invitations", "Settings"] },
+  ],
+  "tenant-management": [
+    { group: "TENANTS", items: ["All Tenants", "Create", "Billing"] },
   ],
 };
 
@@ -46,7 +98,7 @@ export default function TextSidebar({
         borderColor: "var(--border-color)",
       }}
     >
-      {/* Chevron — middle of right edge, identical to icon sidebar */}
+      {/* Chevron — middle of right edge */}
       <button
         onClick={onToggle}
         className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center cursor-pointer z-50 transition-colors"
@@ -92,7 +144,7 @@ export default function TextSidebar({
             className="text-sm font-semibold px-2 mb-4 capitalize"
             style={{ color: "var(--text-primary)" }}
           >
-            {activeSection}
+            {activeSection.replace(/-/g, " ")}
           </h2>
 
           {menus.map((group) => (

@@ -4,17 +4,20 @@ import { useState } from "react";
 import IconSidebar from "./IconSidebar";
 import TextSidebar from "./TextSidebar";
 import TopBar from "./TopBar";
+import { usePathname } from "next/navigation";
 
 export default function PortalShell({ children }: { children: React.ReactNode }) {
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [iconBarExpanded, setIconBarExpanded] = useState(false);
+
+  // Derive active section from URL for the TextSidebar
+  const segments = pathname.split("/").filter(Boolean);
+  const activeSection = segments[1] || "dashboard";
 
   return (
     <div className="flex h-full">
       <IconSidebar
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
         expanded={iconBarExpanded}
         onToggleExpand={() => setIconBarExpanded(!iconBarExpanded)}
       />
