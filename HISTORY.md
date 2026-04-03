@@ -181,11 +181,46 @@ Key insight from Frank: Internal roles stack upward (4>3>2A>1A). External is a c
 ### Commits
 - `c448519` — Role-gated sidebar + 23 dashboard pages + flyout reverted to permanent panel
 
-### What's NOT Done Yet (STILL IN PROGRESS)
-- Sidebar needs further refinement per Frank's feedback ("closer but not perfect")
+### Session 2 Continued — Sidebar Refinements
+
+**Chevron fix:**
+- IconSidebar had `overflow: hidden` which clipped the round chevron button (positioned at `right: -12px`). Changed to `overflow: visible` to match TextSidebar. Both chevrons now visible and matching.
+
+**Accordion sections:**
+- Frank: "All nav items in one flat list — that's not what I want. Group by role tier with collapsible section headers."
+- Rewrote IconSidebar as accordion — 4 collapsible sections (User, Admin, Super Admin, System Admin)
+- Each section header has a rotating chevron, all collapsed by default
+- Only sections the user's role can access are visible
+- Black and white only — no colors on headers
+
+**SVG icons:**
+- Frank: "Put icons next to the names... don't make them color icons, keep them gray, don't make them cartoony"
+- Replaced all punctuation character placeholders with proper stroke-based SVG icons
+- 24 unique icons drawn in 24x24 viewBox, rendered at 16px
+- All gray (`var(--text-muted)`), thin strokes (1.8px), no fill
+- Examples: grid (Dashboard), speech bubble (Teams Chat), bell (Notifications), gear (System Settings), building (Tenant Management)
+
+**Drag-and-drop reordering:**
+- Installed @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities
+- Each accordion section is its own DndContext — items cannot leave their parent section
+- Subtle 8-dot grip handle appears on hover (left side of each item)
+- 5px activation distance so clicks still work for navigation
+- Custom order saved to `nav_order` jsonb column on `public.users` in Supabase
+- Loads on mount, saves immediately on reorder — persists across sessions and devices
+- New items added after user last sorted appear at the end automatically
+
+**Supabase migration:**
+- Added `nav_order jsonb DEFAULT '{}'` column to `public.users`
+
+### Commits (Session 2 — all)
+- `c448519` — Role-gated sidebar + 23 dashboard pages + flyout reverted to permanent panel
+- `ee4a861` — Update HANDOFF.md and HISTORY.md for session 2
+- `020b6eb` — Accordion sidebar with SVG icons and drag-and-drop reordering
+
+### What's NOT Done Yet
 - Role gating currently hardcoded to Tier 4 — needs to read from Supabase auth
 - TextSidebar sub-items are all placeholders
-- Icon glyphs are temporary characters
+- External partner view defined but not tested
 - No database schema for orgs, roles, permissions, apps
 - No app suite 2-layer toggle model
 - No light mode, no responsive layout
