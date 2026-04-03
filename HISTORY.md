@@ -122,3 +122,71 @@ Frank provided Supabase dashboard screenshots as reference. Key learnings:
 - No real user data (hardcoded "Frank Dalton / Super Admin")
 - No light mode toggle
 - No responsive/mobile layout
+
+---
+
+## Session 2 — April 3, 2026
+
+### Context
+Picked up from Session 1. Previous session had built the scaffold with dual sidebars. This session focused on making the left sidebar into real page navigation with role-based access control.
+
+### Role Hierarchy Redesign
+Frank provided the definitive 6-tier role system (renumbered from Session 1):
+
+| Tier | Role | Track |
+|------|------|-------|
+| 1A | User | Internal employee |
+| 1B | External Partner User | External — assigned items only |
+| 2A | Admin | Internal team lead |
+| 2B | External Partner Admin | External firm boss |
+| 3 | Super Admin | Internal — full org control |
+| 4 | System Administrator | Norkendol only — god mode |
+
+Key insight from Frank: Internal roles stack upward (4>3>2A>1A). External is a completely separate track (2B>1B). Tier 4 is invisible to customers.
+
+### What Was Built
+
+**23 placeholder pages** under `/dashboard/*`:
+- Tier 1A (User): dashboard, applications, teams-chat, calendar, university, directory, documents, ai, notifications, compliance
+- Tier 2A (Admin): user-management, pending-users, action-items, training, company-updates, departments, crm
+- Tier 3 (Super Admin): ai-agents, app-management, compliance-settings, claim-calculator-settings, system-settings, talent-partner-network
+- Tier 4 (System Admin): tenant-management
+
+**IconSidebar rewrite:**
+- All 24 nav items with `minTier` role gating
+- `canAccess()` function handles internal stacking and external separate track
+- Each item is a Link to `/dashboard/{slug}`, highlights from URL
+- Collapsible to icon-only with chevron toggle
+- Plain monospace character icons (no color, no emoji)
+- Defaults to Tier 4 for dev (shows everything)
+
+**TextSidebar:**
+- Initially converted to floating flyout overlay (position: fixed, slide in/out on hover)
+- Frank immediately said no — "put the bar back like we coded"
+- Reverted to permanent panel with chevron collapse
+- Added contextual sub-items for all 23 pages (placeholder data)
+
+**Other changes:**
+- Dashboard layout (`/dashboard/layout.tsx`) wraps all sub-pages in PortalShell
+- Dashboard page no longer wraps itself in PortalShell (layout does it)
+- PortalShell derives active section from URL
+- Auth middleware, login page, Supabase client wired up
+- Frank's role set to `super_admin` in Supabase (`hkscsovtejeedjebytsv`)
+
+### Bugs / Issues
+- Previous session's Sidebar.tsx (single sidebar replacement) was built and deleted — it had merged both sidebars into one, losing the two-panel architecture
+- Flyout overlay attempt was wrong — Frank wants permanent panel, not hover-based
+- Context window blew up 5 times in a row in prior attempts — saved checkpoint summaries to prevent repeat
+
+### Commits
+- `c448519` — Role-gated sidebar + 23 dashboard pages + flyout reverted to permanent panel
+
+### What's NOT Done Yet (STILL IN PROGRESS)
+- Sidebar needs further refinement per Frank's feedback ("closer but not perfect")
+- Role gating currently hardcoded to Tier 4 — needs to read from Supabase auth
+- TextSidebar sub-items are all placeholders
+- Icon glyphs are temporary characters
+- No database schema for orgs, roles, permissions, apps
+- No app suite 2-layer toggle model
+- No light mode, no responsive layout
+- No white-label tenant config
