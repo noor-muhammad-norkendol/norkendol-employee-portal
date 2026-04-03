@@ -18,7 +18,7 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "LEARNING", items: ["My Courses", "Browse", "Certificates"] },
   ],
   directory: [
-    { group: "PEOPLE", items: ["All Staff", "By Department", "Search"] },
+    { group: "PEOPLE", items: ["All Staff", "By Department", "Search", "Add New User"] },
   ],
   documents: [
     { group: "FILES", items: ["All Documents", "Shared With Me", "Upload"] },
