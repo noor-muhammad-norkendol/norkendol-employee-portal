@@ -73,6 +73,7 @@ const icons = {
   systemSettings: ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"],
   talentNetwork: ["M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10z", "M2 12h20", "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"],
   tenantManagement: ["M3 21h18", "M5 21V7l8-4 8 4v14", "M9 21v-4h6v4", "M9 10h0", "M15 10h0", "M9 14h0", "M15 14h0"],
+  leaderboard: ["M8 21h8", "M12 17v4", "M17 3H7a2 2 0 0 0-2 2v4a7 7 0 0 0 14 0V5a2 2 0 0 0-2-2Z"],
 };
 
 function NavIcon({ paths, size = 16 }: { paths: string[]; size?: number }) {
@@ -110,7 +111,6 @@ const internalSections: TierSection[] = [
       { label: "Directory", slug: "directory", paths: icons.directory },
       { label: "Documents", slug: "documents", paths: icons.documents },
       { label: "AI", slug: "ai", paths: icons.ai },
-      { label: "Notifications", slug: "notifications", paths: icons.notifications },
       { label: "Compliance", slug: "compliance", paths: icons.compliance },
     ],
   },
@@ -121,6 +121,8 @@ const internalSections: TierSection[] = [
       { label: "Action Items", slug: "action-items", paths: icons.actionItems },
       { label: "Training", slug: "training", paths: icons.training },
       { label: "Company Updates", slug: "company-updates", paths: icons.companyUpdates },
+      { label: "Notifications", slug: "notifications", paths: icons.notifications },
+      { label: "Leaderboard", slug: "leaderboard", paths: icons.leaderboard },
       { label: "Departments", slug: "departments", paths: icons.departments },
       { label: "CRM", slug: "crm", paths: icons.crm },
     ],
