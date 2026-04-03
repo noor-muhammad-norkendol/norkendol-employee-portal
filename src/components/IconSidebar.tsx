@@ -51,7 +51,7 @@ export default function IconSidebar({
 
           {/* Tooltip */}
           <div
-            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
+            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
             style={{
               background: "var(--bg-surface)",
               color: "var(--text-primary)",
