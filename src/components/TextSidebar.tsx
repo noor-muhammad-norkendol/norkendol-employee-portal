@@ -39,19 +39,19 @@ export default function TextSidebar({
     <div
       className="relative border-r py-4 transition-all duration-200 shrink-0"
       style={{
-        width: collapsed ? "0px" : "220px",
+        width: collapsed ? "16px" : "220px",
         padding: collapsed ? "16px 0" : "16px 12px",
-        overflow: collapsed ? "visible" : "auto hidden",
+        overflow: "visible",
         background: "var(--bg-primary)",
-        borderColor: collapsed ? "transparent" : "var(--border-color)",
+        borderColor: "var(--border-color)",
       }}
     >
-      {/* Collapse/expand arrow */}
+      {/* Chevron — middle of right edge, identical to icon sidebar */}
       <button
         onClick={onToggle}
-        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] cursor-pointer z-10 transition-colors"
+        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center cursor-pointer z-50 transition-colors"
         style={{
-          right: collapsed ? "-12px" : "-12px",
+          right: "-12px",
           background: "var(--bg-surface)",
           color: "var(--text-secondary)",
           border: "1px solid var(--border-color)",
@@ -65,7 +65,24 @@ export default function TextSidebar({
           e.currentTarget.style.background = "var(--bg-surface)";
         }}
       >
-        {collapsed ? "›" : "‹"}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{
+            transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
+            transition: "transform 200ms",
+          }}
+        >
+          <path
+            d="M6 3L11 8L6 13"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {/* Menu content — hidden when collapsed */}

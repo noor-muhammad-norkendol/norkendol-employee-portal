@@ -8,10 +8,16 @@ import TopBar from "./TopBar";
 export default function PortalShell({ children }: { children: React.ReactNode }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [iconBarExpanded, setIconBarExpanded] = useState(false);
 
   return (
     <div className="flex h-full">
-      <IconSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      <IconSidebar
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        expanded={iconBarExpanded}
+        onToggleExpand={() => setIconBarExpanded(!iconBarExpanded)}
+      />
       <TextSidebar
         activeSection={activeSection}
         collapsed={sidebarCollapsed}
