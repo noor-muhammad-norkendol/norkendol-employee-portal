@@ -9,14 +9,15 @@ Last updated: April 2, 2026 — Session 1
 The portal frame is built and running. Dark mode Supabase-style layout with:
 - Login page at `/login` (no auth — just navigates to dashboard)
 - Dashboard at `/dashboard` with dual sidebar + top bar
-- Icon sidebar (always visible, tooltips on hover, click to switch sections)
-- Text sidebar (always visible, collapsible via arrow button)
-- Top bar (date/time + hardcoded user info)
+- Icon sidebar (50px collapsed / 160px expanded, chevron toggle, tooltips when collapsed)
+- Text sidebar (220px expanded / 16px collapsed, chevron toggle, section menus)
+- Both chevrons identical — matching SVG arrows, same position/size/behavior
+- Top bar (date/time left, user name/role/avatar right, no bell)
 
 **Port:** 3002
 **Start:** `npm run dev`
 **Branch:** main
-**Last commit:** `6909af0`
+**Last commit:** `972ab34`
 
 ## File Map
 
@@ -29,9 +30,9 @@ src/
     login/page.tsx      — Login card (no auth)
     dashboard/page.tsx  — Dashboard wrapped in PortalShell
   components/
-    PortalShell.tsx     — Main layout orchestrator
-    IconSidebar.tsx     — Left icon strip (50px)
-    TextSidebar.tsx     — Collapsible text menu (220px)
+    PortalShell.tsx     — Main layout orchestrator (manages both sidebar states)
+    IconSidebar.tsx     — Left icon strip (collapsible, expands to show labels)
+    TextSidebar.tsx     — Collapsible text menu (section-specific grouped items)
     TopBar.tsx          — Date/time + user display
 ```
 

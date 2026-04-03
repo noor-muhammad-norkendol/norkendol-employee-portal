@@ -96,6 +96,24 @@ Sidebar sections defined (placeholder menus):
 - Text sidebar flyout approach was wrong — reverted to permanent panel (Supabase uses permanent, not flyout)
 - Icon hover was changing text sidebar content — removed, icons just show tooltips
 - Collapse button disappeared when sidebar collapsed — fixed overflow:visible when collapsed
+- Tooltip z-index — tooltips were hidden behind text sidebar, added z-50
+- Text sidebar collapse to 0px killed the chevron — changed to 16px minimum so chevron stays visible
+- Chevron inconsistency — text sidebar used text character, icon sidebar used SVG. Made both identical SVG arrows with matching size, position, z-index, hover behavior
+
+### Iterations on Sidebar Design
+Frank provided Supabase dashboard screenshots as reference. Key learnings:
+1. Icon sidebar is NOT a flyout — it's permanent. Tooltips on hover, that's it.
+2. Text sidebar is also permanent — not a flyout overlay.
+3. Both bars need to be independently collapsible/expandable via matching chevrons.
+4. When icon sidebar expands, it shows icon + label side by side (160px).
+5. When text sidebar collapses, it leaves a thin strip so the re-expand chevron stays visible.
+6. Chevrons must be visually identical across both bars — consistency matters.
+
+### Commits
+- `6909af0` — Initial scaffold (login, dashboard, dual sidebar, top bar)
+- `77977ba` — Added HISTORY.md and HANDOFF.md
+- `e7d7919` — Fixed tooltip z-index
+- `972ab34` — Both sidebars fully collapsible with matching chevrons
 
 ### What's NOT Done Yet
 - No auth wired up (login just navigates, no Supabase)
