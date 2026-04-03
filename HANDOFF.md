@@ -1,12 +1,12 @@
 # Norkendol Employee Portal — Handoff
 
-Last updated: April 3, 2026 — Session 4
+Last updated: April 3, 2026 — Session 4 (final)
 
 ---
 
 ## Current State
 
-Portal has dual sidebars, auth middleware, role-gated accordion navigation with SVG icons and drag-and-drop reordering. Dashboard is fully functional with 5 live sections. Four admin pages wired up with full CRUD. **User Management rebuilt as table layout with 70 real employees seeded. Employee Directory built with grid/list views.**
+Portal has dual sidebars, auth middleware, role-gated accordion navigation with SVG icons and drag-and-drop reordering. Dashboard is fully functional with 5 live sections. Four admin pages wired up with full CRUD. **User Management rebuilt as table layout with 70 real employees seeded. Employee Directory built with grid/list views. Public apply page + pending user approval flow live.**
 
 ### What Works
 - Login page at `/login` with Supabase auth
@@ -14,7 +14,9 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 - Dashboard at `/dashboard` with dual sidebar + top bar
 - **IconSidebar (left):** Accordion sections grouped by role tier (User, Admin, Super Admin, System Admin). Each section collapsible. All items have gray stroke-based SVG icons. Drag-and-drop reordering within sections via @dnd-kit — order saves to Supabase per user. Collapsible to icon-only with round chevron button.
 - **TextSidebar (right):** Permanent panel with contextual sub-items per page. Collapsible with matching chevron. Directory section now includes "Add New User" sub-item.
-- 23 pages under `/dashboard/*` — 6 are now fully built, rest are placeholders
+- **`/apply`** — Public signup page (name, phone, email, password + Google OAuth button). Creates user as `status=pending`. Shows confirmation. Shareable link for LinkedIn/email/etc.
+- **`/pending`** — Holding page for unapproved users. Middleware redirects pending/rejected/inactive users here when they try to access `/dashboard`.
+- 23 pages under `/dashboard/*` — 7 are now fully built, rest are placeholders
 - Dashboard layout wraps all sub-pages in PortalShell
 - Frank's Supabase role set to `super_admin`
 - `nav_order` jsonb column on `public.users` for drag-and-drop persistence
@@ -162,7 +164,10 @@ src/
       leaderboard/page.tsx        — Admin CRUD for leaderboards
       user-management/page.tsx    — Table layout, tabs, filters, edit modal (Session 4)
       directory/page.tsx          — Employee directory, grid/list views (Session 4)
-      [17 placeholder pages]      — See HISTORY.md for full tier mapping
+      pending-users/page.tsx      — Admin approve/reject pending applicants (Session 4)
+      [16 placeholder pages]      — See HISTORY.md for full tier mapping
+    apply/page.tsx                — Public signup form (Session 4)
+    pending/page.tsx              — Holding page for unapproved users (Session 4)
   components/
     PortalShell.tsx     — Layout orchestrator (both sidebars + top bar)
     IconSidebar.tsx     — Accordion nav, SVG icons, dnd-kit reorder, role gating
@@ -186,6 +191,28 @@ src/
 8. **White-label tenant config** — company name from DB, not hardcoded.
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
+
+## Next Session: Compliance Tab
+
+**Priority:** Build the `/dashboard/compliance` page.
+
+**Reference:** Study `coastalclaims-employee-portal/src/components/compliance/` and `src/pages/Compliance.tsx` for ideas and structure. The old code has good bones but:
+- **NO MongoDB** — the old repo uses MongoDB via API calls. Norkendol is Supabase only.
+- **NO Lovable dependencies** — the old repo was built with Lovable and has broken/messy deps. Don't import anything from it.
+- **Use as reference only** — understand the UX, the compliance categories, what data it tracks, how it displays. Then build fresh for Supabase.
+
+Key compliance files in old repo to read:
+- `src/pages/Compliance.tsx` — main page
+- `src/components/compliance/AlertConfigForm.tsx`
+- `src/components/compliance/AlertDashboard.tsx`
+- `src/components/compliance/AutomationRules.tsx`
+- `src/components/compliance/EmployeeComplianceView.tsx`
+- `src/components/compliance/ExpiringItemsModal.tsx`
+- `src/components/compliance/LicensesModal.tsx`
+- `src/components/compliance/BondsModal.tsx`
+- `src/components/compliance/ComplianceAutomation.tsx`
+
+**BINGO required before writing any code.**
 
 ## Key Rules
 
