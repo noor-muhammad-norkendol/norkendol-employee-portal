@@ -203,13 +203,13 @@ export default function CompliancePage() {
             color: view === "state" ? "#fff" : "var(--text-secondary)",
           }}
         >
-          State Browser
+          State Compliance
         </button>
       </div>
 
       {view === "my" && currentUser && <MyComplianceView user={currentUser} />}
       {view === "org" && isAdmin && <OrgComplianceView />}
-      {view === "state" && <StateBrowserPlaceholder />}
+      {view === "state" && <StateComplianceView />}
     </div>
   );
 }
@@ -918,19 +918,209 @@ function OrgComplianceView() {
 }
 
 /* ================================================================
-   STATE BROWSER — placeholder
+   STATE COMPLIANCE — stoplight grid, all 50 states + 2 territories
    ================================================================ */
 
-function StateBrowserPlaceholder() {
+type StateStatus = "green" | "yellow" | "red" | "gray";
+
+interface StateEntry {
+  code: string;
+  name: string;
+  status: StateStatus;
+  type: "state" | "territory";
+}
+
+const ALL_STATES: StateEntry[] = [
+  { code: "AL", name: "Alabama", status: "red", type: "state" },
+  { code: "AK", name: "Alaska", status: "gray", type: "state" },
+  { code: "AZ", name: "Arizona", status: "green", type: "state" },
+  { code: "AR", name: "Arkansas", status: "gray", type: "state" },
+  { code: "CA", name: "California", status: "green", type: "state" },
+  { code: "CO", name: "Colorado", status: "green", type: "state" },
+  { code: "CT", name: "Connecticut", status: "green", type: "state" },
+  { code: "DE", name: "Delaware", status: "gray", type: "state" },
+  { code: "FL", name: "Florida", status: "green", type: "state" },
+  { code: "GA", name: "Georgia", status: "green", type: "state" },
+  { code: "HI", name: "Hawaii", status: "yellow", type: "state" },
+  { code: "ID", name: "Idaho", status: "gray", type: "state" },
+  { code: "IL", name: "Illinois", status: "green", type: "state" },
+  { code: "IN", name: "Indiana", status: "green", type: "state" },
+  { code: "IA", name: "Iowa", status: "green", type: "state" },
+  { code: "KS", name: "Kansas", status: "green", type: "state" },
+  { code: "KY", name: "Kentucky", status: "green", type: "state" },
+  { code: "LA", name: "Louisiana", status: "green", type: "state" },
+  { code: "ME", name: "Maine", status: "gray", type: "state" },
+  { code: "MD", name: "Maryland", status: "green", type: "state" },
+  { code: "MA", name: "Massachusetts", status: "gray", type: "state" },
+  { code: "MI", name: "Michigan", status: "green", type: "state" },
+  { code: "MN", name: "Minnesota", status: "green", type: "state" },
+  { code: "MS", name: "Mississippi", status: "green", type: "state" },
+  { code: "MO", name: "Missouri", status: "green", type: "state" },
+  { code: "MT", name: "Montana", status: "gray", type: "state" },
+  { code: "NE", name: "Nebraska", status: "green", type: "state" },
+  { code: "NV", name: "Nevada", status: "gray", type: "state" },
+  { code: "NH", name: "New Hampshire", status: "gray", type: "state" },
+  { code: "NJ", name: "New Jersey", status: "green", type: "state" },
+  { code: "NM", name: "New Mexico", status: "yellow", type: "state" },
+  { code: "NY", name: "New York", status: "gray", type: "state" },
+  { code: "NC", name: "North Carolina", status: "green", type: "state" },
+  { code: "ND", name: "North Dakota", status: "gray", type: "state" },
+  { code: "OH", name: "Ohio", status: "green", type: "state" },
+  { code: "OK", name: "Oklahoma", status: "green", type: "state" },
+  { code: "OR", name: "Oregon", status: "gray", type: "state" },
+  { code: "PA", name: "Pennsylvania", status: "green", type: "state" },
+  { code: "RI", name: "Rhode Island", status: "yellow", type: "state" },
+  { code: "SC", name: "South Carolina", status: "green", type: "state" },
+  { code: "SD", name: "South Dakota", status: "gray", type: "state" },
+  { code: "TN", name: "Tennessee", status: "green", type: "state" },
+  { code: "TX", name: "Texas", status: "green", type: "state" },
+  { code: "UT", name: "Utah", status: "yellow", type: "state" },
+  { code: "VT", name: "Vermont", status: "gray", type: "state" },
+  { code: "VA", name: "Virginia", status: "green", type: "state" },
+  { code: "WA", name: "Washington", status: "gray", type: "state" },
+  { code: "WV", name: "West Virginia", status: "yellow", type: "state" },
+  { code: "WI", name: "Wisconsin", status: "green", type: "state" },
+  { code: "WY", name: "Wyoming", status: "gray", type: "state" },
+  { code: "VI", name: "U.S. Virgin Islands", status: "gray", type: "territory" },
+  { code: "PR", name: "Puerto Rico", status: "gray", type: "territory" },
+];
+
+const STOPLIGHT: Record<StateStatus, { dot: string; ring: string; hover: string }> = {
+  green:  { dot: "#22c55e", ring: "rgba(34,197,94,0.25)",  hover: "rgba(34,197,94,0.15)" },
+  yellow: { dot: "#eab308", ring: "rgba(234,179,8,0.25)",  hover: "rgba(234,179,8,0.15)" },
+  red:    { dot: "#ef4444", ring: "rgba(239,68,68,0.25)",  hover: "rgba(239,68,68,0.15)" },
+  gray:   { dot: "#6b7280", ring: "rgba(107,114,128,0.2)", hover: "rgba(107,114,128,0.1)" },
+};
+
+function StateComplianceView() {
+  const [search, setSearch] = useState("");
+
+  const states = ALL_STATES.filter((s) => s.type === "state");
+  const territories = ALL_STATES.filter((s) => s.type === "territory");
+
+  const filteredStates = states.filter(
+    (s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredTerritories = territories.filter(
+    (s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div style={{ ...cardStyle, textAlign: "center", padding: "60px 22px" }}>
-      <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>State Browser</div>
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-        Coming soon — browse state-specific rules for claims handling, licensing &amp; bonding, business registration, and CE requirements.
-      </p>
-      <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-        Shared data layer: Compliance, Talent Partner Network, and PRO Chain all read from the same state rules.
-      </p>
+    <div>
+      {/* Search */}
+      <div className="mb-5" style={{ maxWidth: 280 }}>
+        <input
+          type="text"
+          placeholder="Search states..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="text-sm px-3 py-2 rounded-lg border outline-none w-full"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border-color)", color: "var(--text-primary)" }}
+        />
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-5 mb-5" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+        {([
+          ["green", "Licensed & Active"],
+          ["yellow", "Caution — Seek Management"],
+          ["red", "PA Prohibited"],
+          ["gray", "Not Licensed"],
+        ] as [StateStatus, string][]).map(([status, label]) => (
+          <span key={status} className="flex items-center gap-1.5">
+            <span
+              style={{
+                width: 10, height: 10, borderRadius: "50%",
+                background: STOPLIGHT[status].dot,
+                display: "inline-block",
+              }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
+
+      {/* States grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+          gap: 8,
+        }}
+      >
+        {filteredStates.map((state) => (
+          <StateTile key={state.code} state={state} />
+        ))}
+      </div>
+
+      {filteredStates.length === 0 && (
+        <div className="text-center py-8" style={{ color: "var(--text-muted)", fontSize: 13 }}>
+          No states match your search.
+        </div>
+      )}
+
+      {/* Territories section */}
+      {filteredTerritories.length > 0 && (
+        <>
+          <div className="mt-6 mb-3" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            U.S. Territories
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: 8,
+            }}
+          >
+            {filteredTerritories.map((state) => (
+              <StateTile key={state.code} state={state} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function StateTile({ state }: { state: StateEntry }) {
+  const sl = STOPLIGHT[state.status];
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Link
+      href={`/dashboard/compliance/state/${state.code}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 14px",
+        borderRadius: 8,
+        border: `1px solid ${hovered ? sl.dot : "var(--border-color)"}`,
+        background: hovered ? sl.hover : "var(--bg-surface)",
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+        textDecoration: "none",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Stoplight dot with ring */}
+      <span
+        style={{
+          width: 12, height: 12, borderRadius: "50%", flexShrink: 0,
+          background: sl.dot,
+          boxShadow: `0 0 0 4px ${sl.ring}`,
+        }}
+      />
+      {/* State name + code */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {state.name}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {state.code}
+        </div>
+      </div>
+    </Link>
   );
 }
