@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 
 /* ── types ─────────────────────────────────────────────── */
@@ -197,6 +198,14 @@ function initials(name: string) {
 /* ── main page ─────────────────────────────────────────── */
 
 export default function UserManagementPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>}>
+      <UserManagementInner />
+    </Suspense>
+  );
+}
+
+function UserManagementInner() {
   const supabase = createClient();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,9 +243,28 @@ export default function UserManagementPage() {
     setLoading(false);
   }, []);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  /* ── deep-link from Compliance (e.g. ?edit=userId&tab=licenses) ── */
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    const tab = searchParams.get("tab");
+    if (editId && users.length > 0 && !editUser) {
+      const user = users.find((u) => u.id === editId);
+      if (user) {
+        openEdit(user).then(() => {
+          if (tab === "licenses" || tab === "bonds" || tab === "permissions" || tab === "profile") {
+            setEditStep(tab);
+          }
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, searchParams]);
 
   /* ── open edit modal ────────────────────────────────── */
 
