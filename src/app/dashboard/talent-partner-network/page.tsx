@@ -25,6 +25,13 @@ interface LicenseInfo {
   status: string;
 }
 
+interface HierarchyLevel {
+  id: string;
+  firm_id: string;
+  level_number: number;
+  label: string;
+}
+
 interface ExternalContact {
   id: string;
   name: string;
@@ -38,6 +45,12 @@ interface ExternalContact {
   firm_name: string | null; // resolved from firms table or company_name
   user_id: string | null; // non-null = has portal account
   status: "active" | "inactive";
+  hierarchy_level_id: string | null;
+  reports_to_id: string | null;
+  region: string | null;
+  market: string | null;
+  hierarchy_label?: string | null; // resolved from firm_hierarchy_levels
+  reports_to_name?: string | null; // resolved from self-join
 }
 
 interface Firm {
@@ -78,6 +91,10 @@ interface ExternalFormData {
   states: string[];
   company_name: string;
   firm_id: string;
+  hierarchy_level_id: string;
+  reports_to_id: string;
+  region: string;
+  market: string;
 }
 
 const EMPTY_EXTERNAL_FORM: ExternalFormData = {
@@ -89,6 +106,10 @@ const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   states: [],
   company_name: "",
   firm_id: "",
+  hierarchy_level_id: "",
+  reports_to_id: "",
+  region: "",
+  market: "",
 };
 
 const EMPTY_FIRM_FORM: FirmFormData = {
@@ -245,6 +266,7 @@ export default function TalentPartnerNetworkPage() {
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [externalForm, setExternalForm] = useState<ExternalFormData>(EMPTY_EXTERNAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [deactivateConfirm, setDeactivateConfirm] = useState<string | null>(null);
   const [showFormStateDrop, setShowFormStateDrop] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -261,6 +283,11 @@ export default function TalentPartnerNetworkPage() {
   const [showFirmStateDrop, setShowFirmStateDrop] = useState(false);
   const [firmDetailId, setFirmDetailId] = useState<string | null>(null);
   const [deactivateFirmConfirm, setDeactivateFirmConfirm] = useState<string | null>(null);
+
+  // Hierarchy levels state
+  const [allHierarchyLevels, setAllHierarchyLevels] = useState<HierarchyLevel[]>([]);
+  const [firmLevelEdits, setFirmLevelEdits] = useState<{ level_number: number; label: string }[]>([]);
+  const [showHierarchySection, setShowHierarchySection] = useState(false);
 
   const isAdmin = ADMIN_ROLES.includes(userRole);
 
@@ -325,7 +352,7 @@ export default function TalentPartnerNetworkPage() {
     // Load external contacts with optional firm name resolution
     const { data: contacts } = await supabase
       .from("external_contacts")
-      .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status")
+      .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status, hierarchy_level_id, reports_to_id, region, market")
       .eq("org_id", ORG_ID)
       .eq("status", "active")
       .order("name");
@@ -349,11 +376,20 @@ export default function TalentPartnerNetworkPage() {
       }
     }
 
+    // Build a name lookup for reports_to resolution
+    const contactNameMap = new Map<string, string>();
+    for (const c of contacts) contactNameMap.set(c.id, c.name);
+
     setExternalContacts(
       contacts.map((c) => ({
         ...c,
         user_id: c.user_id ?? null,
         firm_name: c.firm_id ? (firmNameMap.get(c.firm_id) ?? c.company_name) : c.company_name,
+        hierarchy_level_id: c.hierarchy_level_id ?? null,
+        reports_to_id: c.reports_to_id ?? null,
+        region: c.region ?? null,
+        market: c.market ?? null,
+        reports_to_name: c.reports_to_id ? (contactNameMap.get(c.reports_to_id) ?? null) : null,
       }))
     );
   }, []);
@@ -368,10 +404,18 @@ export default function TalentPartnerNetworkPage() {
     setFirms(firmRows ?? []);
   }, []);
 
+  const fetchHierarchyLevels = useCallback(async () => {
+    const { data } = await supabase
+      .from("firm_hierarchy_levels")
+      .select("id, firm_id, level_number, label")
+      .order("level_number");
+    setAllHierarchyLevels(data ?? []);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms()]).then(() => setLoading(false));
-  }, [fetchInternalUsers, fetchExternalContacts, fetchFirms]);
+    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms(), fetchHierarchyLevels()]).then(() => setLoading(false));
+  }, [fetchInternalUsers, fetchExternalContacts, fetchFirms, fetchHierarchyLevels]);
 
   /* ── external contact CRUD ─────────────────────────────── */
 
@@ -392,6 +436,10 @@ export default function TalentPartnerNetworkPage() {
       states: c.states ?? [],
       company_name: c.company_name ?? "",
       firm_id: c.firm_id ?? "",
+      hierarchy_level_id: c.hierarchy_level_id ?? "",
+      reports_to_id: c.reports_to_id ?? "",
+      region: c.region ?? "",
+      market: c.market ?? "",
     });
     setShowExternalModal(true);
   };
@@ -413,6 +461,10 @@ export default function TalentPartnerNetworkPage() {
       states: externalForm.states.length > 0 ? externalForm.states : null,
       company_name: companyName,
       firm_id: externalForm.firm_id || null,
+      hierarchy_level_id: externalForm.hierarchy_level_id || null,
+      reports_to_id: externalForm.reports_to_id || null,
+      region: externalForm.region.trim() || null,
+      market: externalForm.market.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -424,7 +476,13 @@ export default function TalentPartnerNetworkPage() {
         ...payload,
         org_id: ORG_ID,
         created_by: user?.id ?? null,
+        status: "pending",
       });
+      setSaving(false);
+      setShowExternalModal(false);
+      setSuccessMessage("Submitted for approval — a super admin will review this contact.");
+      setTimeout(() => setSuccessMessage(""), 5000);
+      return;
     }
 
     setSaving(false);
@@ -487,6 +545,8 @@ export default function TalentPartnerNetworkPage() {
   const openAddFirm = () => {
     setEditingFirmId(null);
     setFirmForm(EMPTY_FIRM_FORM);
+    setFirmLevelEdits([]);
+    setShowHierarchySection(false);
     setShowFirmModal(true);
   };
 
@@ -503,6 +563,13 @@ export default function TalentPartnerNetworkPage() {
       city: f.city ?? "",
       state: f.state ?? "",
     });
+    // Load existing hierarchy levels for this firm
+    const existingLevels = allHierarchyLevels
+      .filter((l) => l.firm_id === f.id)
+      .sort((a, b) => a.level_number - b.level_number)
+      .map((l) => ({ level_number: l.level_number, label: l.label }));
+    setFirmLevelEdits(existingLevels);
+    setShowHierarchySection(existingLevels.length > 0);
     setShowFirmModal(true);
   };
 
@@ -523,15 +590,34 @@ export default function TalentPartnerNetworkPage() {
       updated_at: new Date().toISOString(),
     };
 
+    let firmId = editingFirmId;
     if (editingFirmId) {
       await supabase.from("firms").update(payload).eq("id", editingFirmId);
     } else {
-      await supabase.from("firms").insert({ ...payload, org_id: ORG_ID });
+      const { data: inserted } = await supabase.from("firms").insert({ ...payload, org_id: ORG_ID }).select("id").single();
+      firmId = inserted?.id ?? null;
+    }
+
+    // Save hierarchy levels if firm was saved successfully
+    if (firmId) {
+      // Delete existing levels for this firm and re-insert
+      await supabase.from("firm_hierarchy_levels").delete().eq("firm_id", firmId);
+      const validLevels = firmLevelEdits.filter((l) => l.label.trim());
+      if (validLevels.length > 0) {
+        await supabase.from("firm_hierarchy_levels").insert(
+          validLevels.map((l, i) => ({
+            firm_id: firmId!,
+            level_number: i + 1,
+            label: l.label.trim(),
+          }))
+        );
+      }
     }
 
     setSavingFirm(false);
     setShowFirmModal(false);
     fetchFirms();
+    fetchHierarchyLevels();
     fetchExternalContacts(); // firm name resolution may change
   };
 
@@ -702,6 +788,13 @@ export default function TalentPartnerNetworkPage() {
 
   return (
     <div>
+      {/* Success toast */}
+      {successMessage && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium" style={{ background: "#1a3a2a", color: "#4ade80", border: "1px solid #2a5a3a" }}>
+          {successMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Talent Partner Network</h1>
@@ -1116,6 +1209,27 @@ export default function TalentPartnerNetworkPage() {
                                     contact.firm_name
                                   )}
                                 </p>
+                              )}
+
+                              {/* Hierarchy role + reports to */}
+                              {(contact.hierarchy_level_id || contact.region || contact.market) && (
+                                <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px]">
+                                  {contact.hierarchy_level_id && (() => {
+                                    const level = allHierarchyLevels.find((l) => l.id === contact.hierarchy_level_id);
+                                    return level ? (
+                                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>{level.label}</span>
+                                    ) : null;
+                                  })()}
+                                  {contact.reports_to_name && (
+                                    <span style={{ color: "var(--text-muted)" }}>↳ {contact.reports_to_name}</span>
+                                  )}
+                                  {contact.region && (
+                                    <span style={{ color: "var(--text-muted)" }}>{contact.region}</span>
+                                  )}
+                                  {contact.market && (
+                                    <span style={{ color: "var(--text-muted)" }}>{contact.market}</span>
+                                  )}
+                                </div>
                               )}
 
                               <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: "var(--text-secondary)" }}>
@@ -1632,6 +1746,92 @@ export default function TalentPartnerNetworkPage() {
                 </div>
               )}
 
+              {/* Role + Reports To — only if the selected firm has hierarchy levels */}
+              {(() => {
+                const firmLevels = externalForm.firm_id
+                  ? allHierarchyLevels.filter((l) => l.firm_id === externalForm.firm_id).sort((a, b) => a.level_number - b.level_number)
+                  : [];
+                if (firmLevels.length === 0) return null;
+
+                const selectedLevel = firmLevels.find((l) => l.id === externalForm.hierarchy_level_id);
+                const levelAbove = selectedLevel
+                  ? firmLevels.find((l) => l.level_number === selectedLevel.level_number - 1)
+                  : null;
+                // Contacts at the level above in the same firm for "Reports To"
+                const reportsToOptions = levelAbove
+                  ? externalContacts.filter((c) => c.firm_id === externalForm.firm_id && c.hierarchy_level_id === levelAbove.id && c.id !== editingContactId)
+                  : [];
+
+                return (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Role</label>
+                        <select
+                          value={externalForm.hierarchy_level_id}
+                          onChange={(e) => setExternalForm({ ...externalForm, hierarchy_level_id: e.target.value, reports_to_id: "" })}
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                          style={inputStyle}
+                        >
+                          <option value="">Select role...</option>
+                          {firmLevels.map((l) => (
+                            <option key={l.id} value={l.id}>{l.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Reports To</label>
+                        {selectedLevel && selectedLevel.level_number === 1 ? (
+                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>Top level — no one</div>
+                        ) : reportsToOptions.length > 0 ? (
+                          <select
+                            value={externalForm.reports_to_id}
+                            onChange={(e) => setExternalForm({ ...externalForm, reports_to_id: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                            style={inputStyle}
+                          >
+                            <option value="">Select...</option>
+                            {reportsToOptions.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>
+                            {!selectedLevel ? "Select a role first" : "No one at the level above yet"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* Region + Market — always available */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Region</label>
+                  <input
+                    type="text"
+                    value={externalForm.region}
+                    onChange={(e) => setExternalForm({ ...externalForm, region: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="e.g. Southeast, Region 3..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Market</label>
+                  <input
+                    type="text"
+                    value={externalForm.market}
+                    onChange={(e) => setExternalForm({ ...externalForm, market: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="e.g. Florida, DFW, Austin..."
+                  />
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
@@ -1745,7 +1945,7 @@ export default function TalentPartnerNetworkPage() {
               </div>
             )}
 
-            {/* Attached contacts */}
+            {/* Attached contacts — org tree if hierarchy exists, flat list otherwise */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
@@ -1754,25 +1954,103 @@ export default function TalentPartnerNetworkPage() {
               </div>
               {firmDetailContacts.length === 0 ? (
                 <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No contacts attached to this firm yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {firmDetailContacts.map((c) => {
-                    const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
-                    return (
-                      <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
-                        <div>
-                          <span className="text-sm font-medium">{c.name}</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
-                          {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
+              ) : (() => {
+                const firmLevels = allHierarchyLevels
+                  .filter((l) => l.firm_id === firmDetailId)
+                  .sort((a, b) => a.level_number - b.level_number);
+
+                if (firmLevels.length === 0) {
+                  // Flat list — no hierarchy
+                  return (
+                    <div className="space-y-2">
+                      {firmDetailContacts.map((c) => {
+                        const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
+                        return (
+                          <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                            <div>
+                              <span className="text-sm font-medium">{c.name}</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                              {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
+                              {(c.region || c.market) && (
+                                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{[c.region, c.market].filter(Boolean).join(" · ")}</p>
+                              )}
+                            </div>
+                            {c.user_id && (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                // Org tree — group contacts by hierarchy level
+                const unassigned = firmDetailContacts.filter((c) => !c.hierarchy_level_id);
+                return (
+                  <div className="space-y-3">
+                    {firmLevels.map((level) => {
+                      const levelContacts = firmDetailContacts.filter((c) => c.hierarchy_level_id === level.id);
+                      if (levelContacts.length === 0) return null;
+                      return (
+                        <div key={level.id}>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                              {level.label}
+                            </span>
+                            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>({levelContacts.length})</span>
+                          </div>
+                          <div className="space-y-1.5" style={{ marginLeft: `${(level.level_number - 1) * 16}px` }}>
+                            {levelContacts.map((c) => {
+                              const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
+                              return (
+                                <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">{c.name}</span>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                                      {c.user_id && (
+                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[10px]" style={{ color: "var(--text-muted)" }}>
+                                      {c.reports_to_name && <span>↳ {c.reports_to_name}</span>}
+                                      {c.region && <span>{c.region}</span>}
+                                      {c.market && <span>{c.market}</span>}
+                                    </div>
+                                    {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        {c.user_id && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
-                        )}
+                      );
+                    })}
+                    {unassigned.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                          Unassigned ({unassigned.length})
+                        </span>
+                        <div className="space-y-1.5 mt-1.5">
+                          {unassigned.map((c) => {
+                            const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
+                            return (
+                              <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                                <div>
+                                  <span className="text-sm font-medium">{c.name}</span>
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                                  {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Deactivate firm */}
@@ -1921,6 +2199,89 @@ export default function TalentPartnerNetworkPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Organization Levels (optional) */}
+              <div>
+                <button
+                  onClick={() => setShowHierarchySection(!showHierarchySection)}
+                  className="flex items-center gap-2 text-xs font-medium cursor-pointer"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showHierarchySection ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                  Organization Levels
+                  {firmLevelEdits.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}>
+                      {firmLevelEdits.length}
+                    </span>
+                  )}
+                </button>
+
+                {showHierarchySection && (
+                  <div className="mt-2 space-y-2 pl-4" style={{ borderLeft: "2px solid var(--border-color)" }}>
+                    {firmLevelEdits.length === 0 && (
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        No hierarchy defined — contacts will be stored as a flat list.
+                      </p>
+                    )}
+                    {firmLevelEdits.map((level, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold w-5 text-center shrink-0" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                        <input
+                          type="text"
+                          value={level.label}
+                          onChange={(e) => {
+                            const updated = [...firmLevelEdits];
+                            updated[idx] = { ...updated[idx], label: e.target.value };
+                            setFirmLevelEdits(updated);
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none"
+                          style={inputStyle}
+                          placeholder={`Level ${idx + 1} title (e.g. ${idx === 0 ? "Regional VP" : idx === 1 ? "Team Lead" : "Project Manager"})...`}
+                        />
+                        {idx > 0 && (
+                          <button
+                            onClick={() => {
+                              const updated = [...firmLevelEdits];
+                              [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+                              setFirmLevelEdits(updated);
+                            }}
+                            className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Move up"
+                          >▲</button>
+                        )}
+                        {idx < firmLevelEdits.length - 1 && (
+                          <button
+                            onClick={() => {
+                              const updated = [...firmLevelEdits];
+                              [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+                              setFirmLevelEdits(updated);
+                            }}
+                            className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Move down"
+                          >▼</button>
+                        )}
+                        <button
+                          onClick={() => setFirmLevelEdits(firmLevelEdits.filter((_, i) => i !== idx))}
+                          className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
+                          style={{ color: "#ef4444" }}
+                          title="Remove level"
+                        >✕</button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setFirmLevelEdits([...firmLevelEdits, { level_number: firmLevelEdits.length + 1, label: "" }])}
+                      className="flex items-center gap-1 text-xs font-medium cursor-pointer px-2 py-1 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      <span>+</span> Add Level
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

@@ -25,6 +25,13 @@ interface LicenseInfo {
   status: string;
 }
 
+interface HierarchyLevel {
+  id: string;
+  firm_id: string;
+  level_number: number;
+  label: string;
+}
+
 interface ExternalContact {
   id: string;
   name: string;
@@ -38,6 +45,11 @@ interface ExternalContact {
   firm_name: string | null;
   user_id: string | null;
   status: "active" | "inactive";
+  hierarchy_level_id: string | null;
+  reports_to_id: string | null;
+  region: string | null;
+  market: string | null;
+  reports_to_name?: string | null;
 }
 
 interface Firm {
@@ -65,6 +77,10 @@ interface ExternalFormData {
   states: string[];
   company_name: string;
   firm_id: string;
+  hierarchy_level_id: string;
+  reports_to_id: string;
+  region: string;
+  market: string;
 }
 
 const EMPTY_EXTERNAL_FORM: ExternalFormData = {
@@ -76,6 +92,10 @@ const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   states: [],
   company_name: "",
   firm_id: "",
+  hierarchy_level_id: "",
+  reports_to_id: "",
+  region: "",
+  market: "",
 };
 
 const SPECIALTIES = [
@@ -258,6 +278,7 @@ export default function TPNAdminPage() {
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [externalForm, setExternalForm] = useState<ExternalFormData>(EMPTY_EXTERNAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [deactivateConfirm, setDeactivateConfirm] = useState<string | null>(null);
   const [showFormStateDrop, setShowFormStateDrop] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -281,6 +302,7 @@ export default function TPNAdminPage() {
 
   // Firms data
   const [firms, setFirms] = useState<Firm[]>([]);
+  const [allHierarchyLevels, setAllHierarchyLevels] = useState<HierarchyLevel[]>([]);
 
   // Activity log
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
@@ -325,7 +347,7 @@ export default function TPNAdminPage() {
     // Admin can see all statuses
     let query = supabase
       .from("external_contacts")
-      .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status")
+      .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status, hierarchy_level_id, reports_to_id, region, market")
       .eq("org_id", ORG_ID)
       .order("name");
 
@@ -344,11 +366,20 @@ export default function TPNAdminPage() {
     }
 
     setExternalContacts(
-      contacts.map((c) => ({
-        ...c,
-        user_id: c.user_id ?? null,
-        firm_name: c.firm_id ? (firmNameMap.get(c.firm_id) ?? c.company_name) : c.company_name,
-      }))
+      (() => {
+        const contactNameMap = new Map<string, string>();
+        for (const c of contacts) contactNameMap.set(c.id, c.name);
+        return contacts.map((c) => ({
+          ...c,
+          user_id: c.user_id ?? null,
+          firm_name: c.firm_id ? (firmNameMap.get(c.firm_id) ?? c.company_name) : c.company_name,
+          hierarchy_level_id: c.hierarchy_level_id ?? null,
+          reports_to_id: c.reports_to_id ?? null,
+          region: c.region ?? null,
+          market: c.market ?? null,
+          reports_to_name: c.reports_to_id ? (contactNameMap.get(c.reports_to_id) ?? null) : null,
+        }));
+      })()
     );
   }, [externalStatusFilter]);
 
@@ -360,6 +391,14 @@ export default function TPNAdminPage() {
       .eq("status", "active")
       .order("name");
     setFirms(data ?? []);
+  }, []);
+
+  const fetchHierarchyLevels = useCallback(async () => {
+    const { data } = await supabase
+      .from("firm_hierarchy_levels")
+      .select("id, firm_id, level_number, label")
+      .order("level_number");
+    setAllHierarchyLevels(data ?? []);
   }, []);
 
   const fetchActivityLog = useCallback(async () => {
@@ -404,7 +443,7 @@ export default function TPNAdminPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms()]).then(() => setLoading(false));
+    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms(), fetchHierarchyLevels()]).then(() => setLoading(false));
   }, [fetchInternalUsers, fetchExternalContacts, fetchFirms]);
 
   // Reload external contacts when status filter changes
@@ -436,6 +475,10 @@ export default function TPNAdminPage() {
       states: c.states ?? [],
       company_name: c.company_name ?? "",
       firm_id: c.firm_id ?? "",
+      hierarchy_level_id: c.hierarchy_level_id ?? "",
+      reports_to_id: c.reports_to_id ?? "",
+      region: c.region ?? "",
+      market: c.market ?? "",
     });
     setShowExternalModal(true);
   };
@@ -456,6 +499,10 @@ export default function TPNAdminPage() {
       states: externalForm.states.length > 0 ? externalForm.states : null,
       company_name: companyName,
       firm_id: externalForm.firm_id || null,
+      hierarchy_level_id: externalForm.hierarchy_level_id || null,
+      reports_to_id: externalForm.reports_to_id || null,
+      region: externalForm.region.trim() || null,
+      market: externalForm.market.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -468,8 +515,14 @@ export default function TPNAdminPage() {
         ...payload,
         org_id: ORG_ID,
         created_by: user?.id ?? null,
+        status: "pending",
       }).select("id").single();
       if (inserted) await logActivity("added", { contact_name: payload.name }, inserted.id);
+      setSaving(false);
+      setShowExternalModal(false);
+      setSuccessMessage("Submitted for approval — a super admin will review this contact.");
+      setTimeout(() => setSuccessMessage(""), 5000);
+      return;
     }
 
     setSaving(false);
@@ -759,6 +812,13 @@ export default function TPNAdminPage() {
 
   return (
     <div>
+      {/* Success toast */}
+      {successMessage && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium" style={{ background: "#1a3a2a", color: "#4ade80", border: "1px solid #2a5a3a" }}>
+          {successMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">TPN Admin</h1>
