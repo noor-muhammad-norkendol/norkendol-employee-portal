@@ -1222,52 +1222,118 @@ export default function TPNAdminPage() {
       {/* ── Analytics ───────────────────────────────────── */}
       {!loading && tab === "analytics" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
+          {/* Row 1: License Breakdown + Availability */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div style={cardStyle}>
-              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Active Licenses</p>
-              <p className="text-2xl font-bold" style={{ color: "#4ade80" }}>{licenseAlerts.active}</p>
+              <h3 className="text-sm font-semibold mb-4">License Status Breakdown</h3>
+              <div className="space-y-3">
+                <AnalyticsBar label="Active" count={licenseAlerts.active} total={licenseAlerts.total} color="#4ade80" />
+                <AnalyticsBar label="Expiring (90 days)" count={licenseAlerts.expiring} total={licenseAlerts.total} color="#facc15" />
+                <AnalyticsBar label="Expired" count={licenseAlerts.expired} total={licenseAlerts.total} color="#ef4444" />
+              </div>
+              <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                {licenseAlerts.total} total licenses across {internalUsers.length} team members
+              </p>
             </div>
             <div style={cardStyle}>
-              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Expiring (90 days)</p>
-              <p className="text-2xl font-bold" style={{ color: "#facc15" }}>{licenseAlerts.expiring}</p>
-            </div>
-            <div style={cardStyle}>
-              <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Expired</p>
-              <p className="text-2xl font-bold" style={{ color: "#ef4444" }}>{licenseAlerts.expired}</p>
+              <h3 className="text-sm font-semibold mb-4">Team Availability</h3>
+              <div className="space-y-3">
+                <AnalyticsBar label="Available" count={availableCounts.available} total={internalUsers.length} color="#4ade80" />
+                <AnalyticsBar label="Busy" count={availableCounts.busy} total={internalUsers.length} color="#facc15" />
+                <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={internalUsers.length} color="#888888" />
+              </div>
+              <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                {internalUsers.length} team members total
+              </p>
             </div>
           </div>
+
+          {/* Row 2: Geographic Coverage */}
           <div style={cardStyle}>
-            <h3 className="text-sm font-semibold mb-3">Geographic Coverage</h3>
-            <div className="flex flex-wrap gap-1">
+            <h3 className="text-sm font-semibold mb-4">Geographic Coverage</h3>
+            <div className="flex flex-wrap gap-1.5">
               {US_STATES.map((s) => {
-                const hasInternal = teamLicenseStates.has(s);
+                const hasTeam = teamLicenseStates.has(s);
                 const hasExternal = externalCoverageStates.has(s);
-                const bg = hasInternal && hasExternal ? "#1a3a2a" : hasInternal ? "#1e3a5f" : hasExternal ? "#2d1b4e" : "var(--bg-hover)";
-                const color = hasInternal && hasExternal ? "#4ade80" : hasInternal ? "#60a5fa" : hasExternal ? "#a78bfa" : "var(--text-muted)";
+                const hasBoth = hasTeam && hasExternal;
+                let bg = "var(--bg-hover)";
+                let text = "var(--text-muted)";
+                let title = `${s}: No coverage`;
+                if (hasBoth) { bg = "#1a3a2a"; text = "#4ade80"; title = `${s}: Internal + External`; }
+                else if (hasTeam) { bg = "#1a2a3a"; text = "#60a5fa"; title = `${s}: Internal licensed`; }
+                else if (hasExternal) { bg = "#2d1b4e"; text = "#a78bfa"; title = `${s}: External coverage`; }
                 return (
-                  <span key={s} className="text-[10px] font-medium px-2 py-1 rounded" style={{ background: bg, color }}>{s}</span>
+                  <span key={s} title={title} className="text-[10px] font-semibold px-2 py-1 rounded cursor-default" style={{ background: bg, color: text, minWidth: 32, textAlign: "center" }}>{s}</span>
                 );
               })}
             </div>
-            <div className="flex items-center gap-4 mt-3 text-[10px]" style={{ color: "var(--text-muted)" }}>
-              <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: "#60a5fa" }} />Internal</span>
-              <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: "#a78bfa" }} />External</span>
-              <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: "#4ade80" }} />Both</span>
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "#1a3a2a" }} /><span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Both</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "#1a2a3a" }} /><span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Internal</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "#2d1b4e" }} /><span className="text-[10px]" style={{ color: "var(--text-muted)" }}>External</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: "var(--bg-hover)" }} /><span className="text-[10px]" style={{ color: "var(--text-muted)" }}>None</span></div>
             </div>
           </div>
-          <div style={cardStyle}>
-            <h3 className="text-sm font-semibold mb-3">Specialties</h3>
-            <div className="flex flex-wrap gap-2">
-              {externalSpecialties.map((s) => {
-                const count = externalContacts.filter((c) => (c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty) === s).length;
+
+          {/* Row 3: Specialty + Portal Access */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div style={cardStyle}>
+              <h3 className="text-sm font-semibold mb-4">External Specialty Breakdown</h3>
+              {externalContacts.length === 0 ? (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No external contacts yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {SPECIALTIES.map((spec) => {
+                    const count = externalContacts.filter((c) => spec === "Other" ? c.specialty === "Other" : c.specialty === spec).length;
+                    if (count === 0) return null;
+                    return <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="#a78bfa" />;
+                  })}
+                </div>
+              )}
+            </div>
+            <div style={cardStyle}>
+              <h3 className="text-sm font-semibold mb-4">External Partner Status</h3>
+              {(() => {
+                const withPortal = externalContacts.filter((c) => c.user_id).length;
+                const withEmail = externalContacts.filter((c) => c.email && !c.user_id).length;
+                const noEmail = externalContacts.filter((c) => !c.email && !c.user_id).length;
+                const withFirm = externalContacts.filter((c) => c.firm_id).length;
+                const noFirm = externalContacts.filter((c) => !c.firm_id).length;
                 return (
-                  <span key={s} className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "#2d1b4e", color: "#a78bfa" }}>
-                    {s} ({count})
-                  </span>
+                  <div className="space-y-3">
+                    <AnalyticsBar label="Portal Access" count={withPortal} total={externalContacts.length} color="#4ade80" />
+                    <AnalyticsBar label="Has Email (no portal)" count={withEmail} total={externalContacts.length} color="#60a5fa" />
+                    <AnalyticsBar label="No Email" count={noEmail} total={externalContacts.length} color="#888888" />
+                    <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+                      <AnalyticsBar label="Linked to Firm" count={withFirm} total={externalContacts.length} color="#a78bfa" />
+                      <div className="mt-3">
+                        <AnalyticsBar label="Standalone" count={noFirm} total={externalContacts.length} color="#888888" />
+                      </div>
+                    </div>
+                  </div>
                 );
-              })}
+              })()}
             </div>
           </div>
+
+          {/* Row 4: Firms Breakdown */}
+          {firms.length > 0 && (
+            <div style={cardStyle}>
+              <h3 className="text-sm font-semibold mb-4">Contacts by Firm</h3>
+              <div className="space-y-3">
+                {firms.map((f) => {
+                  const count = externalContacts.filter((c) => c.firm_id === f.id).length;
+                  if (count === 0) return null;
+                  return <AnalyticsBar key={f.id} label={f.name} count={count} total={externalContacts.length} color="#60a5fa" />;
+                })}
+                {(() => {
+                  const unlinked = externalContacts.filter((c) => !c.firm_id).length;
+                  if (unlinked === 0) return null;
+                  return <AnalyticsBar label="No Firm" count={unlinked} total={externalContacts.length} color="#888888" />;
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1584,6 +1650,35 @@ export default function TPNAdminPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── sub-components ─────────────────────────────────────── */
+
+function AnalyticsBar({
+  label,
+  count,
+  total,
+  color,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</span>
+        <span className="text-xs font-semibold" style={{ color }}>
+          {count} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({pct}%)</span>
+        </span>
+      </div>
+      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-hover)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
     </div>
   );
 }

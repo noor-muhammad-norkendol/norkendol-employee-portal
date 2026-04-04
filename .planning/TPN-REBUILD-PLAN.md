@@ -176,13 +176,15 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - ✅ `tpn_activity_log` table with RLS (migration: `20260404_tpn_phase7_activity_log.sql`)
 - ✅ Firm picker in admin external contact form (same as TPN page)
 
-### Phase 8: Analytics tab (deep)
-- License status overview (active/expiring/expired from real license data)
-- Geographic coverage grid: which states have internal people licensed + which states external contacts cover
-- Specialty breakdown: how many attorneys, appraisers, HVAC, etc.
-- Availability (internal team: available/busy/unavailable)
-- Portal access stats: how many external contacts have portal accounts
-- All computed from live Supabase data, not mock numbers
+### Phase 8: Analytics tab (deep) ✅ DONE
+- ✅ License status overview (active/expiring/expired with progress bars)
+- ✅ Team availability breakdown (available/busy/unavailable)
+- ✅ Geographic coverage grid: color-coded state badges (internal/external/both/none) with tooltips
+- ✅ Specialty breakdown: bar chart of all external contact specialties
+- ✅ External Partner Status: portal access, email status, firm linkage stats
+- ✅ Contacts by Firm breakdown with progress bars
+- ✅ All computed from live Supabase data
+- ✅ Both TPN page and TPN Admin page have matching deep analytics
 
 ## Session Strategy (context window management)
 - Each session tackles ONE phase
@@ -242,4 +244,4 @@ After each phase:
 - Phase 5: ✅ Done (Grant Portal Access — invite-external-user API)
 - Phase 6: ✅ Done (Firm management — CRUD, attach contacts, detail view, filter)
 - Phase 7: ✅ Done (TPN Admin — bulk ops, status management, activity log)
-- Phase 8: Not started (deep analytics)
+- Phase 8: ✅ Done (deep analytics — both pages)

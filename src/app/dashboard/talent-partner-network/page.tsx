@@ -1320,25 +1320,72 @@ export default function TalentPartnerNetworkPage() {
                 </div>
               </div>
 
-              {/* Row 3: Specialty Breakdown */}
-              <div style={cardStyle}>
-                <h3 className="text-sm font-semibold mb-4">External Specialty Breakdown</h3>
-                {externalContacts.length === 0 ? (
-                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No external contacts yet.</p>
-                ) : (
+              {/* Row 3: Specialty Breakdown + Portal Access */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div style={cardStyle}>
+                  <h3 className="text-sm font-semibold mb-4">External Specialty Breakdown</h3>
+                  {externalContacts.length === 0 ? (
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No external contacts yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {SPECIALTIES.map((spec) => {
+                        const count = externalContacts.filter((c) =>
+                          spec === "Other" ? c.specialty === "Other" : c.specialty === spec
+                        ).length;
+                        if (count === 0) return null;
+                        return (
+                          <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="#a78bfa" />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div style={cardStyle}>
+                  <h3 className="text-sm font-semibold mb-4">External Partner Status</h3>
+                  {(() => {
+                    const withPortal = externalContacts.filter((c) => c.user_id).length;
+                    const withEmail = externalContacts.filter((c) => c.email && !c.user_id).length;
+                    const noEmail = externalContacts.filter((c) => !c.email && !c.user_id).length;
+                    const withFirm = externalContacts.filter((c) => c.firm_id).length;
+                    const noFirm = externalContacts.filter((c) => !c.firm_id).length;
+                    return (
+                      <div className="space-y-3">
+                        <AnalyticsBar label="Portal Access" count={withPortal} total={externalContacts.length} color="#4ade80" />
+                        <AnalyticsBar label="Has Email (no portal)" count={withEmail} total={externalContacts.length} color="#60a5fa" />
+                        <AnalyticsBar label="No Email" count={noEmail} total={externalContacts.length} color="#888888" />
+                        <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+                          <AnalyticsBar label="Linked to Firm" count={withFirm} total={externalContacts.length} color="#a78bfa" />
+                          <div className="mt-3">
+                            <AnalyticsBar label="Standalone" count={noFirm} total={externalContacts.length} color="#888888" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Row 4: Firms Breakdown */}
+              {firms.length > 0 && (
+                <div style={cardStyle}>
+                  <h3 className="text-sm font-semibold mb-4">Contacts by Firm</h3>
                   <div className="space-y-3">
-                    {SPECIALTIES.map((spec) => {
-                      const count = externalContacts.filter((c) =>
-                        spec === "Other" ? c.specialty === "Other" : c.specialty === spec
-                      ).length;
+                    {firms.map((f) => {
+                      const count = externalContacts.filter((c) => c.firm_id === f.id).length;
                       if (count === 0) return null;
                       return (
-                        <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="#a78bfa" />
+                        <AnalyticsBar key={f.id} label={f.name} count={count} total={externalContacts.length} color="#60a5fa" />
                       );
                     })}
+                    {(() => {
+                      const unlinked = externalContacts.filter((c) => !c.firm_id).length;
+                      if (unlinked === 0) return null;
+                      return <AnalyticsBar label="No Firm" count={unlinked} total={externalContacts.length} color="#888888" />;
+                    })()}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </>
