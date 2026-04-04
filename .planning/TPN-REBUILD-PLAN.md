@@ -10,31 +10,36 @@ Two reference repos:
 ### The Problem We're Solving
 The old TPN was a standalone Vite app (Lovable) with its own dependencies (shadcn, MongoDB, Axios, react-simple-maps). It got copy-pasted into the CCS portal and never fully integrated. We're rebuilding it as a native section of the Norkendol portal — same auth, same Supabase, same styling, same role system.
 
-### Core Model: Internal vs External Users
+### Core Model: Two Tables, Two Purposes
 
-The TPN is fundamentally about two kinds of people:
+There are two completely separate concepts for people outside your organization:
 
-**Internal users = your entire team.** Every person in the directory is in the TPN. Not a filtered subset — literally everyone. If someone has no licenses yet, they still appear with a "No licenses on file" badge. Licenses are what make them searchable by state — no license means they won't appear in state-filtered results, but they're always visible when no state filter is active.
+#### 1. `external_contacts` — The Rolodex
+A contact record. Name, email, phone, specialty, states, company. **No portal access. No auth account.** You can have 500 attorneys in here and none of them can log in. This is what the **TPN External tab** displays.
 
-**External users = anyone outside your org you work with.** These are PEOPLE, not companies. A solo attorney. An independent appraiser. A drywall contractor. An HVAC tech. An umpire. They might work for a firm, or they might be solo. The firm is optional — just a grouping container.
+- Any logged-in user can add a contact (adjusters add their own lawyers, contractors, etc.)
+- No admin approval needed to create a contact — it's just a Rolodex entry
+- Fields: name, email, phone, specialty (predefined dropdown), states they cover, company name (optional free text)
+- Optional `firm_id` FK to `firms` table for grouping
+- Optional `user_id` FK to `users` table — **null when they're a contact only, populated when they've been promoted to a portal account**
 
-**External user record — 6 fields only:**
-1. Name
-2. Email
-3. Phone
-4. What they do — predefined dropdown: Attorney, Appraiser, Engineer, HVAC, Plumber, Electrician, Roofer, Restoration, Drywall, General Contractor, Other (free text on Other)
-5. What states they cover
-6. Company name (optional, free text — not required to be in the firms table)
+#### 2. `users` with `user_type = 'external'` — Portal Accounts
+A real auth account with login credentials and granular permissions. Created **separately and only when that person actually needs to log into the portal.** An admin takes an existing external contact and "promotes" them — creates a `users` record, assigns permissions that control exactly what they can see (just the Legal KPI tracker, just their work portfolio, whatever you decide).
 
-That's it. One simple form. No wizard. No onboarding flow.
+- Admin-only action to promote a contact to a portal user
+- Uses the existing `user_permissions` table for granular access control (dashboard, CRM, compliance, etc.)
+- Shows up in User Management → External Partners tab
+- Goes through the standard pending → active approval flow
+- The `external_contacts.user_id` gets set to link the contact record to the portal account
 
-**The firm relationship is optional and additive:**
-- External users exist independently. They never need a firm to be valid.
-- If five external users all work for Jeff's AC, you can later create a firm called "Jeff's Air Conditioning" and attach them via `firm_id`.
-- But they exist as individual people first. The firm is just a grouping container — it never replaces the person record.
-- When a firm IS created, searching by firm name shows everyone attached to that firm. But you can always search by individual name regardless of firm.
-- `firm_id` on external users stays nullable. The `firms` table stays as-is.
-- **Firms are a sub-filter inside the External tab, NOT a top-level tab.** Select "Jeff's Air Conditioning" from the firm filter chip and the list narrows to Jeff's people. No separate firms tab needed.
+#### The Flow
+1. **Add external contact** → they exist as a contact only in the Rolodex (TPN External tab)
+2. **If and when they need portal access** → admin creates their portal account (users table) and assigns specific permissions
+3. **They log in** → only see what you've given them access to
+4. **The link stays** → `external_contacts.user_id` points to their `users` record, so you can always see who has portal access from the TPN view
+
+### Internal Users = Your Entire Team
+Every person in the directory is in the TPN. Not a filtered subset — literally everyone. If someone has no licenses yet, they still appear with a "No licenses on file" badge. Licenses are what make them searchable by state — no license means they won't appear in state-filtered results, but they're always visible when no state filter is active.
 
 ### Tab Structure
 
@@ -60,7 +65,7 @@ Three content tabs + analytics: **Overview | Internal | External | Analytics**
 
 **Internal card:** Name, position, department, location, availability badge, license summary (active/expiring/expired counts), license state badges. Click → user management.
 
-**External card:** Name, specialty badge (big, prominent), states they cover (small badges), company name if any, email, phone. That's it.
+**External card:** Name, specialty badge (big, prominent), states they cover (small badges), company name if any, email, phone. If they have a portal account (`user_id` is set), show a small "Has Portal Access" indicator.
 
 ### What We Extract From the Old Repos
 **From `Coastal-Claims-Services/talent-partner-network` (standalone) and the portal's embedded version:**
@@ -86,18 +91,18 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 **TPN consumes from:**
 - `users` table — ALL internal users (the entire directory), not a filtered subset
 - `licenses` table — already exists, already tied to users — this is what makes search-by-state work
-- `external_contacts` table (NEW) — external people with specialty, states, optional firm_id
-- `firms` table — optional grouping container for external users
+- `external_contacts` table — the Rolodex (contact records, no portal access)
+- `firms` table — optional grouping container for external contacts
 - `firm_services` — tracks what firms do
 - Auth/roles — `ep_user`, `ep_admin`, `admin`, `super_admin` all have different views
 
 **TPN feeds into:**
+- **User Management** — clicking an internal user goes to their user record; promoting an external contact creates a portal account in User Management → External Partners
 - **Compliance tab** — state coverage data from TPN shows who's licensed where
-- **User Management** — clicking an internal user goes to their user record
 - **CRM** (future) — external contacts and firms get assigned work
 - **Directory** — the directory IS the internal side of the TPN
 
-**This means:** No new auth, no new user model for internal people. Internal = directory. External = simple contact records with 6 fields. Firms are optional grouping on top.
+**This means:** No new auth, no new user model for internal people. Internal = directory. External contacts = simple Rolodex records. Portal access for externals is a separate promotion step handled through User Management.
 
 ## Build Phases
 
@@ -106,67 +111,69 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - Save `External_Partner_Onboarding_Flow.md` to the Norkendol project's `.planning/` folder
 - Write this plan to `.planning/TPN-REBUILD-PLAN.md`
 
-### Phase 2: Schema completion (migration) ✅ DONE (partial — needs external_contacts)
+### Phase 2: Schema completion (migration) ✅ DONE
 - ✅ ALTER `firms`: add `website`, `entity_type`, `year_established`, `city`, `state`, `rating`
 - ✅ ALTER `users`: add `availability` (available/busy/unavailable)
 - ✅ CREATE `firm_documents` (id, firm_id, org_id, file_name, file_url, uploaded_by, uploaded_at)
 - ✅ RLS policies for all new columns/tables
-- ⬜ CREATE `external_contacts` — see Phase 2b below
 
-### Phase 2b: External contacts schema (NEW)
-- CREATE `external_contacts` table:
-  - `id` uuid PK
-  - `org_id` uuid NOT NULL
-  - `name` text NOT NULL
-  - `email` text
-  - `phone` text
-  - `specialty` text NOT NULL — predefined: Attorney, Appraiser, Engineer, HVAC, Plumber, Electrician, Roofer, Restoration, Drywall, General Contractor, Other
-  - `specialty_other` text — free text, only used when specialty = "Other"
-  - `states` text[] (what states they cover)
-  - `company_name` text (optional free text — NOT a FK to firms)
-  - `firm_id` uuid REFERENCES firms(id) — nullable, optional grouping
-  - `status` text DEFAULT 'active' (active/inactive)
-  - `created_at` timestamptz DEFAULT now()
-  - `created_by` uuid REFERENCES users(id)
-- RLS: org-scoped read, admin write
+### Phase 2b: External contacts schema ✅ DONE (needs migration update)
+- ✅ CREATE `external_contacts` table (migration exists: `20260404_tpn_phase2b_external_contacts.sql`)
+- ⬜ ALTER `external_contacts`: ADD `user_id` uuid REFERENCES users(id) ON DELETE SET NULL — nullable, links contact to portal account when promoted
+- ⬜ ALTER `external_contacts`: ADD `created_by` uuid REFERENCES auth.users(id) — tracks who added the contact
+- ⬜ UPDATE RLS: any authenticated org user can INSERT (not admin-only) — adjusters add their own contacts
 
-### Phase 3: Hub page — Internal/External model with client-side filtering
-- ⬜ 4 tabs: Overview, Internal, External, Analytics
-- ⬜ Overview: 6 metric cards (internal count, external count, states covered, available now, pending, license alerts)
-- ⬜ Internal tab: load ALL directory users + their licenses in one fetch. Client-side filter chips: state (from license data), availability, search text. Soft cap 200 with "load more". Cards: name, position, department, location, availability badge, license state badges, license summary. Click → user management. No talent_network filter — everyone in the directory shows.
-- ⬜ External tab: load external_contacts in one fetch. Client-side filter chips: specialty, state, firm (as sub-filter), search text. Soft cap 200 with "load more". Cards: name, specialty badge (big), states (small badges), company name, email, phone. "Add External Contact" button with 6-field form.
-- ⬜ Analytics tab: license breakdown, geographic coverage grid, specialty breakdown, availability stats. All computed from already-loaded data.
-- ⬜ Filter behavior: show everyone by default. Each chip narrows the list. Clear resets. All in-memory after initial load. Filters independent per tab.
+### Phase 3: Hub page — Internal/External model with client-side filtering ✅ DONE (needs update)
+- ✅ 4 tabs: Overview, Internal, External, Analytics
+- ✅ Overview: 6 metric cards
+- ✅ Internal tab: loads ALL directory users + licenses, client-side filtering, cards with click → user management
+- ✅ External tab: loads external_contacts, filter chips (specialty, state, firm, search), cards with specialty badge
+- ✅ Analytics tab: license breakdown, geographic coverage, specialty breakdown
+- ✅ Invite link buttons on both tabs (available to all users, not admin-only)
+- ⬜ "Add External User" button label (currently says "Add Contact" — rename)
+- ⬜ External contact form creates records in `external_contacts` (Rolodex only — no auth, no portal access)
+- ⬜ External card: show "Has Portal Access" indicator when `user_id` is set
+- ⬜ Remove admin-only guard on add/edit — any user can manage contacts
 
-### Phase 4: External contact CRUD
-- "Add External Contact" form — 6 fields:
+### Phase 4: External contact CRUD (update for new model)
+- "Add External User" form — 6 fields (available to ALL logged-in users, not admin-only):
   1. Name (required)
   2. Email
   3. Phone
   4. Specialty (dropdown: Attorney, Appraiser, Engineer, HVAC, Plumber, Electrician, Roofer, Restoration, Drywall, General Contractor, Other) — required. If Other, show free text field.
   5. States they cover (multi-select state picker)
   6. Company name (optional free text)
-- Edit existing contacts (same form, pre-filled)
-- Deactivate (soft delete via status = 'inactive')
-- Admin-only for add/edit/deactivate
+- Edit existing contacts (same form, pre-filled) — any user can edit
+- Deactivate (soft delete via status = 'inactive') — admin-only
+- This creates a **Rolodex entry only**. No portal access. No auth account.
 
-### Phase 5: Firm management (inside External tab)
+### Phase 5: Promote to Portal Account (NEW — replaces old "Firm management" phase)
+- Admin-only "Grant Portal Access" action on external contact cards
+- Creates a `users` record with `user_type = 'external'`, `status = 'pending'`
+- Pre-fills name/email from the external contact record
+- Sets `external_contacts.user_id` to link the records
+- Redirects to User Management to assign permissions (which sidebar items, CRM access, etc.)
+- The contact stays in the TPN Rolodex AND now appears in User Management → External Partners
+- Card shows "Has Portal Access" badge after promotion
+
+### Phase 6: Firm management (inside External tab)
 - Firm filter chip in External tab — select a firm name, list narrows to that firm's people
 - Admin can create/edit/deactivate firms
 - "Attach to Firm" — select existing external contacts, set their firm_id
 - Firm detail: name, contact info, services, states, list of attached people
 - Firms are a grouping tool, not a standalone view
 
-### Phase 6: Admin features (lives at `/dashboard/tpn-admin`)
-- Pending external contacts (if admin approval flow is wanted)
+### Phase 7: TPN Admin features (lives at `/dashboard/tpn-admin`)
 - Bulk operations (attach multiple contacts to a firm, update states)
+- External contact activity log
 - Status management
 
-### Phase 7: Analytics tab (deep)
+### Phase 8: Analytics tab (deep)
 - License status overview (active/expiring/expired from real license data)
 - Geographic coverage grid: which states have internal people licensed + which states external contacts cover
 - Specialty breakdown: how many attorneys, appraisers, HVAC, etc.
 - Availability (internal team: available/busy/unavailable)
+- Portal access stats: how many external contacts have portal accounts
 - All computed from live Supabase data, not mock numbers
 
 ## Session Strategy (context window management)
@@ -175,14 +182,18 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - Reference the plan file at session start instead of re-deriving everything
 
 ## Dependencies to Note
-- Phase 5 (external users) needs `external_contacts` table from Phase 2b first
-- Phase 6 (firms as containers) needs external contacts to exist so you can attach people to firms
+- Phase 4 (CRUD) needs the `user_id` column added to `external_contacts` first (Phase 2b update)
+- Phase 5 (promote to portal) needs Phase 4 working first so contacts exist to promote
+- Phase 6 (firms as containers) needs external contacts to exist so you can attach people
 - Firm documents will eventually need Supabase Storage for uploads
 - Analytics (Phase 8) is last because it needs real data flowing through Phases 4-6 first
 
 ## Key Files
 - **Current TPN page:** `src/app/dashboard/talent-partner-network/page.tsx`
 - **TPN Admin placeholder:** `src/app/dashboard/tpn-admin/page.tsx`
+- **User Management:** `src/app/dashboard/user-management/page.tsx` (has Internal/External tabs, permissions editor)
+- **Pending Users:** `src/app/dashboard/pending-users/page.tsx` (approve/reject flow)
+- **Public Apply:** `src/app/apply/page.tsx` (internal user signup)
 - **Sidebar nav:** `src/components/IconSidebar.tsx` (TPN already in Tier 1A)
 - **Text sidebar:** `src/components/TextSidebar.tsx`
 - **Supabase client:** `src/lib/supabase.ts`
@@ -193,10 +204,19 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - `firms` table: `status`, `updated_at`, `website`, `entity_type`, `year_established`, `city`, `state`, `rating`
 - `firm_services` table: created with RLS
 - `firm_documents` table: created with RLS
-- `users` table: added `availability` column
-- `external_contacts` table: NOT YET CREATED — needed for Phase 2b
-- RLS policies on all tables (org-scoped read, admin write)
-- Migrations committed: `talent_partner_network_schema`, `tpn_phase2_schema_completion`
+- `users` table: has `availability`, `user_type` (internal/external), `status`, full permission system via `user_permissions`
+- `user_permissions` table: granular toggle per user (dashboard, CRM, TPN, compliance, AI, etc.)
+- `external_contacts` table: EXISTS but needs `user_id` FK column added
+- RLS policies on all tables (org-scoped read, admin write — external_contacts RLS needs update to allow any user to insert)
+- Migrations committed: `talent_partner_network_schema`, `tpn_phase2_schema_completion`, `tpn_phase2b_external_contacts`
+
+## Existing User Management System (reference)
+- **Roles:** user, ep_user (External Partner), ep_admin (Partner Admin), admin, super_admin, system_admin
+- **User types:** internal, external — filtered by tabs in User Management
+- **Approval flow:** users.status = pending → admin approves → active
+- **Permissions:** `user_permissions` table with per-feature toggles (dashboard, teams_chat, calendar, university, directory, documents, AI, TPN, compliance, CRM, plus admin toggles)
+- **Feature flags:** talent_network (shows in TPN listings), crm_assignable, crm_office_staff
+- External partners get `ep_user` role by default, permissions control exactly which pages they see
 
 ## Verification
 After each phase:
@@ -208,6 +228,8 @@ After each phase:
 ## Current Status
 - Phase 1: ✅ Done
 - Phase 2: ✅ Done (firms + users schema)
-- Phase 2b: ⬜ Next — create `external_contacts` table
-- Phase 3: ⬜ Next — rewrite hub page with Internal/External tabs + client-side filtering
-- Phases 4-7: Not started
+- Phase 2b: ✅ Partially done — table exists, needs `user_id` FK + RLS update
+- Phase 3: ✅ Partially done — page rewritten with new tabs, needs label fixes + portal access indicator
+- Phase 4: ⬜ Next — external contact CRUD (any user can add, Rolodex only)
+- Phase 5: ⬜ Promote to portal account (admin-only, links external_contacts → users)
+- Phases 6-8: Not started

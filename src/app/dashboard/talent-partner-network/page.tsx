@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 /* ── types ─────────────────────────────────────────────── */
 
-interface TeamMember {
+interface InternalUser {
   id: string;
   full_name: string;
   position: string | null;
@@ -25,64 +25,70 @@ interface LicenseInfo {
   status: string;
 }
 
-interface Firm {
+interface ExternalContact {
   id: string;
   name: string;
-  contact_name: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
+  email: string | null;
+  phone: string | null;
+  specialty: string;
+  specialty_other: string | null;
   states: string[] | null;
-  status: "active" | "pending" | "inactive";
-  created_at: string;
-  updated_at: string | null;
-  services: string[];
-  website: string | null;
-  city: string | null;
-  firm_state: string | null;
-  entity_type: string | null;
-  rating: number | null;
+  company_name: string | null;
+  firm_id: string | null;
+  firm_name: string | null; // resolved from firms table or company_name
+  user_id: string | null; // non-null = has portal account
+  status: "active" | "inactive";
 }
 
-interface FirmFormData {
+interface ExternalFormData {
   name: string;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
-  states: string;
-  status: "active" | "pending" | "inactive";
-  services: string;
-  website: string;
-  city: string;
-  firm_state: string;
-  entity_type: string;
-  rating: number;
+  email: string;
+  phone: string;
+  specialty: string;
+  specialty_other: string;
+  states: string[];
+  company_name: string;
 }
 
-const EMPTY_FIRM_FORM: FirmFormData = {
+const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   name: "",
-  contact_name: "",
-  contact_email: "",
-  contact_phone: "",
-  states: "",
-  status: "pending",
-  services: "",
-  website: "",
-  city: "",
-  firm_state: "",
-  entity_type: "",
-  rating: 0,
+  email: "",
+  phone: "",
+  specialty: "",
+  specialty_other: "",
+  states: [],
+  company_name: "",
 };
+
+const SPECIALTIES = [
+  "Attorney",
+  "Appraiser",
+  "Engineer",
+  "HVAC",
+  "Plumber",
+  "Electrician",
+  "Roofer",
+  "Restoration",
+  "Drywall",
+  "General Contractor",
+  "Other",
+];
 
 /* ── helpers ───────────────────────────────────────────── */
 
-type Tab = "overview" | "team" | "firms" | "analytics";
+type Tab = "overview" | "internal" | "external" | "analytics";
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  active: { bg: "#1a3a2a", text: "#4ade80" },
-  pending: { bg: "#3a3520", text: "#facc15" },
-  inactive: { bg: "#2a2a2a", text: "#888888" },
-  approved: { bg: "#1a3a2a", text: "#4ade80" },
-  expired: { bg: "#4a1a1a", text: "#ef4444" },
+const TAB_LABELS: Record<Tab, string> = {
+  overview: "Overview",
+  internal: "Internal",
+  external: "External",
+  analytics: "Analytics",
+};
+
+const AVAILABILITY_COLORS: Record<string, { bg: string; text: string }> = {
+  available: { bg: "#1a3a2a", text: "#4ade80" },
+  busy: { bg: "#3a3520", text: "#facc15" },
+  unavailable: { bg: "#2a2a2a", text: "#888888" },
 };
 
 const LICENSE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -90,12 +96,6 @@ const LICENSE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: "#3a3520", text: "#facc15" },
   rejected: { bg: "#4a1a1a", text: "#ef4444" },
   expired: { bg: "#4a1a1a", text: "#ef4444" },
-};
-
-const AVAILABILITY_COLORS: Record<string, { bg: string; text: string }> = {
-  available: { bg: "#1a3a2a", text: "#4ade80" },
-  busy: { bg: "#3a3520", text: "#facc15" },
-  unavailable: { bg: "#2a2a2a", text: "#888888" },
 };
 
 function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
@@ -144,8 +144,8 @@ function licenseSummary(licenses: LicenseInfo[]): { active: number; expiring: nu
 }
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
-
-const ADMIN_ROLES = ["admin", "super_admin", "system_admin"];
+const ADMIN_ROLES = ["admin", "super_admin", "system_admin", "ep_admin"];
+const SOFT_CAP = 200;
 
 const cardStyle: React.CSSProperties = {
   background: "var(--bg-surface)",
@@ -176,24 +176,33 @@ export default function TalentPartnerNetworkPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState("");
-  const [search, setSearch] = useState("");
 
-  // Filters
-  const [stateFilter, setStateFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [serviceFilter, setServiceFilter] = useState<string>("");
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  // Per-tab filter state
+  const [internalSearch, setInternalSearch] = useState("");
+  const [internalStateFilter, setInternalStateFilter] = useState<string[]>([]);
+  const [internalAvailFilter, setInternalAvailFilter] = useState("");
+  const [internalShowStateDrop, setInternalShowStateDrop] = useState(false);
+  const [internalShowAll, setInternalShowAll] = useState(false);
+
+  const [externalSearch, setExternalSearch] = useState("");
+  const [externalStateFilter, setExternalStateFilter] = useState<string[]>([]);
+  const [externalSpecialtyFilter, setExternalSpecialtyFilter] = useState("");
+  const [externalFirmFilter, setExternalFirmFilter] = useState("");
+  const [externalShowStateDrop, setExternalShowStateDrop] = useState(false);
+  const [externalShowAll, setExternalShowAll] = useState(false);
 
   // Data
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [firms, setFirms] = useState<Firm[]>([]);
+  const [internalUsers, setInternalUsers] = useState<InternalUser[]>([]);
+  const [externalContacts, setExternalContacts] = useState<ExternalContact[]>([]);
 
-  // Firm modal
-  const [showFirmModal, setShowFirmModal] = useState(false);
-  const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
-  const [firmForm, setFirmForm] = useState<FirmFormData>(EMPTY_FIRM_FORM);
+  // External contact modal
+  const [showExternalModal, setShowExternalModal] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [externalForm, setExternalForm] = useState<ExternalFormData>(EMPTY_EXTERNAL_FORM);
   const [saving, setSaving] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deactivateConfirm, setDeactivateConfirm] = useState<string | null>(null);
+  const [showFormStateDrop, setShowFormStateDrop] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
   const isAdmin = ADMIN_ROLES.includes(userRole);
 
@@ -216,31 +225,21 @@ export default function TalentPartnerNetworkPage() {
 
   /* ── fetch data ──────────────────────────────────────── */
 
-  const fetchTeamMembers = useCallback(async () => {
-    const { data: permRows } = await supabase
-      .from("user_permissions")
-      .select("user_id")
-      .eq("talent_network", true)
-      .eq("org_id", ORG_ID);
-
-    if (!permRows || permRows.length === 0) {
-      setTeamMembers([]);
-      return;
-    }
-
-    const userIds = permRows.map((r) => r.user_id);
-
+  const fetchInternalUsers = useCallback(async () => {
+    // Load ALL directory users — no talent_network filter
     const { data: users } = await supabase
       .from("users")
       .select("id, full_name, position, department, location, profile_picture_url, availability")
-      .in("id", userIds)
+      .eq("org_id", ORG_ID)
       .eq("status", "active")
       .order("full_name");
 
     if (!users) {
-      setTeamMembers([]);
+      setInternalUsers([]);
       return;
     }
+
+    const userIds = users.map((u) => u.id);
 
     const { data: licenses } = await supabase
       .from("licenses")
@@ -254,7 +253,7 @@ export default function TalentPartnerNetworkPage() {
       licenseMap.set(lic.user_id, arr);
     }
 
-    setTeamMembers(
+    setInternalUsers(
       users.map((u) => ({
         ...u,
         availability: u.availability ?? null,
@@ -263,298 +262,251 @@ export default function TalentPartnerNetworkPage() {
     );
   }, []);
 
-  const fetchFirms = useCallback(async () => {
-    const { data: firmRows } = await supabase
-      .from("firms")
-      .select("id, name, contact_name, contact_email, contact_phone, states, status, created_at, updated_at, org_id, website, city, state, entity_type, rating")
+  const fetchExternalContacts = useCallback(async () => {
+    // Load external contacts with optional firm name resolution
+    const { data: contacts } = await supabase
+      .from("external_contacts")
+      .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status")
       .eq("org_id", ORG_ID)
+      .eq("status", "active")
       .order("name");
 
-    if (!firmRows || firmRows.length === 0) {
-      setFirms([]);
+    if (!contacts || contacts.length === 0) {
+      setExternalContacts([]);
       return;
     }
 
-    const firmIds = firmRows.map((f) => f.id);
-    const { data: serviceRows } = await supabase
-      .from("firm_services")
-      .select("firm_id, service_name")
-      .in("firm_id", firmIds);
+    // Resolve firm names for contacts that have firm_id
+    const firmIds = [...new Set(contacts.filter((c) => c.firm_id).map((c) => c.firm_id!))];
+    const firmNameMap = new Map<string, string>();
 
-    const serviceMap = new Map<string, string[]>();
-    for (const s of serviceRows ?? []) {
-      const arr = serviceMap.get(s.firm_id) ?? [];
-      arr.push(s.service_name);
-      serviceMap.set(s.firm_id, arr);
+    if (firmIds.length > 0) {
+      const { data: firmRows } = await supabase
+        .from("firms")
+        .select("id, name")
+        .in("id", firmIds);
+      for (const f of firmRows ?? []) {
+        firmNameMap.set(f.id, f.name);
+      }
     }
 
-    setFirms(
-      firmRows.map((f) => ({
-        id: f.id,
-        name: f.name,
-        contact_name: f.contact_name,
-        contact_email: f.contact_email,
-        contact_phone: f.contact_phone,
-        states: f.states,
-        status: f.status,
-        created_at: f.created_at,
-        updated_at: f.updated_at,
-        website: f.website ?? null,
-        city: f.city ?? null,
-        firm_state: f.state ?? null,
-        entity_type: f.entity_type ?? null,
-        rating: f.rating ?? null,
-        services: serviceMap.get(f.id) ?? [],
+    setExternalContacts(
+      contacts.map((c) => ({
+        ...c,
+        user_id: c.user_id ?? null,
+        firm_name: c.firm_id ? (firmNameMap.get(c.firm_id) ?? c.company_name) : c.company_name,
       }))
     );
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchTeamMembers(), fetchFirms()]).then(() => setLoading(false));
-  }, [fetchTeamMembers, fetchFirms]);
+    Promise.all([fetchInternalUsers(), fetchExternalContacts()]).then(() => setLoading(false));
+  }, [fetchInternalUsers, fetchExternalContacts]);
 
-  /* ── firm CRUD ───────────────────────────────────────── */
+  /* ── external contact CRUD ─────────────────────────────── */
 
-  const openCreateFirm = () => {
-    setEditingFirmId(null);
-    setFirmForm(EMPTY_FIRM_FORM);
-    setShowFirmModal(true);
+  const openAddExternal = () => {
+    setEditingContactId(null);
+    setExternalForm(EMPTY_EXTERNAL_FORM);
+    setShowExternalModal(true);
   };
 
-  const openEditFirm = (firm: Firm) => {
-    setEditingFirmId(firm.id);
-    setFirmForm({
-      name: firm.name,
-      contact_name: firm.contact_name ?? "",
-      contact_email: firm.contact_email ?? "",
-      contact_phone: firm.contact_phone ?? "",
-      states: (firm.states ?? []).join(", "),
-      status: firm.status,
-      services: firm.services.join(", "),
-      website: firm.website ?? "",
-      city: firm.city ?? "",
-      firm_state: firm.firm_state ?? "",
-      entity_type: firm.entity_type ?? "",
-      rating: firm.rating ?? 0,
+  const openEditExternal = (c: ExternalContact) => {
+    setEditingContactId(c.id);
+    setExternalForm({
+      name: c.name,
+      email: c.email ?? "",
+      phone: c.phone ?? "",
+      specialty: c.specialty,
+      specialty_other: c.specialty_other ?? "",
+      states: c.states ?? [],
+      company_name: c.company_name ?? "",
     });
-    setShowFirmModal(true);
+    setShowExternalModal(true);
   };
 
-  const handleSaveFirm = async () => {
-    if (!firmForm.name.trim()) return;
+  const handleSaveExternal = async () => {
+    if (!externalForm.name.trim() || !externalForm.specialty) return;
     setSaving(true);
 
-    const statesArray = firmForm.states
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
-
-    const servicesArray = firmForm.services
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const firmPayload = {
-      name: firmForm.name.trim(),
-      contact_name: firmForm.contact_name.trim() || null,
-      contact_email: firmForm.contact_email.trim() || null,
-      contact_phone: firmForm.contact_phone.trim() || null,
-      states: statesArray.length > 0 ? statesArray : null,
-      status: firmForm.status,
+    const payload = {
+      name: externalForm.name.trim(),
+      email: externalForm.email.trim() || null,
+      phone: externalForm.phone.trim() || null,
+      specialty: externalForm.specialty,
+      specialty_other: externalForm.specialty === "Other" ? externalForm.specialty_other.trim() || null : null,
+      states: externalForm.states.length > 0 ? externalForm.states : null,
+      company_name: externalForm.company_name.trim() || null,
       updated_at: new Date().toISOString(),
-      website: firmForm.website.trim() || null,
-      city: firmForm.city.trim() || null,
-      state: firmForm.firm_state.trim().toUpperCase() || null,
-      entity_type: firmForm.entity_type.trim() || null,
-      rating: firmForm.rating > 0 ? firmForm.rating : null,
     };
 
-    let firmId = editingFirmId;
-
-    if (editingFirmId) {
-      await supabase.from("firms").update(firmPayload).eq("id", editingFirmId);
+    if (editingContactId) {
+      await supabase.from("external_contacts").update(payload).eq("id", editingContactId);
     } else {
-      const { data } = await supabase
-        .from("firms")
-        .insert({ ...firmPayload, org_id: ORG_ID })
-        .select("id")
-        .single();
-      firmId = data?.id ?? null;
-    }
-
-    // Sync firm_services
-    if (firmId) {
-      await supabase.from("firm_services").delete().eq("firm_id", firmId);
-      if (servicesArray.length > 0) {
-        await supabase.from("firm_services").insert(
-          servicesArray.map((s) => ({
-            firm_id: firmId,
-            service_name: s,
-            org_id: ORG_ID,
-          }))
-        );
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("external_contacts").insert({
+        ...payload,
+        org_id: ORG_ID,
+        created_by: user?.id ?? null,
+      });
     }
 
     setSaving(false);
-    setShowFirmModal(false);
-    fetchFirms();
+    setShowExternalModal(false);
+    fetchExternalContacts();
   };
 
-  const handleDeactivateFirm = async (id: string) => {
+  const handleDeactivateExternal = async (id: string) => {
     await supabase
-      .from("firms")
+      .from("external_contacts")
       .update({ status: "inactive", updated_at: new Date().toISOString() })
       .eq("id", id);
-    setDeleteConfirm(null);
-    fetchFirms();
+    setDeactivateConfirm(null);
+    fetchExternalContacts();
   };
 
   /* ── computed metrics ────────────────────────────────── */
 
-  const totalTeam = teamMembers.length;
-  const totalFirms = firms.length;
-  const activeFirms = firms.filter((f) => f.status === "active").length;
-  const pendingFirms = firms.filter((f) => f.status === "pending").length;
-
-  const statesCovered = new Set<string>();
-  for (const f of firms) {
-    for (const s of f.states ?? []) statesCovered.add(s);
-  }
-  for (const m of teamMembers) {
-    for (const l of m.licenses) {
-      if (calcLicenseStatus(l.expiry_date, l.status) === "approved") {
-        statesCovered.add(l.state);
+  const statesCovered = useMemo(() => {
+    const s = new Set<string>();
+    for (const u of internalUsers) {
+      for (const l of u.licenses) {
+        if (calcLicenseStatus(l.expiry_date, l.status) === "approved") s.add(l.state);
       }
     }
-  }
+    for (const c of externalContacts) {
+      for (const st of c.states ?? []) s.add(st);
+    }
+    return s;
+  }, [internalUsers, externalContacts]);
 
   const availableCounts = useMemo(() => {
     let available = 0, busy = 0, unavailable = 0;
-    for (const m of teamMembers) {
-      if (m.availability === "available") available++;
-      else if (m.availability === "busy") busy++;
+    for (const u of internalUsers) {
+      if (u.availability === "available") available++;
+      else if (u.availability === "busy") busy++;
       else unavailable++;
     }
     return { available, busy, unavailable };
-  }, [teamMembers]);
+  }, [internalUsers]);
 
   const licenseAlerts = useMemo(() => {
     let expiring = 0, expired = 0, active = 0;
-    for (const m of teamMembers) {
-      const s = licenseSummary(m.licenses);
+    for (const u of internalUsers) {
+      const s = licenseSummary(u.licenses);
       expiring += s.expiring;
       expired += s.expired;
       active += s.active;
     }
     return { active, expiring, expired, total: active + expiring + expired };
-  }, [teamMembers]);
+  }, [internalUsers]);
 
-  // All unique services across firms
-  const allServices = useMemo(() => {
+  // Unique firm names from external contacts for the firm filter chip
+  const externalFirmNames = useMemo(() => {
     const s = new Set<string>();
-    for (const f of firms) {
-      for (const svc of f.services) s.add(svc);
+    for (const c of externalContacts) {
+      if (c.firm_name) s.add(c.firm_name);
     }
     return Array.from(s).sort();
-  }, [firms]);
+  }, [externalContacts]);
 
-  // All states from team licenses
+  // Unique specialties present in external contacts
+  const externalSpecialties = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of externalContacts) {
+      s.add(c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty);
+    }
+    return Array.from(s).sort();
+  }, [externalContacts]);
+
+  // Internal license states (for analytics)
   const teamLicenseStates = useMemo(() => {
     const s = new Set<string>();
-    for (const m of teamMembers) {
-      for (const l of m.licenses) {
+    for (const u of internalUsers) {
+      for (const l of u.licenses) {
         if (calcLicenseStatus(l.expiry_date, l.status) === "approved") s.add(l.state);
       }
     }
     return s;
-  }, [teamMembers]);
+  }, [internalUsers]);
 
-  // All states from firms
-  const firmCoverageStates = useMemo(() => {
+  // External coverage states (for analytics)
+  const externalCoverageStates = useMemo(() => {
     const s = new Set<string>();
-    for (const f of firms) {
-      for (const st of f.states ?? []) s.add(st);
+    for (const c of externalContacts) {
+      for (const st of c.states ?? []) s.add(st);
     }
     return s;
-  }, [firms]);
+  }, [externalContacts]);
 
-  /* ── filter ──────────────────────────────────────────── */
+  /* ── filters ──────────────────────────────────────────── */
 
-  const searchLower = search.toLowerCase();
-
-  const filteredTeam = useMemo(() => {
-    return teamMembers.filter((m) => {
-      // Search
-      if (searchLower && !(
-        m.full_name.toLowerCase().includes(searchLower) ||
-        (m.department ?? "").toLowerCase().includes(searchLower) ||
-        (m.position ?? "").toLowerCase().includes(searchLower) ||
-        (m.location ?? "").toLowerCase().includes(searchLower)
+  const filteredInternal = useMemo(() => {
+    const q = internalSearch.toLowerCase();
+    return internalUsers.filter((u) => {
+      if (q && !(
+        u.full_name.toLowerCase().includes(q) ||
+        (u.department ?? "").toLowerCase().includes(q) ||
+        (u.position ?? "").toLowerCase().includes(q) ||
+        (u.location ?? "").toLowerCase().includes(q)
       )) return false;
 
-      // State filter
-      if (stateFilter.length > 0) {
-        const memberStates = m.licenses
+      if (internalStateFilter.length > 0) {
+        const memberStates = u.licenses
           .filter((l) => calcLicenseStatus(l.expiry_date, l.status) === "approved")
           .map((l) => l.state);
-        if (!stateFilter.some((s) => memberStates.includes(s))) return false;
+        if (!internalStateFilter.some((s) => memberStates.includes(s))) return false;
       }
 
-      // Status filter (availability for team)
-      if (statusFilter) {
-        if ((m.availability ?? "unavailable") !== statusFilter) return false;
+      if (internalAvailFilter) {
+        if ((u.availability ?? "unavailable") !== internalAvailFilter) return false;
       }
 
       return true;
     });
-  }, [teamMembers, searchLower, stateFilter, statusFilter]);
+  }, [internalUsers, internalSearch, internalStateFilter, internalAvailFilter]);
 
-  const filteredFirms = useMemo(() => {
-    return firms.filter((f) => {
-      // Search
-      if (searchLower && !(
-        f.name.toLowerCase().includes(searchLower) ||
-        (f.contact_name ?? "").toLowerCase().includes(searchLower) ||
-        f.services.some((s) => s.toLowerCase().includes(searchLower)) ||
-        (f.states ?? []).some((s) => s.toLowerCase().includes(searchLower))
+  const filteredExternal = useMemo(() => {
+    const q = externalSearch.toLowerCase();
+    return externalContacts.filter((c) => {
+      if (q && !(
+        c.name.toLowerCase().includes(q) ||
+        (c.email ?? "").toLowerCase().includes(q) ||
+        (c.company_name ?? "").toLowerCase().includes(q) ||
+        c.specialty.toLowerCase().includes(q) ||
+        (c.specialty_other ?? "").toLowerCase().includes(q)
       )) return false;
 
-      // State filter
-      if (stateFilter.length > 0) {
-        if (!stateFilter.some((s) => (f.states ?? []).includes(s))) return false;
+      if (externalStateFilter.length > 0) {
+        if (!externalStateFilter.some((s) => (c.states ?? []).includes(s))) return false;
       }
 
-      // Status filter
-      if (statusFilter) {
-        if (f.status !== statusFilter) return false;
+      if (externalSpecialtyFilter) {
+        const display = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
+        if (display !== externalSpecialtyFilter) return false;
       }
 
-      // Service filter
-      if (serviceFilter) {
-        if (!f.services.includes(serviceFilter)) return false;
+      if (externalFirmFilter) {
+        if (c.firm_name !== externalFirmFilter) return false;
       }
 
       return true;
     });
-  }, [firms, searchLower, stateFilter, statusFilter, serviceFilter]);
+  }, [externalContacts, externalSearch, externalStateFilter, externalSpecialtyFilter, externalFirmFilter]);
 
-  // Reset filters on tab change
-  const handleTabChange = (t: Tab) => {
-    setTab(t);
-    setSearch("");
-    setStateFilter([]);
-    setStatusFilter("");
-    setServiceFilter("");
-    setShowStateDropdown(false);
-  };
+  const visibleInternal = internalShowAll ? filteredInternal : filteredInternal.slice(0, SOFT_CAP);
+  const visibleExternal = externalShowAll ? filteredExternal : filteredExternal.slice(0, SOFT_CAP);
 
-  const toggleStateFilter = (state: string) => {
-    setStateFilter((prev) =>
-      prev.includes(state) ? prev.filter((s) => s !== state) : [...prev, state]
-    );
-  };
+  const toggleInternalState = (s: string) =>
+    setInternalStateFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  const toggleExternalState = (s: string) =>
+    setExternalStateFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  const toggleFormState = (s: string) =>
+    setExternalForm((prev) => ({
+      ...prev,
+      states: prev.states.includes(s) ? prev.states.filter((x) => x !== s) : [...prev.states, s],
+    }));
 
   /* ── render ──────────────────────────────────────────── */
 
@@ -562,56 +514,87 @@ export default function TalentPartnerNetworkPage() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">Talent Partner Network</h1>
-          {pendingFirms > 0 && (
-            <span
-              className="text-xs font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "#3a3520", color: "#facc15" }}
+        <h1 className="text-2xl font-semibold">Talent Partner Network</h1>
+        <div className="flex items-center gap-2">
+          {tab === "internal" && (
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/apply`;
+                navigator.clipboard.writeText(url);
+                setCopiedLink("internal");
+                setTimeout(() => setCopiedLink(null), 2000);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
             >
-              {pendingFirms} pending
-            </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              {copiedLink === "internal" ? "Link Copied!" : "Copy Invite Link"}
+            </button>
+          )}
+          {tab === "external" && (
+            <>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/apply`;
+                  navigator.clipboard.writeText(url);
+                  setCopiedLink("external");
+                  setTimeout(() => setCopiedLink(null), 2000);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                {copiedLink === "external" ? "Link Copied!" : "Copy Invite Link"}
+              </button>
+              <button
+                onClick={openAddExternal}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{ background: "var(--accent)", color: "#000" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+              >
+                <span className="text-lg">+</span> Add External User
+              </button>
+            </>
           )}
         </div>
-        {isAdmin && tab === "firms" && (
-          <button
-            onClick={openCreateFirm}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-            style={{ background: "var(--accent)", color: "#000" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-          >
-            <span className="text-lg">+</span> Add Firm
-          </button>
-        )}
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-5">
-        {(["overview", "team", "firms", "analytics"] as Tab[]).map((t) => (
+        {(["overview", "internal", "external", "analytics"] as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => handleTabChange(t)}
-            className="px-4 py-2 rounded-lg text-sm font-medium capitalize cursor-pointer transition-colors"
+            onClick={() => setTab(t)}
+            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
             style={{
               background: tab === t ? "var(--bg-hover)" : "transparent",
               color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
             }}
           >
-            {t === "team" ? "Team Members" : t === "firms" ? "Firms" : t === "analytics" ? "Analytics" : "Overview"}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </div>
 
-      {/* Filter bar (team + firms tabs) */}
-      {(tab === "team" || tab === "firms") && (
+      {/* ── Internal Filter Bar ─────────────────────────── */}
+      {tab === "internal" && (
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          {/* Search */}
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={tab === "team" ? "Search name, department, position..." : "Search name, service, state..."}
+            value={internalSearch}
+            onChange={(e) => setInternalSearch(e.target.value)}
+            placeholder="Search name, department, position..."
             className="w-full max-w-xs px-3 py-2 rounded-lg text-sm outline-none"
             style={inputStyle}
           />
@@ -619,7 +602,7 @@ export default function TalentPartnerNetworkPage() {
           {/* State filter */}
           <div className="relative">
             <button
-              onClick={() => setShowStateDropdown(!showStateDropdown)}
+              onClick={() => setInternalShowStateDrop(!internalShowStateDrop)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
               style={{ ...inputStyle, minWidth: 120 }}
             >
@@ -627,86 +610,37 @@ export default function TalentPartnerNetworkPage() {
                 <circle cx="12" cy="10" r="3" />
                 <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
               </svg>
-              {stateFilter.length > 0 ? `${stateFilter.length} state${stateFilter.length > 1 ? "s" : ""}` : "States"}
+              {internalStateFilter.length > 0 ? `${internalStateFilter.length} state${internalStateFilter.length > 1 ? "s" : ""}` : "States"}
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
-            {showStateDropdown && (
-              <div
-                className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", minWidth: 200 }}
-              >
-                {stateFilter.length > 0 && (
-                  <button
-                    onClick={() => setStateFilter([])}
-                    className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1"
-                    style={{ color: "var(--accent)" }}
-                  >
-                    Clear all
-                  </button>
-                )}
-                <div className="grid grid-cols-4 gap-1">
-                  {US_STATES.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => toggleStateFilter(s)}
-                      className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
-                      style={{
-                        background: stateFilter.includes(s) ? "var(--accent)" : "var(--bg-hover)",
-                        color: stateFilter.includes(s) ? "#000" : "var(--text-secondary)",
-                      }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {internalShowStateDrop && (
+              <StateDropdown
+                selected={internalStateFilter}
+                onToggle={toggleInternalState}
+                onClear={() => setInternalStateFilter([])}
+                onClose={() => setInternalShowStateDrop(false)}
+              />
             )}
           </div>
 
-          {/* Status filter */}
+          {/* Availability filter */}
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={internalAvailFilter}
+            onChange={(e) => setInternalAvailFilter(e.target.value)}
             className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
             style={inputStyle}
           >
-            <option value="">All Status</option>
-            {tab === "team" ? (
-              <>
-                <option value="available">Available</option>
-                <option value="busy">Busy</option>
-                <option value="unavailable">Unavailable</option>
-              </>
-            ) : (
-              <>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="inactive">Inactive</option>
-              </>
-            )}
+            <option value="">All Availability</option>
+            <option value="available">Available</option>
+            <option value="busy">Busy</option>
+            <option value="unavailable">Unavailable</option>
           </select>
 
-          {/* Service filter (firms only) */}
-          {tab === "firms" && allServices.length > 0 && (
-            <select
-              value={serviceFilter}
-              onChange={(e) => setServiceFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
-              style={inputStyle}
-            >
-              <option value="">All Services</option>
-              {allServices.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          )}
-
-          {/* Active filter count */}
-          {(stateFilter.length > 0 || statusFilter || serviceFilter) && (
+          {(internalStateFilter.length > 0 || internalAvailFilter) && (
             <button
-              onClick={() => { setStateFilter([]); setStatusFilter(""); setServiceFilter(""); }}
+              onClick={() => { setInternalStateFilter([]); setInternalAvailFilter(""); }}
               className="text-xs px-2 py-1 rounded cursor-pointer"
               style={{ color: "var(--accent)" }}
             >
@@ -716,11 +650,89 @@ export default function TalentPartnerNetworkPage() {
         </div>
       )}
 
-      {/* Close state dropdown on outside click */}
-      {showStateDropdown && (
+      {/* ── External Filter Bar ─────────────────────────── */}
+      {tab === "external" && (
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <input
+            type="text"
+            value={externalSearch}
+            onChange={(e) => setExternalSearch(e.target.value)}
+            placeholder="Search name, email, company..."
+            className="w-full max-w-xs px-3 py-2 rounded-lg text-sm outline-none"
+            style={inputStyle}
+          />
+
+          {/* Specialty filter */}
+          <select
+            value={externalSpecialtyFilter}
+            onChange={(e) => setExternalSpecialtyFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+            style={inputStyle}
+          >
+            <option value="">All Specialties</option>
+            {externalSpecialties.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
+          {/* State filter */}
+          <div className="relative">
+            <button
+              onClick={() => setExternalShowStateDrop(!externalShowStateDrop)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
+              style={{ ...inputStyle, minWidth: 120 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                <circle cx="12" cy="10" r="3" />
+                <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
+              </svg>
+              {externalStateFilter.length > 0 ? `${externalStateFilter.length} state${externalStateFilter.length > 1 ? "s" : ""}` : "States"}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {externalShowStateDrop && (
+              <StateDropdown
+                selected={externalStateFilter}
+                onToggle={toggleExternalState}
+                onClear={() => setExternalStateFilter([])}
+                onClose={() => setExternalShowStateDrop(false)}
+              />
+            )}
+          </div>
+
+          {/* Firm sub-filter */}
+          {externalFirmNames.length > 0 && (
+            <select
+              value={externalFirmFilter}
+              onChange={(e) => setExternalFirmFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={inputStyle}
+            >
+              <option value="">All Firms</option>
+              {externalFirmNames.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          )}
+
+          {(externalStateFilter.length > 0 || externalSpecialtyFilter || externalFirmFilter) && (
+            <button
+              onClick={() => { setExternalStateFilter([]); setExternalSpecialtyFilter(""); setExternalFirmFilter(""); }}
+              className="text-xs px-2 py-1 rounded cursor-pointer"
+              style={{ color: "var(--accent)" }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Close state dropdowns on outside click */}
+      {(internalShowStateDrop || externalShowStateDrop) && (
         <div
           className="fixed inset-0 z-30"
-          onClick={() => setShowStateDropdown(false)}
+          onClick={() => { setInternalShowStateDrop(false); setExternalShowStateDrop(false); }}
         />
       )}
 
@@ -731,218 +743,222 @@ export default function TalentPartnerNetworkPage() {
           {/* ── Overview Tab ───────────────────────────────── */}
           {tab === "overview" && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <MetricCard label="Team Members" value={totalTeam} icon="team" />
-              <MetricCard label="Total Firms" value={totalFirms} sub={`${activeFirms} active`} icon="firm" />
+              <MetricCard label="Internal Team" value={internalUsers.length} icon="team" />
+              <MetricCard label="External Contacts" value={externalContacts.length} icon="external" />
               <MetricCard label="States Covered" value={statesCovered.size} icon="state" />
               <MetricCard label="Available Now" value={availableCounts.available} icon="available" />
-              <MetricCard label="Pending Approvals" value={pendingFirms} icon="pending" highlight={pendingFirms > 0} />
-              <MetricCard label="License Alerts" value={licenseAlerts.expiring + licenseAlerts.expired} sub={licenseAlerts.expiring > 0 ? `${licenseAlerts.expiring} expiring soon` : undefined} icon="alert" highlight={(licenseAlerts.expiring + licenseAlerts.expired) > 0} />
+              <MetricCard
+                label="License Alerts"
+                value={licenseAlerts.expiring + licenseAlerts.expired}
+                sub={licenseAlerts.expiring > 0 ? `${licenseAlerts.expiring} expiring soon` : undefined}
+                icon="alert"
+                highlight={(licenseAlerts.expiring + licenseAlerts.expired) > 0}
+              />
+              <MetricCard
+                label="Specialties"
+                value={externalSpecialties.length}
+                sub={externalContacts.length > 0 ? "across external contacts" : undefined}
+                icon="specialty"
+              />
             </div>
           )}
 
-          {/* ── Team Members Tab ───────────────────────────── */}
-          {tab === "team" && (
+          {/* ── Internal Tab ───────────────────────────────── */}
+          {tab === "internal" && (
             <>
-              {filteredTeam.length === 0 ? (
-                <EmptyState message={search || stateFilter.length > 0 || statusFilter ? "No team members match your filters." : "No team members in the network yet."} />
+              {filteredInternal.length === 0 ? (
+                <EmptyState message={internalSearch || internalStateFilter.length > 0 || internalAvailFilter ? "No team members match your filters." : "No team members in the directory yet."} />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredTeam.map((member) => {
-                    const summary = licenseSummary(member.licenses);
-                    const avail = member.availability ?? "unavailable";
-                    const activeStates = member.licenses
-                      .filter((l) => calcLicenseStatus(l.expiry_date, l.status) === "approved")
-                      .map((l) => l.state);
-                    const uniqueStates = Array.from(new Set(activeStates)).sort();
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {visibleInternal.map((member) => {
+                      const summary = licenseSummary(member.licenses);
+                      const avail = member.availability ?? "unavailable";
+                      const activeStates = member.licenses
+                        .filter((l) => calcLicenseStatus(l.expiry_date, l.status) === "approved")
+                        .map((l) => l.state);
+                      const uniqueStates = Array.from(new Set(activeStates)).sort();
 
-                    return (
-                      <div
-                        key={member.id}
-                        className="rounded-xl p-4 cursor-pointer transition-all"
-                        style={{
-                          ...cardStyle,
-                          cursor: "pointer",
-                        }}
-                        onClick={() => router.push(`/dashboard/user-management?user=${member.id}`)}
-                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold"
-                            style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
-                          >
-                            {member.full_name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .slice(0, 2)
-                              .toUpperCase()}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-semibold truncate">{member.full_name}</h3>
-                              <Badge label={avail} colors={AVAILABILITY_COLORS[avail] ?? AVAILABILITY_COLORS.unavailable} />
-                            </div>
-                            <div className="flex items-center gap-3 mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                              {member.position && <span>{member.position}</span>}
-                              {member.department && <span>{member.department}</span>}
-                              {member.location && <span>{member.location}</span>}
+                      return (
+                        <div
+                          key={member.id}
+                          className="rounded-xl p-4 cursor-pointer transition-all"
+                          style={cardStyle}
+                          onClick={() => router.push(`/dashboard/user-management?user=${member.id}`)}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold"
+                              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                            >
+                              {member.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                             </div>
 
-                            {/* State code badges */}
-                            {uniqueStates.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {uniqueStates.map((s) => (
-                                  <span
-                                    key={s}
-                                    className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                                    style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
-                                  >
-                                    {s}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold truncate">{member.full_name}</h3>
+                                <Badge label={avail} colors={AVAILABILITY_COLORS[avail] ?? AVAILABILITY_COLORS.unavailable} />
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                                {member.position && <span>{member.position}</span>}
+                                {member.department && <span>{member.department}</span>}
+                                {member.location && <span>{member.location}</span>}
+                              </div>
+
+                              {uniqueStates.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {uniqueStates.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                      style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {member.licenses.length > 0 && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  {summary.active > 0 && (
+                                    <Badge label={`${summary.active} active`} colors={LICENSE_STATUS_COLORS.approved} />
+                                  )}
+                                  {summary.expiring > 0 && (
+                                    <Badge label={`${summary.expiring} expiring`} colors={{ bg: "#3a3520", text: "#facc15" }} />
+                                  )}
+                                  {summary.expired > 0 && (
+                                    <Badge label={`${summary.expired} expired`} colors={LICENSE_STATUS_COLORS.expired} />
+                                  )}
+                                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                                    {member.licenses.length} license{member.licenses.length !== 1 ? "s" : ""}
                                   </span>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* License summary */}
-                            {member.licenses.length > 0 && (
-                              <div className="flex items-center gap-2 mt-2">
-                                {summary.active > 0 && (
-                                  <Badge label={`${summary.active} active`} colors={LICENSE_STATUS_COLORS.approved} />
-                                )}
-                                {summary.expiring > 0 && (
-                                  <Badge label={`${summary.expiring} expiring`} colors={{ bg: "#3a3520", text: "#facc15" }} />
-                                )}
-                                {summary.expired > 0 && (
-                                  <Badge label={`${summary.expired} expired`} colors={LICENSE_STATUS_COLORS.expired} />
-                                )}
-                                <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                                  {member.licenses.length} license{member.licenses.length !== 1 ? "s" : ""}
+                                </div>
+                              )}
+                              {member.licenses.length === 0 && (
+                                <span className="text-[11px] mt-1 inline-block" style={{ color: "var(--text-muted)" }}>
+                                  No licenses on file
                                 </span>
-                              </div>
-                            )}
-                            {member.licenses.length === 0 && (
-                              <span className="text-[11px] mt-1 inline-block" style={{ color: "var(--text-muted)" }}>
-                                No licenses on file
-                              </span>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+
+                  {!internalShowAll && filteredInternal.length > SOFT_CAP && (
+                    <div className="text-center mt-4">
+                      <button
+                        onClick={() => setInternalShowAll(true)}
+                        className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors"
+                        style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                      >
+                        Load more ({filteredInternal.length - SOFT_CAP} remaining)
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
 
-          {/* ── Firms Tab ──────────────────────────────────── */}
-          {tab === "firms" && (
+          {/* ── External Tab ──────────────────────────────── */}
+          {tab === "external" && (
             <>
-              {filteredFirms.length === 0 ? (
-                <EmptyState message={search || stateFilter.length > 0 || statusFilter || serviceFilter ? "No firms match your filters." : "No firms in the network yet."} />
+              {filteredExternal.length === 0 ? (
+                <EmptyState message={externalSearch || externalStateFilter.length > 0 || externalSpecialtyFilter || externalFirmFilter ? "No external contacts match your filters." : "No external contacts yet."} />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredFirms.map((firm) => (
-                    <div
-                      key={firm.id}
-                      className="rounded-xl p-4"
-                      style={cardStyle}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <h3 className="text-sm font-semibold truncate">{firm.name}</h3>
-                            <Badge label={firm.status} colors={STATUS_COLORS[firm.status] ?? STATUS_COLORS.inactive} />
-                          </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {visibleExternal.map((contact) => {
+                      const displaySpecialty = contact.specialty === "Other" ? (contact.specialty_other ?? "Other") : contact.specialty;
+                      const contactStates = (contact.states ?? []).sort();
 
-                          {/* Location + Entity type */}
-                          <div className="flex items-center gap-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                            {(firm.city || firm.firm_state) && (
-                              <span>
-                                {[firm.city, firm.firm_state].filter(Boolean).join(", ")}
-                              </span>
-                            )}
-                            {firm.entity_type && (
-                              <span style={{ color: "var(--text-muted)" }}>
-                                {firm.entity_type}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Contact info */}
-                          {firm.contact_name && (
-                            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                              {firm.contact_name}
-                              {firm.contact_email && ` · ${firm.contact_email}`}
-                              {firm.contact_phone && ` · ${firm.contact_phone}`}
-                            </p>
-                          )}
-
-                          {/* Website */}
-                          {firm.website && (
-                            <p className="text-[11px] mt-0.5">
-                              <a
-                                href={firm.website.startsWith("http") ? firm.website : `https://${firm.website}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                style={{ color: "var(--accent)" }}
-                              >
-                                {firm.website.replace(/^https?:\/\//, "")}
-                              </a>
-                            </p>
-                          )}
-
-                          {/* Rating */}
-                          {firm.rating != null && firm.rating > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <svg
-                                  key={star}
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill={star <= firm.rating! ? "#facc15" : "none"}
-                                  stroke={star <= firm.rating! ? "#facc15" : "var(--text-muted)"}
-                                  strokeWidth="1.8"
+                      return (
+                        <div
+                          key={contact.id}
+                          className="rounded-xl p-4"
+                          style={cardStyle}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="text-sm font-semibold truncate">{contact.name}</h3>
+                                <span
+                                  className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                                  style={{ background: "#2d1b4e", color: "#a78bfa" }}
                                 >
-                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                              ))}
+                                  {displaySpecialty}
+                                </span>
+                              </div>
+
+                              {contact.firm_name && (
+                                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                                  {contact.firm_name}
+                                </p>
+                              )}
+
+                              <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                                {contact.email && (
+                                  <a href={`mailto:${contact.email}`} onClick={(e) => e.stopPropagation()} style={{ color: "var(--accent)" }}>
+                                    {contact.email}
+                                  </a>
+                                )}
+                                {contact.phone && <span>{contact.phone}</span>}
+                              </div>
+
+                              {contactStates.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {contactStates.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                      style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        {isAdmin && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => openEditFirm(firm)}
-                              className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
-                              title="Edit"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {/* Portal access indicator */}
+                              {contact.user_id && (
+                                <span
+                                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full mr-1"
+                                  style={{ background: "#1a3a2a", color: "#4ade80" }}
+                                  title="Has portal access"
+                                >
+                                  PORTAL
+                                </span>
+                              )}
 
-                            {firm.status !== "inactive" && (
-                              <>
-                                {deleteConfirm === firm.id ? (
+                              <button
+                                onClick={() => openEditExternal(contact)}
+                                className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                                title="Edit"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+
+                              {isAdmin && (deactivateConfirm === contact.id ? (
                                   <div className="flex items-center gap-1">
                                     <button
-                                      onClick={() => handleDeactivateFirm(firm.id)}
+                                      onClick={() => handleDeactivateExternal(contact.id)}
                                       className="px-2 py-1 rounded text-xs font-medium cursor-pointer"
                                       style={{ background: "#4a1a1a", color: "#ef4444" }}
                                     >
-                                      Deactivate
+                                      Remove
                                     </button>
                                     <button
-                                      onClick={() => setDeleteConfirm(null)}
+                                      onClick={() => setDeactivateConfirm(null)}
                                       className="px-2 py-1 rounded text-xs cursor-pointer"
                                       style={{ color: "var(--text-muted)" }}
                                     >
@@ -951,9 +967,9 @@ export default function TalentPartnerNetworkPage() {
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={() => setDeleteConfirm(firm.id)}
+                                    onClick={() => setDeactivateConfirm(contact.id)}
                                     className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
-                                    title="Deactivate"
+                                    title="Remove"
                                   >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8">
                                       <circle cx="12" cy="12" r="10" />
@@ -961,45 +977,26 @@ export default function TalentPartnerNetworkPage() {
                                       <line x1="9" y1="9" x2="15" y2="15" />
                                     </svg>
                                   </button>
-                                )}
-                              </>
-                            )}
+                                ))}
+                            </div>
                           </div>
-                        )}
-                      </div>
-
-                      {/* Services */}
-                      {firm.services.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {firm.services.map((s) => (
-                            <span
-                              key={s}
-                              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                              style={{ background: "#2d1b4e", color: "#a78bfa" }}
-                            >
-                              {s}
-                            </span>
-                          ))}
                         </div>
-                      )}
+                      );
+                    })}
+                  </div>
 
-                      {/* States */}
-                      {(firm.states ?? []).length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {(firm.states ?? []).map((s) => (
-                            <span
-                              key={s}
-                              className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                  {!externalShowAll && filteredExternal.length > SOFT_CAP && (
+                    <div className="text-center mt-4">
+                      <button
+                        onClick={() => setExternalShowAll(true)}
+                        className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors"
+                        style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                      >
+                        Load more ({filteredExternal.length - SOFT_CAP} remaining)
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -1009,7 +1006,6 @@ export default function TalentPartnerNetworkPage() {
             <div className="space-y-6">
               {/* Row 1: License Breakdown + Availability */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* License Status Breakdown */}
                 <div style={cardStyle}>
                   <h3 className="text-sm font-semibold mb-4">License Status Breakdown</h3>
                   <div className="space-y-3">
@@ -1018,20 +1014,19 @@ export default function TalentPartnerNetworkPage() {
                     <AnalyticsBar label="Expired" count={licenseAlerts.expired} total={licenseAlerts.total} color="#ef4444" />
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
-                    {licenseAlerts.total} total licenses across {totalTeam} team members
+                    {licenseAlerts.total} total licenses across {internalUsers.length} team members
                   </p>
                 </div>
 
-                {/* Availability Breakdown */}
                 <div style={cardStyle}>
                   <h3 className="text-sm font-semibold mb-4">Team Availability</h3>
                   <div className="space-y-3">
-                    <AnalyticsBar label="Available" count={availableCounts.available} total={totalTeam} color="#4ade80" />
-                    <AnalyticsBar label="Busy" count={availableCounts.busy} total={totalTeam} color="#facc15" />
-                    <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={totalTeam} color="#888888" />
+                    <AnalyticsBar label="Available" count={availableCounts.available} total={internalUsers.length} color="#4ade80" />
+                    <AnalyticsBar label="Busy" count={availableCounts.busy} total={internalUsers.length} color="#facc15" />
+                    <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={internalUsers.length} color="#888888" />
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
-                    {totalTeam} team members total
+                    {internalUsers.length} team members total
                   </p>
                 </div>
               </div>
@@ -1042,8 +1037,8 @@ export default function TalentPartnerNetworkPage() {
                 <div className="flex flex-wrap gap-1.5">
                   {US_STATES.map((s) => {
                     const hasTeam = teamLicenseStates.has(s);
-                    const hasFirm = firmCoverageStates.has(s);
-                    const hasBoth = hasTeam && hasFirm;
+                    const hasExternal = externalCoverageStates.has(s);
+                    const hasBoth = hasTeam && hasExternal;
 
                     let bg = "var(--bg-hover)";
                     let text = "var(--text-muted)";
@@ -1052,15 +1047,15 @@ export default function TalentPartnerNetworkPage() {
                     if (hasBoth) {
                       bg = "#1a3a2a";
                       text = "#4ade80";
-                      title = `${s}: Team + Firm coverage`;
+                      title = `${s}: Internal + External coverage`;
                     } else if (hasTeam) {
                       bg = "#1a2a3a";
                       text = "#60a5fa";
-                      title = `${s}: Team licensed`;
-                    } else if (hasFirm) {
+                      title = `${s}: Internal licensed`;
+                    } else if (hasExternal) {
                       bg = "#2d1b4e";
                       text = "#a78bfa";
-                      title = `${s}: Firm coverage`;
+                      title = `${s}: External coverage`;
                     }
 
                     return (
@@ -1082,11 +1077,11 @@ export default function TalentPartnerNetworkPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded" style={{ background: "#1a2a3a" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Team only</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Internal only</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded" style={{ background: "#2d1b4e" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Firm only</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>External only</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded" style={{ background: "var(--bg-hover)" }} />
@@ -1095,29 +1090,36 @@ export default function TalentPartnerNetworkPage() {
                 </div>
               </div>
 
-              {/* Row 3: Firm summary */}
+              {/* Row 3: Specialty Breakdown */}
               <div style={cardStyle}>
-                <h3 className="text-sm font-semibold mb-4">Firm Status</h3>
-                <div className="space-y-3">
-                  <AnalyticsBar label="Active" count={activeFirms} total={totalFirms} color="#4ade80" />
-                  <AnalyticsBar label="Pending" count={pendingFirms} total={totalFirms} color="#facc15" />
-                  <AnalyticsBar label="Inactive" count={firms.filter((f) => f.status === "inactive").length} total={totalFirms} color="#888888" />
-                </div>
-                <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
-                  {totalFirms} firms across {statesCovered.size} states
-                </p>
+                <h3 className="text-sm font-semibold mb-4">External Specialty Breakdown</h3>
+                {externalContacts.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No external contacts yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {SPECIALTIES.map((spec) => {
+                      const count = externalContacts.filter((c) =>
+                        spec === "Other" ? c.specialty === "Other" : c.specialty === spec
+                      ).length;
+                      if (count === 0) return null;
+                      return (
+                        <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="#a78bfa" />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* ── Add/Edit Firm Modal ────────────────────────── */}
-      {showFirmModal && (
+      {/* ── Add/Edit External Contact Modal ──────────── */}
+      {showExternalModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.6)" }}
-          onClick={() => setShowFirmModal(false)}
+          onClick={() => setShowExternalModal(false)}
         >
           <div
             className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
@@ -1126,10 +1128,10 @@ export default function TalentPartnerNetworkPage() {
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">
-                {editingFirmId ? "Edit Firm" : "Add Firm"}
+                {editingContactId ? "Edit External User" : "Add External User"}
               </h2>
               <button
-                onClick={() => setShowFirmModal(false)}
+                onClick={() => setShowExternalModal(false)}
                 className="text-lg cursor-pointer"
                 style={{ color: "var(--text-muted)" }}
               >
@@ -1141,226 +1143,228 @@ export default function TalentPartnerNetworkPage() {
               {/* Name */}
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Company Name
+                  Name *
                 </label>
                 <input
                   type="text"
-                  value={firmForm.name}
-                  onChange={(e) => setFirmForm({ ...firmForm, name: e.target.value })}
+                  value={externalForm.name}
+                  onChange={(e) => setExternalForm({ ...externalForm, name: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={inputStyle}
-                  placeholder="Firm name..."
+                  placeholder="Full name..."
                 />
               </div>
 
-              {/* Contact Name + Email */}
+              {/* Email + Phone */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Contact Name
-                  </label>
-                  <input
-                    type="text"
-                    value={firmForm.contact_name}
-                    onChange={(e) => setFirmForm({ ...firmForm, contact_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="Primary contact..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Contact Email
+                    Email
                   </label>
                   <input
                     type="email"
-                    value={firmForm.contact_email}
-                    onChange={(e) => setFirmForm({ ...firmForm, contact_email: e.target.value })}
+                    value={externalForm.email}
+                    onChange={(e) => setExternalForm({ ...externalForm, email: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                     style={inputStyle}
-                    placeholder="email@firm.com"
+                    placeholder="email@example.com"
                   />
                 </div>
-              </div>
-
-              {/* Phone + Status */}
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Contact Phone
+                    Phone
                   </label>
                   <input
                     type="text"
-                    value={firmForm.contact_phone}
-                    onChange={(e) => setFirmForm({ ...firmForm, contact_phone: e.target.value })}
+                    value={externalForm.phone}
+                    onChange={(e) => setExternalForm({ ...externalForm, phone: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                     style={inputStyle}
                     placeholder="(555) 123-4567"
                   />
                 </div>
+              </div>
+
+              {/* Specialty */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  Specialty *
+                </label>
+                <select
+                  value={externalForm.specialty}
+                  onChange={(e) => setExternalForm({ ...externalForm, specialty: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                  style={inputStyle}
+                >
+                  <option value="">Select specialty...</option>
+                  {SPECIALTIES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Other specialty free text */}
+              {externalForm.specialty === "Other" && (
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Status
+                    Describe specialty
                   </label>
-                  <select
-                    value={firmForm.status}
-                    onChange={(e) => setFirmForm({ ...firmForm, status: e.target.value as FirmFormData["status"] })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                  <input
+                    type="text"
+                    value={externalForm.specialty_other}
+                    onChange={(e) => setExternalForm({ ...externalForm, specialty_other: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="What do they do?"
+                  />
+                </div>
+              )}
+
+              {/* States they cover */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  States They Cover
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFormStateDrop(!showFormStateDrop)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer w-full text-left"
                     style={inputStyle}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Website + Entity Type */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Website
-                  </label>
-                  <input
-                    type="text"
-                    value={firmForm.website}
-                    onChange={(e) => setFirmForm({ ...firmForm, website: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="www.example.com"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Entity Type
-                  </label>
-                  <input
-                    type="text"
-                    value={firmForm.entity_type}
-                    onChange={(e) => setFirmForm({ ...firmForm, entity_type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="LLC, Corp, Sole Prop..."
-                  />
-                </div>
-              </div>
-
-              {/* City + State + Rating */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    value={firmForm.city}
-                    onChange={(e) => setFirmForm({ ...firmForm, city: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="City..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    HQ State
-                  </label>
-                  <input
-                    type="text"
-                    value={firmForm.firm_state}
-                    onChange={(e) => setFirmForm({ ...firmForm, firm_state: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="FL"
-                    maxLength={2}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Rating (1-5)
-                  </label>
-                  <div className="flex items-center gap-1 mt-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setFirmForm({ ...firmForm, rating: firmForm.rating === star ? 0 : star })}
-                        className="cursor-pointer"
-                      >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill={star <= firmForm.rating ? "#facc15" : "none"}
-                          stroke={star <= firmForm.rating ? "#facc15" : "var(--text-muted)"}
-                          strokeWidth="1.8"
+                    {externalForm.states.length > 0
+                      ? externalForm.states.join(", ")
+                      : "Select states..."}
+                  </button>
+                  {showFormStateDrop && (
+                    <div
+                      className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full"
+                      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+                    >
+                      {externalForm.states.length > 0 && (
+                        <button
+                          onClick={() => setExternalForm({ ...externalForm, states: [] })}
+                          className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1"
+                          style={{ color: "var(--accent)" }}
                         >
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
+                          Clear all
+                        </button>
+                      )}
+                      <div className="grid grid-cols-6 gap-1">
+                        {US_STATES.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => toggleFormState(s)}
+                            className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
+                            style={{
+                              background: externalForm.states.includes(s) ? "var(--accent)" : "var(--bg-hover)",
+                              color: externalForm.states.includes(s) ? "#000" : "var(--text-secondary)",
+                            }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Services */}
+              {/* Company Name */}
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Services (comma-separated)
+                  Company Name (optional)
                 </label>
                 <input
                   type="text"
-                  value={firmForm.services}
-                  onChange={(e) => setFirmForm({ ...firmForm, services: e.target.value })}
+                  value={externalForm.company_name}
+                  onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={inputStyle}
-                  placeholder="Restoration, Roofing, Engineering..."
-                />
-              </div>
-
-              {/* States */}
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                  States Covered (comma-separated state codes)
-                </label>
-                <input
-                  type="text"
-                  value={firmForm.states}
-                  onChange={(e) => setFirmForm({ ...firmForm, states: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={inputStyle}
-                  placeholder="FL, TX, PA, NY..."
+                  placeholder="Company or firm name..."
                 />
               </div>
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
-                  onClick={() => setShowFirmModal(false)}
+                  onClick={() => setShowExternalModal(false)}
                   className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
                   style={{ color: "var(--text-secondary)" }}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveFirm}
-                  disabled={saving || !firmForm.name.trim()}
+                  onClick={handleSaveExternal}
+                  disabled={saving || !externalForm.name.trim() || !externalForm.specialty}
                   className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50"
                   style={{ background: "var(--accent)", color: "#000" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
                 >
-                  {saving ? "Saving..." : editingFirmId ? "Save Changes" : "Add Firm"}
+                  {saving ? "Saving..." : editingContactId ? "Save Changes" : "Add User"}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Close form state dropdown on outside click */}
+      {showFormStateDrop && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => setShowFormStateDrop(false)}
+        />
+      )}
     </div>
   );
 }
 
 /* ── sub-components ─────────────────────────────────────── */
+
+function StateDropdown({
+  selected,
+  onToggle,
+  onClear,
+  onClose,
+}: {
+  selected: string[];
+  onToggle: (s: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto"
+      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", minWidth: 200 }}
+    >
+      {selected.length > 0 && (
+        <button
+          onClick={onClear}
+          className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1"
+          style={{ color: "var(--accent)" }}
+        >
+          Clear all
+        </button>
+      )}
+      <div className="grid grid-cols-4 gap-1">
+        {US_STATES.map((s) => (
+          <button
+            key={s}
+            onClick={() => onToggle(s)}
+            className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
+            style={{
+              background: selected.includes(s) ? "var(--accent)" : "var(--bg-hover)",
+              color: selected.includes(s) ? "#000" : "var(--text-secondary)",
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function MetricCard({
   label,
@@ -1384,7 +1388,7 @@ function MetricCard({
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    firm: (
+    external: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
         <rect x="2" y="7" width="20" height="14" rx="2" />
         <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
@@ -1394,12 +1398,6 @@ function MetricCard({
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
         <circle cx="12" cy="10" r="3" />
         <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
-      </svg>
-    ),
-    pending: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={highlight ? "#facc15" : "var(--accent)"} strokeWidth="1.8">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
     available: (
@@ -1413,6 +1411,11 @@ function MetricCard({
         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+    specialty: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
       </svg>
     ),
   };
