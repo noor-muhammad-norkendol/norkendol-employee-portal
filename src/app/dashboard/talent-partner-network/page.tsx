@@ -203,6 +203,9 @@ export default function TalentPartnerNetworkPage() {
   const [deactivateConfirm, setDeactivateConfirm] = useState<string | null>(null);
   const [showFormStateDrop, setShowFormStateDrop] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [promoteContact, setPromoteContact] = useState<ExternalContact | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteError, setPromoteError] = useState("");
 
   const isAdmin = ADMIN_ROLES.includes(userRole);
 
@@ -364,6 +367,47 @@ export default function TalentPartnerNetworkPage() {
       .eq("id", id);
     setDeactivateConfirm(null);
     fetchExternalContacts();
+  };
+
+  /* ── promote to portal account ────────────────────────── */
+
+  const handlePromoteToPortal = async () => {
+    if (!promoteContact || !promoteContact.email) return;
+    setPromoting(true);
+    setPromoteError("");
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setPromoteError("Not authenticated");
+      setPromoting(false);
+      return;
+    }
+
+    const res = await fetch("/api/invite-external-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        contactId: promoteContact.id,
+        name: promoteContact.name,
+        email: promoteContact.email,
+        orgId: ORG_ID,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setPromoteError(err.error || "Failed to grant access");
+      setPromoting(false);
+      return;
+    }
+
+    setPromoting(false);
+    setPromoteContact(null);
+    fetchExternalContacts();
+    router.push("/dashboard/user-management?tab=external");
   };
 
   /* ── computed metrics ────────────────────────────────── */
@@ -536,7 +580,7 @@ export default function TalentPartnerNetworkPage() {
               {copiedLink === "internal" ? "Link Copied!" : "Copy Invite Link"}
             </button>
           )}
-          {tab === "external" && (
+          {tab === "external" && isAdmin && (
             <>
               <button
                 onClick={() => {
@@ -926,8 +970,8 @@ export default function TalentPartnerNetworkPage() {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              {/* Portal access indicator */}
-                              {contact.user_id && (
+                              {/* Portal access indicator or grant button */}
+                              {contact.user_id ? (
                                 <span
                                   className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full mr-1"
                                   style={{ background: "#1a3a2a", color: "#4ade80" }}
@@ -935,18 +979,31 @@ export default function TalentPartnerNetworkPage() {
                                 >
                                   PORTAL
                                 </span>
-                              )}
+                              ) : (isAdmin && contact.email && (
+                                <button
+                                  onClick={() => setPromoteContact(contact)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg mr-1 cursor-pointer transition-colors"
+                                  style={{ background: "#1e3a5f", color: "#60a5fa", border: "1px solid #2d4a6f" }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#264a73")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "#1e3a5f")}
+                                  title="Grant portal access"
+                                >
+                                  Grant Access
+                                </button>
+                              ))}
 
-                              <button
-                                onClick={() => openEditExternal(contact)}
-                                className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
-                                title="Edit"
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => openEditExternal(contact)}
+                                  className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                                  title="Edit"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
+                              )}
 
                               {isAdmin && (deactivateConfirm === contact.id ? (
                                   <div className="flex items-center gap-1">
@@ -1114,17 +1171,66 @@ export default function TalentPartnerNetworkPage() {
         </>
       )}
 
+      {/* ── Grant Portal Access Confirmation Modal ───── */}
+      {promoteContact && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => { if (!promoting) { setPromoteContact(null); setPromoteError(""); } }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-md"
+            style={{ background: "var(--bg-page)", border: "1px solid var(--border-color)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold mb-4">Grant Portal Access</h2>
+            <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+              Grant portal access to:
+            </p>
+            <p className="text-sm font-semibold mb-1">{promoteContact.name}</p>
+            <p className="text-sm mb-4" style={{ color: "var(--accent)" }}>{promoteContact.email}</p>
+            <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
+              They will receive an email invitation to set up their account and log in.
+            </p>
+
+            {promoteError && (
+              <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "#4a1a1a", color: "#ef4444" }}>
+                {promoteError}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setPromoteContact(null); setPromoteError(""); }}
+                disabled={promoting}
+                className="px-4 py-2 rounded-lg text-sm cursor-pointer"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromoteToPortal}
+                disabled={promoting}
+                className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{ background: "var(--accent)", color: "#000", opacity: promoting ? 0.6 : 1 }}
+              >
+                {promoting ? "Sending Invite..." : "Grant Access & Send Invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Add/Edit External Contact Modal ──────────── */}
       {showExternalModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.6)" }}
-          onClick={() => setShowExternalModal(false)}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowExternalModal(false); }}
         >
           <div
             className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">

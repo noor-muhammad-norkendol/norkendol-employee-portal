@@ -69,10 +69,11 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "SYSTEM", items: ["General", "Security", "Integrations"] },
   ],
   "talent-partner-network": [
-    { group: "NETWORK", items: ["Overview", "Team Members", "Firms"] },
+    { group: "NETWORK", items: ["Overview", "Internal", "External", "Analytics"] },
   ],
   "tpn-admin": [
-    { group: "TPN ADMIN", items: ["Partner Settings", "Approval Rules", "Service Types"] },
+    { group: "NETWORK", items: ["Overview", "Internal", "External", "Analytics"] },
+    { group: "ADMIN", items: ["Partner Settings", "Approval Rules", "Service Types"] },
   ],
   "tenant-management": [
     { group: "TENANTS", items: ["All Tenants", "Create", "Billing"] },

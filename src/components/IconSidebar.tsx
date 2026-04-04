@@ -126,6 +126,7 @@ const internalSections: TierSection[] = [
       { label: "Leaderboard", slug: "leaderboard", paths: icons.leaderboard },
       { label: "Departments", slug: "departments", paths: icons.departments },
       { label: "CRM", slug: "crm", paths: icons.crm },
+      { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
     ],
   },
   {
@@ -135,7 +136,6 @@ const internalSections: TierSection[] = [
       { label: "Compliance Settings", slug: "compliance-settings", paths: icons.complianceSettings },
       { label: "Claim Calculator Settings", slug: "claim-calculator-settings", paths: icons.claimCalc },
       { label: "System Settings", slug: "system-settings", paths: icons.systemSettings },
-      { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
     ],
   },
   {
