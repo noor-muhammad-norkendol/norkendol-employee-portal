@@ -133,7 +133,7 @@ const internalSections: TierSection[] = [
     tier: "3", heading: "Super Admin", items: [
       { label: "AI Agents", slug: "ai-agents", paths: icons.aiAgents },
       { label: "App Management", slug: "app-management", paths: icons.appManagement },
-      { label: "Compliance Settings", slug: "compliance-settings", paths: icons.complianceSettings },
+      { label: "Compliance Admin", slug: "compliance-settings", paths: icons.complianceSettings },
       { label: "Claim Calculator Settings", slug: "claim-calculator-settings", paths: icons.claimCalc },
       { label: "System Settings", slug: "system-settings", paths: icons.systemSettings },
     ],

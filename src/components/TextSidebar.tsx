@@ -60,7 +60,7 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "MANAGEMENT", items: ["All Apps", "Install", "Permissions"] },
   ],
   "compliance-settings": [
-    { group: "SETTINGS", items: ["Rules", "Schedules", "Notifications"] },
+    { group: "COMPLIANCE ADMIN", items: ["Licenses", "Bonds", "Pending Approvals"] },
   ],
   "claim-calculator-settings": [
     { group: "CALCULATOR", items: ["Formulas", "Rates", "Defaults"] },
