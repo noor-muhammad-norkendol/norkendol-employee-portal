@@ -24,7 +24,7 @@ interface BondRow {
   created_at: string;
 }
 
-type Tab = "licenses" | "bonds" | "pending" | "activity";
+type Tab = "licenses" | "bonds" | "pending" | "activity" | "calendar";
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -95,6 +95,11 @@ export default function ComplianceAdminPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; kind: "license" | "bond"; name: string } | null>(null);
+
+  // Calendar state
+  const [calYear, setCalYear] = useState(2026);
+  const [calMonth, setCalMonth] = useState<number | null>(null); // null = year overview, 0-11 = month detail
+  const [calDay, setCalDay] = useState<number | null>(null);
 
   // File upload ref
   const fileRef = useRef<HTMLInputElement>(null);
@@ -175,6 +180,82 @@ export default function ComplianceAdminPage() {
     const pending = bonds.filter(b => b.status === "pending").length;
     return { total: bonds.length, approved, pending };
   }, [bonds]);
+
+  /* ── calendar events ────────────────────────────────── */
+  interface CalEvent {
+    date: string; // YYYY-MM-DD
+    person: string;
+    state: string;
+    type: "License" | "Bond" | "E&O";
+    amount: string;
+    notes: string;
+    status: string;
+    compStatus: ComplianceStatus;
+  }
+
+  const calendarEvents = useMemo(() => {
+    const evts: CalEvent[] = [];
+    for (const l of licenses) {
+      if (!l.expiry_date) continue;
+      evts.push({
+        date: l.expiry_date,
+        person: userMap[l.user_id] || "Unknown",
+        state: l.state,
+        type: "License",
+        amount: "",
+        notes: l.review_notes || "",
+        status: l.status,
+        compStatus: calcStatus(l.expiry_date),
+      });
+    }
+    for (const b of bonds) {
+      if (!b.expiry_date) continue;
+      evts.push({
+        date: b.expiry_date,
+        person: userMap[b.user_id] || "Unknown",
+        state: b.state,
+        type: "Bond",
+        amount: b.amount ? `$${b.amount.toLocaleString()}` : "",
+        notes: b.review_notes || "",
+        status: b.status,
+        compStatus: calcStatus(b.expiry_date),
+      });
+    }
+    return evts;
+  }, [licenses, bonds, userMap]);
+
+  // Group events by YYYY-MM-DD
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, CalEvent[]> = {};
+    for (const e of calendarEvents) {
+      if (!map[e.date]) map[e.date] = [];
+      map[e.date].push(e);
+    }
+    return map;
+  }, [calendarEvents]);
+
+  // Events for selected year, grouped by month
+  const yearEvents = useMemo(() => {
+    return calendarEvents.filter(e => e.date.startsWith(`${calYear}-`));
+  }, [calendarEvents, calYear]);
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  function daysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+  function firstDayOfMonth(year: number, month: number) {
+    return new Date(year, month, 1).getDay();
+  }
+  function eventsForDay(year: number, month: number, day: number) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return eventsByDate[key] || [];
+  }
+  function eventsForMonth(year: number, month: number) {
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    return calendarEvents.filter(e => e.date.startsWith(prefix));
+  }
 
   /* ── actions ────────────────────────────────────────── */
   const updateStatus = async (id: string, kind: "license" | "bond", status: string) => {
@@ -297,6 +378,7 @@ export default function ComplianceAdminPage() {
     { key: "bonds", label: "Bonds", count: bonds.length },
     { key: "pending", label: "Pending Approvals", count: pendingItems.length },
     { key: "activity", label: "Activity Log" },
+    { key: "calendar", label: "Calendar", count: yearEvents.length },
   ];
 
   /* ── render row for license or bond ────────────────── */
@@ -568,6 +650,184 @@ export default function ComplianceAdminPage() {
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Activity Log coming soon.</p>
           <p style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 4 }}>Will track all license/bond approvals, edits, and uploads.</p>
         </div>
+      )}
+
+      {!loading && tab === "calendar" && (
+        <>
+          {/* Year nav + summary */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={() => { setCalYear(y => y - 1); setCalMonth(null); setCalDay(null); }} style={{ ...btnGhost, padding: "4px 10px" }}>&larr;</button>
+              <span style={{ fontSize: 20, fontWeight: 700 }}>{calYear}</span>
+              <button onClick={() => { setCalYear(y => y + 1); setCalMonth(null); setCalDay(null); }} style={{ ...btnGhost, padding: "4px 10px" }}>&rarr;</button>
+              {calMonth !== null && (
+                <button onClick={() => { setCalMonth(null); setCalDay(null); }} style={{ ...btnGhost, fontSize: 12, marginLeft: 8 }}>&larr; Back to Year</button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", marginRight: 4 }} />Licenses ({yearEvents.filter(e => e.type === "License").length})</span>
+              <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#a855f7", marginRight: 4 }} />Bonds ({yearEvents.filter(e => e.type === "Bond").length})</span>
+            </div>
+          </div>
+
+          {/* Year overview — 12 mini months */}
+          {calMonth === null && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              {Array.from({ length: 12 }, (_, mi) => {
+                const mEvts = eventsForMonth(calYear, mi);
+                const days = daysInMonth(calYear, mi);
+                const first = firstDayOfMonth(calYear, mi);
+                const expiring = mEvts.filter(e => e.compStatus === "expiring_30" || e.compStatus === "expiring_90").length;
+                const expired = mEvts.filter(e => e.compStatus === "expired").length;
+                return (
+                  <div key={mi} style={{ ...cardStyle, cursor: "pointer", padding: 12 }} onClick={() => { setCalMonth(mi); setCalDay(null); }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{monthNames[mi]}</span>
+                      {mEvts.length > 0 && (
+                        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{mEvts.length} event{mEvts.length !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                    {/* Mini calendar grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, fontSize: 10, textAlign: "center" }}>
+                      {dayNames.map(d => <div key={d} style={{ color: "var(--text-muted)", padding: "1px 0", fontWeight: 600 }}>{d}</div>)}
+                      {Array.from({ length: first }, (_, i) => <div key={`pad-${i}`} />)}
+                      {Array.from({ length: days }, (_, i) => {
+                        const day = i + 1;
+                        const dayEvts = eventsForDay(calYear, mi, day);
+                        const hasLicense = dayEvts.some(e => e.type === "License");
+                        const hasBond = dayEvts.some(e => e.type === "Bond");
+                        const hasExpired = dayEvts.some(e => e.compStatus === "expired");
+                        const hasExpiring = dayEvts.some(e => e.compStatus === "expiring_30");
+                        return (
+                          <div key={day} style={{
+                            padding: "2px 0",
+                            color: dayEvts.length > 0 ? "#fff" : "var(--text-muted)",
+                            fontWeight: dayEvts.length > 0 ? 600 : 400,
+                            background: hasExpired ? "rgba(239,68,68,0.3)" : hasExpiring ? "rgba(251,146,60,0.3)" : dayEvts.length > 0 ? "rgba(59,130,246,0.15)" : "transparent",
+                            borderRadius: 3,
+                            position: "relative",
+                          }}>
+                            {day}
+                            {dayEvts.length > 0 && (
+                              <div style={{ display: "flex", gap: 1, justifyContent: "center", position: "absolute", bottom: -2, left: 0, right: 0 }}>
+                                {hasLicense && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#3b82f6" }} />}
+                                {hasBond && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#a855f7" }} />}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Month summary badges */}
+                    {(expiring > 0 || expired > 0) && (
+                      <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+                        {expired > 0 && <Badge label={`${expired} expired`} colors={STATUS_COLORS.expired} />}
+                        {expiring > 0 && <Badge label={`${expiring} expiring`} colors={STATUS_COLORS.expiring_30} />}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Month detail view */}
+          {calMonth !== null && (() => {
+            const days = daysInMonth(calYear, calMonth);
+            const first = firstDayOfMonth(calYear, calMonth);
+            const mEvts = eventsForMonth(calYear, calMonth).sort((a, b) => a.date.localeCompare(b.date));
+            const selectedDayEvts = calDay ? eventsForDay(calYear, calMonth, calDay) : [];
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {/* Left — calendar grid */}
+                <div style={cardStyle}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{monthNames[calMonth]} {calYear}</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, textAlign: "center" }}>
+                    {dayNames.map(d => <div key={d} style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", padding: "4px 0" }}>{d}</div>)}
+                    {Array.from({ length: first }, (_, i) => <div key={`pad-${i}`} />)}
+                    {Array.from({ length: days }, (_, i) => {
+                      const day = i + 1;
+                      const dayEvts = eventsForDay(calYear, calMonth, day);
+                      const isSelected = calDay === day;
+                      const hasExpired = dayEvts.some(e => e.compStatus === "expired");
+                      const hasExpiring = dayEvts.some(e => e.compStatus === "expiring_30");
+                      const isToday = (() => {
+                        const now = new Date();
+                        return now.getFullYear() === calYear && now.getMonth() === calMonth && now.getDate() === day;
+                      })();
+                      return (
+                        <div
+                          key={day}
+                          onClick={() => setCalDay(dayEvts.length > 0 ? day : null)}
+                          style={{
+                            padding: "6px 2px",
+                            fontSize: 13,
+                            fontWeight: dayEvts.length > 0 ? 600 : 400,
+                            borderRadius: 6,
+                            cursor: dayEvts.length > 0 ? "pointer" : "default",
+                            color: dayEvts.length > 0 ? "#fff" : "var(--text-secondary)",
+                            background: isSelected ? "var(--accent, #3b82f6)" : hasExpired ? "rgba(239,68,68,0.35)" : hasExpiring ? "rgba(251,146,60,0.35)" : dayEvts.length > 0 ? "rgba(59,130,246,0.2)" : "transparent",
+                            border: isToday ? "1px solid var(--accent, #3b82f6)" : "1px solid transparent",
+                            position: "relative",
+                          }}
+                        >
+                          {day}
+                          {dayEvts.length > 1 && (
+                            <span style={{ position: "absolute", top: 1, right: 3, fontSize: 8, color: "var(--text-muted)" }}>{dayEvts.length}</span>
+                          )}
+                          {dayEvts.length > 0 && (
+                            <div style={{ display: "flex", gap: 2, justifyContent: "center", marginTop: 2 }}>
+                              {dayEvts.some(e => e.type === "License") && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#3b82f6" }} />}
+                              {dayEvts.some(e => e.type === "Bond") && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#a855f7" }} />}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right — event list */}
+                <div style={cardStyle}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    {calDay ? `${monthNames[calMonth]} ${calDay}, ${calYear}` : `All events in ${monthNames[calMonth]}`}
+                    {calDay && <button onClick={() => setCalDay(null)} style={{ ...btnGhost, fontSize: 11, marginLeft: 8, padding: "2px 8px" }}>Show all</button>}
+                  </h3>
+                  <div style={{ maxHeight: 500, overflowY: "auto" }}>
+                    {(calDay ? selectedDayEvts : mEvts).length === 0 ? (
+                      <p style={{ color: "var(--text-secondary)", fontSize: 13, padding: 16, textAlign: "center" }}>
+                        {calDay ? "No events on this day." : "No events this month."}
+                      </p>
+                    ) : (
+                      (calDay ? selectedDayEvts : mEvts).map((evt, idx) => (
+                        <div key={idx} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>
+                              {!calDay && <span style={{ color: "var(--text-muted)", marginRight: 6 }}>{evt.date.slice(8)}</span>}
+                              {evt.person}
+                              <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{evt.state}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                              <Badge
+                                label={evt.type}
+                                colors={evt.type === "License" ? { bg: "#1a2a3a", text: "#60a5fa" } : { bg: "#2a1a3a", text: "#a78bfa" }}
+                              />
+                              {evt.amount && <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{evt.amount}</span>}
+                              {evt.compStatus !== "active" && evt.compStatus !== "no_date" && (
+                                <Badge label={evt.compStatus.replace("_", " ")} colors={STATUS_COLORS[evt.compStatus]} />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </>
       )}
 
       {/* Hidden file input */}
