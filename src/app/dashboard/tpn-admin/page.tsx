@@ -40,6 +40,22 @@ interface ExternalContact {
   status: "active" | "inactive";
 }
 
+interface Firm {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+}
+
+interface ActivityEntry {
+  id: string;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
+  performer_name?: string;
+  contact_name?: string;
+}
+
 interface ExternalFormData {
   name: string;
   email: string;
@@ -48,6 +64,7 @@ interface ExternalFormData {
   specialty_other: string;
   states: string[];
   company_name: string;
+  firm_id: string;
 }
 
 const EMPTY_EXTERNAL_FORM: ExternalFormData = {
@@ -58,6 +75,7 @@ const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   specialty_other: "",
   states: [],
   company_name: "",
+  firm_id: "",
 };
 
 const SPECIALTIES = [
@@ -68,13 +86,14 @@ const SPECIALTIES = [
 
 /* ── helpers ───────────────────────────────────────────── */
 
-type Tab = "overview" | "internal" | "external" | "analytics" | "partner-settings" | "approval-rules" | "service-types";
+type Tab = "overview" | "internal" | "external" | "analytics" | "activity-log" | "partner-settings" | "approval-rules" | "service-types";
 
 const TAB_LABELS: Record<Tab, string> = {
   overview: "Overview",
   internal: "Internal",
   external: "External",
   analytics: "Analytics",
+  "activity-log": "Activity Log",
   "partner-settings": "Partner Settings",
   "approval-rules": "Approval Rules",
   "service-types": "Service Types",
@@ -248,6 +267,25 @@ export default function TPNAdminPage() {
   const [promoting, setPromoting] = useState(false);
   const [promoteError, setPromoteError] = useState("");
 
+  // Status filter (admin can see inactive)
+  const [externalStatusFilter, setExternalStatusFilter] = useState<"active" | "inactive" | "all">("active");
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"" | "assign-firm" | "update-states" | "deactivate">("");
+  const [bulkFirmId, setBulkFirmId] = useState("");
+  const [bulkStates, setBulkStates] = useState<string[]>([]);
+  const [bulkStatesMode, setBulkStatesMode] = useState<"add" | "replace">("add");
+  const [showBulkStateDrop, setShowBulkStateDrop] = useState(false);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  // Firms data
+  const [firms, setFirms] = useState<Firm[]>([]);
+
+  // Activity log
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
   /* ── fetch data ──────────────────────────────────────── */
 
   const fetchInternalUsers = useCallback(async () => {
@@ -284,13 +322,18 @@ export default function TPNAdminPage() {
   }, []);
 
   const fetchExternalContacts = useCallback(async () => {
-    const { data: contacts } = await supabase
+    // Admin can see all statuses
+    let query = supabase
       .from("external_contacts")
       .select("id, name, email, phone, specialty, specialty_other, states, company_name, firm_id, user_id, status")
       .eq("org_id", ORG_ID)
-      .eq("status", "active")
       .order("name");
 
+    if (externalStatusFilter !== "all") {
+      query = query.eq("status", externalStatusFilter);
+    }
+
+    const { data: contacts } = await query;
     if (!contacts || contacts.length === 0) { setExternalContacts([]); return; }
 
     const firmIds = [...new Set(contacts.filter((c) => c.firm_id).map((c) => c.firm_id!))];
@@ -307,12 +350,72 @@ export default function TPNAdminPage() {
         firm_name: c.firm_id ? (firmNameMap.get(c.firm_id) ?? c.company_name) : c.company_name,
       }))
     );
+  }, [externalStatusFilter]);
+
+  const fetchFirms = useCallback(async () => {
+    const { data } = await supabase
+      .from("firms")
+      .select("id, name, city, state")
+      .eq("org_id", ORG_ID)
+      .eq("status", "active")
+      .order("name");
+    setFirms(data ?? []);
+  }, []);
+
+  const fetchActivityLog = useCallback(async () => {
+    setActivityLoading(true);
+    const { data: logs } = await supabase
+      .from("tpn_activity_log")
+      .select("id, action, details, created_at, performed_by, contact_id")
+      .eq("org_id", ORG_ID)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (!logs || logs.length === 0) { setActivityLog([]); setActivityLoading(false); return; }
+
+    // Resolve performer names
+    const performerIds = [...new Set(logs.map((l) => l.performed_by).filter(Boolean))];
+    const nameMap = new Map<string, string>();
+    if (performerIds.length > 0) {
+      const { data: users } = await supabase.from("users").select("id, full_name").in("id", performerIds);
+      for (const u of users ?? []) nameMap.set(u.id, u.full_name);
+    }
+
+    setActivityLog(logs.map((l) => ({
+      ...l,
+      details: (l.details ?? {}) as Record<string, unknown>,
+      performer_name: l.performed_by ? nameMap.get(l.performed_by) ?? "Unknown" : "System",
+      contact_name: (l.details as Record<string, unknown>)?.contact_name as string | undefined,
+    })));
+    setActivityLoading(false);
+  }, []);
+
+  const logActivity = useCallback(async (action: string, details: Record<string, unknown>, contactId?: string, firmId?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("tpn_activity_log").insert({
+      org_id: ORG_ID,
+      contact_id: contactId ?? null,
+      firm_id: firmId ?? null,
+      action,
+      details,
+      performed_by: user?.id ?? null,
+    });
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchInternalUsers(), fetchExternalContacts()]).then(() => setLoading(false));
-  }, [fetchInternalUsers, fetchExternalContacts]);
+    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms()]).then(() => setLoading(false));
+  }, [fetchInternalUsers, fetchExternalContacts, fetchFirms]);
+
+  // Reload external contacts when status filter changes
+  useEffect(() => {
+    fetchExternalContacts();
+  }, [externalStatusFilter, fetchExternalContacts]);
+
+  // Load activity log when that tab is selected
+  useEffect(() => {
+    if (tab === "activity-log") fetchActivityLog();
+  }, [tab, fetchActivityLog]);
 
   /* ── external contact CRUD ─────────────────────────────── */
 
@@ -332,6 +435,7 @@ export default function TPNAdminPage() {
       specialty_other: c.specialty_other ?? "",
       states: c.states ?? [],
       company_name: c.company_name ?? "",
+      firm_id: c.firm_id ?? "",
     });
     setShowExternalModal(true);
   };
@@ -340,6 +444,9 @@ export default function TPNAdminPage() {
     if (!externalForm.name.trim() || !externalForm.specialty) return;
     setSaving(true);
 
+    const selectedFirm = externalForm.firm_id ? firms.find((f) => f.id === externalForm.firm_id) : null;
+    const companyName = selectedFirm ? selectedFirm.name : (externalForm.company_name.trim() || null);
+
     const payload = {
       name: externalForm.name.trim(),
       email: externalForm.email.trim() || null,
@@ -347,19 +454,22 @@ export default function TPNAdminPage() {
       specialty: externalForm.specialty,
       specialty_other: externalForm.specialty === "Other" ? externalForm.specialty_other.trim() || null : null,
       states: externalForm.states.length > 0 ? externalForm.states : null,
-      company_name: externalForm.company_name.trim() || null,
+      company_name: companyName,
+      firm_id: externalForm.firm_id || null,
       updated_at: new Date().toISOString(),
     };
 
     if (editingContactId) {
       await supabase.from("external_contacts").update(payload).eq("id", editingContactId);
+      await logActivity("edited", { contact_name: payload.name }, editingContactId);
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("external_contacts").insert({
+      const { data: inserted } = await supabase.from("external_contacts").insert({
         ...payload,
         org_id: ORG_ID,
         created_by: user?.id ?? null,
-      });
+      }).select("id").single();
+      if (inserted) await logActivity("added", { contact_name: payload.name }, inserted.id);
     }
 
     setSaving(false);
@@ -368,11 +478,110 @@ export default function TPNAdminPage() {
   };
 
   const handleDeactivateExternal = async (id: string) => {
+    const contact = externalContacts.find((c) => c.id === id);
     await supabase
       .from("external_contacts")
       .update({ status: "inactive", updated_at: new Date().toISOString() })
       .eq("id", id);
+    await logActivity("deactivated", { contact_name: contact?.name ?? "Unknown" }, id);
     setDeactivateConfirm(null);
+    fetchExternalContacts();
+  };
+
+  const handleReactivateExternal = async (id: string) => {
+    const contact = externalContacts.find((c) => c.id === id);
+    await supabase
+      .from("external_contacts")
+      .update({ status: "active", updated_at: new Date().toISOString() })
+      .eq("id", id);
+    await logActivity("reactivated", { contact_name: contact?.name ?? "Unknown" }, id);
+    fetchExternalContacts();
+  };
+
+  /* ── bulk operations ─────────────────────────────────── */
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === filteredExternal.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredExternal.map((c) => c.id)));
+    }
+  };
+
+  const handleBulkAssignFirm = async () => {
+    if (!bulkFirmId || selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const firm = firms.find((f) => f.id === bulkFirmId);
+    const ids = Array.from(selectedIds);
+
+    await supabase
+      .from("external_contacts")
+      .update({ firm_id: bulkFirmId, company_name: firm?.name ?? null, updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    const names = externalContacts.filter((c) => selectedIds.has(c.id)).map((c) => c.name);
+    await logActivity("bulk_assign_firm", { firm_name: firm?.name, contact_count: ids.length, contact_names: names }, undefined, bulkFirmId);
+
+    setBulkProcessing(false);
+    setBulkAction("");
+    setBulkFirmId("");
+    setSelectedIds(new Set());
+    fetchExternalContacts();
+  };
+
+  const handleBulkUpdateStates = async () => {
+    if (bulkStates.length === 0 || selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+
+    for (const id of ids) {
+      const contact = externalContacts.find((c) => c.id === id);
+      const currentStates = contact?.states ?? [];
+      const newStates = bulkStatesMode === "replace"
+        ? bulkStates
+        : [...new Set([...currentStates, ...bulkStates])];
+
+      await supabase
+        .from("external_contacts")
+        .update({ states: newStates, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    }
+
+    const names = externalContacts.filter((c) => selectedIds.has(c.id)).map((c) => c.name);
+    await logActivity("bulk_update_states", { states: bulkStates, mode: bulkStatesMode, contact_count: ids.length, contact_names: names });
+
+    setBulkProcessing(false);
+    setBulkAction("");
+    setBulkStates([]);
+    setSelectedIds(new Set());
+    fetchExternalContacts();
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    const ids = Array.from(selectedIds);
+
+    await supabase
+      .from("external_contacts")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    const names = externalContacts.filter((c) => selectedIds.has(c.id)).map((c) => c.name);
+    await logActivity("bulk_deactivate", { contact_count: ids.length, contact_names: names });
+
+    setBulkProcessing(false);
+    setBulkAction("");
+    setSelectedIds(new Set());
     fetchExternalContacts();
   };
 
@@ -541,8 +750,12 @@ export default function TPNAdminPage() {
 
   /* ── render ──────────────────────────────────────────── */
 
-  const networkTabs: Tab[] = ["overview", "internal", "external", "analytics"];
+  const networkTabs: Tab[] = ["overview", "internal", "external", "analytics", "activity-log"];
   const adminTabs: Tab[] = ["partner-settings", "approval-rules", "service-types"];
+
+  // Clear selection when switching tabs or filters
+  const prevTab = tab;
+  const clearBulk = () => { setSelectedIds(new Set()); setBulkAction(""); };
 
   return (
     <div>
@@ -586,6 +799,15 @@ export default function TPNAdminPage() {
                 <span className="text-lg">+</span> Add External User
               </button>
             </>
+          )}
+          {tab === "activity-log" && (
+            <button
+              onClick={fetchActivityLog}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+            >
+              Refresh
+            </button>
           )}
         </div>
       </div>
@@ -824,6 +1046,17 @@ export default function TPNAdminPage() {
                 {externalFirmNames.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             )}
+            {/* Status filter */}
+            <select
+              value={externalStatusFilter}
+              onChange={(e) => { setExternalStatusFilter(e.target.value as "active" | "inactive" | "all"); clearBulk(); }}
+              className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={inputStyle}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="all">All Statuses</option>
+            </select>
             {(externalStateFilter.length > 0 || externalSpecialtyFilter || externalFirmFilter) && (
               <button
                 onClick={() => { setExternalStateFilter([]); setExternalSpecialtyFilter(""); setExternalFirmFilter(""); }}
@@ -835,22 +1068,73 @@ export default function TPNAdminPage() {
             )}
           </div>
 
-          <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-            {filteredExternal.length} contact{filteredExternal.length !== 1 ? "s" : ""}
-          </p>
+          {/* Bulk action bar */}
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={selectAll}
+              className="text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+              style={{ background: selectedIds.size === filteredExternal.length && filteredExternal.length > 0 ? "var(--accent)" : "var(--bg-hover)", color: selectedIds.size === filteredExternal.length && filteredExternal.length > 0 ? "#000" : "var(--text-secondary)" }}
+            >
+              {selectedIds.size === filteredExternal.length && filteredExternal.length > 0 ? "Deselect All" : "Select All"}
+            </button>
+
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {selectedIds.size > 0 ? `${selectedIds.size} selected · ` : ""}{filteredExternal.length} contact{filteredExternal.length !== 1 ? "s" : ""}
+            </p>
+
+            {selectedIds.size > 0 && (
+              <>
+                <button onClick={() => setBulkAction("assign-firm")} className="text-xs px-3 py-1.5 rounded-lg cursor-pointer" style={{ background: "#1e3a5f", color: "#60a5fa", border: "1px solid #2d4a6f" }}>
+                  Assign to Firm
+                </button>
+                <button onClick={() => setBulkAction("update-states")} className="text-xs px-3 py-1.5 rounded-lg cursor-pointer" style={{ background: "#2d1b4e", color: "#a78bfa", border: "1px solid #3d2b5e" }}>
+                  Update States
+                </button>
+                <button onClick={() => setBulkAction("deactivate")} className="text-xs px-3 py-1.5 rounded-lg cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444", border: "1px solid #5a2a2a" }}>
+                  Deactivate
+                </button>
+                <button onClick={clearBulk} className="text-xs px-2 py-1 cursor-pointer" style={{ color: "var(--text-muted)" }}>
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {visibleExternal.map((contact) => {
               const displaySpecialty = contact.specialty === "Other" ? (contact.specialty_other ?? "Other") : contact.specialty;
               const contactStates = contact.states ?? [];
+              const isSelected = selectedIds.has(contact.id);
+              const isInactive = contact.status === "inactive";
               return (
-                <div key={contact.id} className="rounded-xl p-4" style={cardStyle}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="min-w-0 flex-1">
+                <div
+                  key={contact.id}
+                  className="rounded-xl p-4"
+                  style={{ ...cardStyle, borderColor: isSelected ? "var(--accent)" : "var(--border-color)", opacity: isInactive ? 0.6 : 1 }}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => toggleSelect(contact.id)}
+                      className="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 cursor-pointer transition-colors"
+                      style={{ borderColor: isSelected ? "var(--accent)" : "var(--border-color)", background: isSelected ? "var(--accent)" : "transparent" }}
+                    >
+                      {isSelected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-semibold truncate">{contact.name}</h3>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "#2d1b4e", color: "#a78bfa" }}>
                           {displaySpecialty}
                         </span>
+                        {isInactive && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#4a1a1a", color: "#ef4444" }}>INACTIVE</span>
+                        )}
                       </div>
                       {contact.firm_name && (
                         <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{contact.firm_name}</p>
@@ -871,13 +1155,11 @@ export default function TPNAdminPage() {
                         </div>
                       )}
                     </div>
+
                     <div className="flex items-center gap-1 shrink-0">
-                      {/* Portal access indicator or grant button */}
                       {contact.user_id ? (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#1a3a2a", color: "#4ade80" }} title="Has portal access">
-                          PORTAL
-                        </span>
-                      ) : (contact.email && (
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#1a3a2a", color: "#4ade80" }} title="Has portal access">PORTAL</span>
+                      ) : (!isInactive && contact.email && (
                         <button
                           onClick={() => setPromoteContact(contact)}
                           className="text-[10px] font-medium px-2 py-1 rounded-lg mr-1 cursor-pointer transition-colors"
@@ -899,14 +1181,18 @@ export default function TPNAdminPage() {
                         </svg>
                       </button>
 
-                      {deactivateConfirm === contact.id ? (
+                      {isInactive ? (
+                        <button
+                          onClick={() => handleReactivateExternal(contact.id)}
+                          className="text-[10px] font-medium px-2 py-1 rounded-lg cursor-pointer"
+                          style={{ background: "#1a3a2a", color: "#4ade80" }}
+                        >
+                          Reactivate
+                        </button>
+                      ) : deactivateConfirm === contact.id ? (
                         <div className="flex items-center gap-1">
-                          <button onClick={() => handleDeactivateExternal(contact.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>
-                            Remove
-                          </button>
-                          <button onClick={() => setDeactivateConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
-                            No
-                          </button>
+                          <button onClick={() => handleDeactivateExternal(contact.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Remove</button>
+                          <button onClick={() => setDeactivateConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>No</button>
                         </div>
                       ) : (
                         <button onClick={() => setDeactivateConfirm(contact.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Remove">
@@ -980,6 +1266,138 @@ export default function TPNAdminPage() {
                   </span>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Activity Log ──────────────────────────────────── */}
+      {tab === "activity-log" && (
+        <div>
+          {activityLoading ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading activity...</p>
+          ) : activityLog.length === 0 ? (
+            <div style={cardStyle}>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No activity recorded yet. Actions like adding, editing, deactivating, and bulk operations will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activityLog.map((entry) => {
+                const actionLabels: Record<string, { label: string; color: string }> = {
+                  added: { label: "Added", color: "#4ade80" },
+                  edited: { label: "Edited", color: "#60a5fa" },
+                  deactivated: { label: "Deactivated", color: "#ef4444" },
+                  reactivated: { label: "Reactivated", color: "#4ade80" },
+                  promoted: { label: "Granted Access", color: "#a78bfa" },
+                  bulk_assign_firm: { label: "Bulk Assign Firm", color: "#60a5fa" },
+                  bulk_update_states: { label: "Bulk Update States", color: "#a78bfa" },
+                  bulk_deactivate: { label: "Bulk Deactivate", color: "#ef4444" },
+                };
+                const info = actionLabels[entry.action] ?? { label: entry.action, color: "var(--text-secondary)" };
+                const time = new Date(entry.created_at);
+                const timeStr = time.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " + time.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+                // Build description
+                let desc = "";
+                const d = entry.details;
+                if (d.contact_name) desc = String(d.contact_name);
+                if (d.contact_count) desc = `${d.contact_count} contacts`;
+                if (d.firm_name) desc += desc ? ` → ${d.firm_name}` : String(d.firm_name);
+                if (d.states && Array.isArray(d.states)) desc += desc ? ` (${(d.states as string[]).join(", ")})` : (d.states as string[]).join(", ");
+
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${info.color}20`, color: info.color }}>
+                      {info.label}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{desc || "—"}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        by {entry.performer_name} · {timeStr}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Bulk Assign Firm Modal ─────────────────────── */}
+      {bulkAction === "assign-firm" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setBulkAction(""); }}>
+          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            <h2 className="text-lg font-semibold mb-4">Assign {selectedIds.size} Contact{selectedIds.size !== 1 ? "s" : ""} to Firm</h2>
+            <select value={bulkFirmId} onChange={(e) => setBulkFirmId(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer mb-4" style={inputStyle}>
+              <option value="">Select a firm...</option>
+              {firms.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}{f.city && f.state ? ` — ${f.city}, ${f.state}` : ""}</option>
+              ))}
+            </select>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setBulkAction("")} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+              <button onClick={handleBulkAssignFirm} disabled={!bulkFirmId || bulkProcessing} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                {bulkProcessing ? "Assigning..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Update States Modal ───────────────────── */}
+      {bulkAction === "update-states" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setBulkAction(""); }}>
+          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            <h2 className="text-lg font-semibold mb-4">Update States for {selectedIds.size} Contact{selectedIds.size !== 1 ? "s" : ""}</h2>
+            <div className="flex items-center gap-3 mb-3">
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: bulkStatesMode === "add" ? "var(--accent)" : "var(--text-muted)" }}>
+                <input type="radio" checked={bulkStatesMode === "add"} onChange={() => setBulkStatesMode("add")} /> Add to existing
+              </label>
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: bulkStatesMode === "replace" ? "var(--accent)" : "var(--text-muted)" }}>
+                <input type="radio" checked={bulkStatesMode === "replace"} onChange={() => setBulkStatesMode("replace")} /> Replace all
+              </label>
+            </div>
+            <div className="relative mb-4">
+              <button onClick={() => setShowBulkStateDrop(!showBulkStateDrop)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer w-full text-left" style={inputStyle}>
+                {bulkStates.length > 0 ? bulkStates.join(", ") : "Select states..."}
+              </button>
+              {showBulkStateDrop && (
+                <div className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                  {bulkStates.length > 0 && (
+                    <button onClick={() => setBulkStates([])} className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1" style={{ color: "var(--accent)" }}>Clear all</button>
+                  )}
+                  <div className="grid grid-cols-6 gap-1">
+                    {US_STATES.map((s) => (
+                      <button key={s} onClick={() => setBulkStates((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s])} className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors" style={{ background: bulkStates.includes(s) ? "var(--accent)" : "var(--bg-hover)", color: bulkStates.includes(s) ? "#000" : "var(--text-secondary)" }}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => { setBulkAction(""); setBulkStates([]); setShowBulkStateDrop(false); }} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+              <button onClick={handleBulkUpdateStates} disabled={bulkStates.length === 0 || bulkProcessing} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                {bulkProcessing ? "Updating..." : `${bulkStatesMode === "add" ? "Add" : "Replace"} States`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Deactivate Confirm ────────────────────── */}
+      {bulkAction === "deactivate" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setBulkAction(""); }}>
+          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            <h2 className="text-lg font-semibold mb-2">Deactivate {selectedIds.size} Contact{selectedIds.size !== 1 ? "s" : ""}?</h2>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+              These contacts will be marked inactive. You can reactivate them later from the Inactive status filter.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setBulkAction("")} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+              <button onClick={handleBulkDeactivate} disabled={bulkProcessing} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444", opacity: bulkProcessing ? 0.6 : 1 }}>
+                {bulkProcessing ? "Deactivating..." : "Deactivate All"}
+              </button>
             </div>
           </div>
         </div>
@@ -1141,10 +1559,21 @@ export default function TPNAdminPage() {
                   )}
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Company Name (optional)</label>
-                <input type="text" value={externalForm.company_name} onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Company or firm name..." />
-              </div>
+              {firms.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Attach to Firm</label>
+                  <select value={externalForm.firm_id} onChange={(e) => setExternalForm({ ...externalForm, firm_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={inputStyle}>
+                    <option value="">No firm (standalone contact)</option>
+                    {firms.map((f) => <option key={f.id} value={f.id}>{f.name}{f.city && f.state ? ` — ${f.city}, ${f.state}` : ""}</option>)}
+                  </select>
+                </div>
+              )}
+              {!externalForm.firm_id && (
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Company Name (optional)</label>
+                  <input type="text" value={externalForm.company_name} onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Company or firm name..." />
+                </div>
+              )}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={() => setShowExternalModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>Cancel</button>
                 <button onClick={handleSaveExternal} disabled={saving || !externalForm.name.trim() || !externalForm.specialty} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>

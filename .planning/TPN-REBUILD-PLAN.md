@@ -165,10 +165,16 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - ✅ "+ New Firm" button in External tab header (admin-only)
 - Firms are a grouping tool, not a standalone view
 
-### Phase 7: TPN Admin features (lives at `/dashboard/tpn-admin`)
-- Bulk operations (attach multiple contacts to a firm, update states)
-- External contact activity log
-- Status management
+### Phase 7: TPN Admin features (lives at `/dashboard/tpn-admin`) ✅ DONE
+- ✅ Bulk select: checkboxes on external cards, Select All / Deselect All
+- ✅ Bulk Assign to Firm: select contacts → pick firm → all get linked + company_name set
+- ✅ Bulk Update States: select contacts → pick states → add or replace mode
+- ✅ Bulk Deactivate: select contacts → confirmation → all marked inactive
+- ✅ Status filter: Active / Inactive / All toggle on External tab
+- ✅ Reactivate button on inactive contact cards
+- ✅ Activity Log tab: tracks added, edited, deactivated, reactivated, bulk operations with who/when/what
+- ✅ `tpn_activity_log` table with RLS (migration: `20260404_tpn_phase7_activity_log.sql`)
+- ✅ Firm picker in admin external contact form (same as TPN page)
 
 ### Phase 8: Analytics tab (deep)
 - License status overview (active/expiring/expired from real license data)
@@ -235,4 +241,5 @@ After each phase:
 - Phase 4: ✅ Done (external contact CRUD)
 - Phase 5: ✅ Done (Grant Portal Access — invite-external-user API)
 - Phase 6: ✅ Done (Firm management — CRUD, attach contacts, detail view, filter)
-- Phases 7-8: Not started
+- Phase 7: ✅ Done (TPN Admin — bulk ops, status management, activity log)
+- Phase 8: Not started (deep analytics)
