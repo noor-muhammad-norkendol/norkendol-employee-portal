@@ -156,11 +156,13 @@ The TPN is NOT a standalone feature. It depends on and feeds into other portal s
 - The contact stays in the TPN Rolodex AND now appears in User Management → External Partners
 - Card shows "Has Portal Access" badge after promotion
 
-### Phase 6: Firm management (inside External tab)
-- Firm filter chip in External tab — select a firm name, list narrows to that firm's people
-- Admin can create/edit/deactivate firms
-- "Attach to Firm" — select existing external contacts, set their firm_id
-- Firm detail: name, contact info, services, states, list of attached people
+### Phase 6: Firm management (inside External tab) ✅ DONE
+- ✅ Firm filter chip in External tab — select a firm name, list narrows to that firm's people (also shows unlinked company names)
+- ✅ Admin can create/edit/deactivate firms (full CRUD modal with name, type, location, contact info, website, states)
+- ✅ "Attach to Firm" — firm picker dropdown in external contact add/edit form, sets firm_id + auto-fills company_name
+- ✅ Firm detail modal — click firm name on any external card to see firm info + all attached contacts
+- ✅ Deactivate firm unlinks all contacts from the firm first
+- ✅ "+ New Firm" button in External tab header (admin-only)
 - Firms are a grouping tool, not a standalone view
 
 ### Phase 7: TPN Admin features (lives at `/dashboard/tpn-admin`)
@@ -230,6 +232,7 @@ After each phase:
 - Phase 2: ✅ Done (firms + users schema)
 - Phase 2b: ✅ Partially done — table exists, needs `user_id` FK + RLS update
 - Phase 3: ✅ Partially done — page rewritten with new tabs, needs label fixes + portal access indicator
-- Phase 4: ⬜ Next — external contact CRUD (any user can add, Rolodex only)
-- Phase 5: ⬜ Promote to portal account (admin-only, links external_contacts → users)
-- Phases 6-8: Not started
+- Phase 4: ✅ Done (external contact CRUD)
+- Phase 5: ✅ Done (Grant Portal Access — invite-external-user API)
+- Phase 6: ✅ Done (Firm management — CRUD, attach contacts, detail view, filter)
+- Phases 7-8: Not started

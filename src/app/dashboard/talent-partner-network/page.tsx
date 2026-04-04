@@ -40,6 +40,35 @@ interface ExternalContact {
   status: "active" | "inactive";
 }
 
+interface Firm {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  states: string[] | null;
+  website: string | null;
+  entity_type: string | null;
+  year_established: number | null;
+  city: string | null;
+  state: string | null;
+  rating: number | null;
+  status: "active" | "inactive";
+  contact_count?: number;
+}
+
+interface FirmFormData {
+  name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  states: string[];
+  website: string;
+  entity_type: string;
+  city: string;
+  state: string;
+}
+
 interface ExternalFormData {
   name: string;
   email: string;
@@ -48,6 +77,7 @@ interface ExternalFormData {
   specialty_other: string;
   states: string[];
   company_name: string;
+  firm_id: string;
 }
 
 const EMPTY_EXTERNAL_FORM: ExternalFormData = {
@@ -58,7 +88,22 @@ const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   specialty_other: "",
   states: [],
   company_name: "",
+  firm_id: "",
 };
+
+const EMPTY_FIRM_FORM: FirmFormData = {
+  name: "",
+  contact_name: "",
+  contact_email: "",
+  contact_phone: "",
+  states: [],
+  website: "",
+  entity_type: "",
+  city: "",
+  state: "",
+};
+
+const ENTITY_TYPES = ["Law Firm", "Corporation", "LLC", "Partnership", "Sole Proprietorship", "Other"];
 
 const SPECIALTIES = [
   "Attorney",
@@ -207,6 +252,16 @@ export default function TalentPartnerNetworkPage() {
   const [promoting, setPromoting] = useState(false);
   const [promoteError, setPromoteError] = useState("");
 
+  // Firm management state
+  const [firms, setFirms] = useState<Firm[]>([]);
+  const [showFirmModal, setShowFirmModal] = useState(false);
+  const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
+  const [firmForm, setFirmForm] = useState<FirmFormData>(EMPTY_FIRM_FORM);
+  const [savingFirm, setSavingFirm] = useState(false);
+  const [showFirmStateDrop, setShowFirmStateDrop] = useState(false);
+  const [firmDetailId, setFirmDetailId] = useState<string | null>(null);
+  const [deactivateFirmConfirm, setDeactivateFirmConfirm] = useState<string | null>(null);
+
   const isAdmin = ADMIN_ROLES.includes(userRole);
 
   /* ── fetch user role ─────────────────────────────────── */
@@ -302,10 +357,20 @@ export default function TalentPartnerNetworkPage() {
     );
   }, []);
 
+  const fetchFirms = useCallback(async () => {
+    const { data: firmRows } = await supabase
+      .from("firms")
+      .select("id, name, contact_name, contact_email, contact_phone, states, website, entity_type, year_established, city, state, rating, status")
+      .eq("org_id", ORG_ID)
+      .eq("status", "active")
+      .order("name");
+    setFirms(firmRows ?? []);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchInternalUsers(), fetchExternalContacts()]).then(() => setLoading(false));
-  }, [fetchInternalUsers, fetchExternalContacts]);
+    Promise.all([fetchInternalUsers(), fetchExternalContacts(), fetchFirms()]).then(() => setLoading(false));
+  }, [fetchInternalUsers, fetchExternalContacts, fetchFirms]);
 
   /* ── external contact CRUD ─────────────────────────────── */
 
@@ -325,6 +390,7 @@ export default function TalentPartnerNetworkPage() {
       specialty_other: c.specialty_other ?? "",
       states: c.states ?? [],
       company_name: c.company_name ?? "",
+      firm_id: c.firm_id ?? "",
     });
     setShowExternalModal(true);
   };
@@ -333,6 +399,10 @@ export default function TalentPartnerNetworkPage() {
     if (!externalForm.name.trim() || !externalForm.specialty) return;
     setSaving(true);
 
+    // If a firm is selected, auto-fill company_name from the firm
+    const selectedFirm = externalForm.firm_id ? firms.find((f) => f.id === externalForm.firm_id) : null;
+    const companyName = selectedFirm ? selectedFirm.name : (externalForm.company_name.trim() || null);
+
     const payload = {
       name: externalForm.name.trim(),
       email: externalForm.email.trim() || null,
@@ -340,7 +410,8 @@ export default function TalentPartnerNetworkPage() {
       specialty: externalForm.specialty,
       specialty_other: externalForm.specialty === "Other" ? externalForm.specialty_other.trim() || null : null,
       states: externalForm.states.length > 0 ? externalForm.states : null,
-      company_name: externalForm.company_name.trim() || null,
+      company_name: companyName,
+      firm_id: externalForm.firm_id || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -409,6 +480,80 @@ export default function TalentPartnerNetworkPage() {
     fetchExternalContacts();
     router.push("/dashboard/user-management?tab=external");
   };
+
+  /* ── firm CRUD ────────────────────────────────────────── */
+
+  const openAddFirm = () => {
+    setEditingFirmId(null);
+    setFirmForm(EMPTY_FIRM_FORM);
+    setShowFirmModal(true);
+  };
+
+  const openEditFirm = (f: Firm) => {
+    setEditingFirmId(f.id);
+    setFirmForm({
+      name: f.name,
+      contact_name: f.contact_name ?? "",
+      contact_email: f.contact_email ?? "",
+      contact_phone: f.contact_phone ?? "",
+      states: f.states ?? [],
+      website: f.website ?? "",
+      entity_type: f.entity_type ?? "",
+      city: f.city ?? "",
+      state: f.state ?? "",
+    });
+    setShowFirmModal(true);
+  };
+
+  const handleSaveFirm = async () => {
+    if (!firmForm.name.trim()) return;
+    setSavingFirm(true);
+
+    const payload = {
+      name: firmForm.name.trim(),
+      contact_name: firmForm.contact_name.trim() || null,
+      contact_email: firmForm.contact_email.trim() || null,
+      contact_phone: firmForm.contact_phone.trim() || null,
+      states: firmForm.states.length > 0 ? firmForm.states : null,
+      website: firmForm.website.trim() || null,
+      entity_type: firmForm.entity_type || null,
+      city: firmForm.city.trim() || null,
+      state: firmForm.state || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (editingFirmId) {
+      await supabase.from("firms").update(payload).eq("id", editingFirmId);
+    } else {
+      await supabase.from("firms").insert({ ...payload, org_id: ORG_ID });
+    }
+
+    setSavingFirm(false);
+    setShowFirmModal(false);
+    fetchFirms();
+    fetchExternalContacts(); // firm name resolution may change
+  };
+
+  const handleDeactivateFirm = async (id: string) => {
+    // Unlink contacts from this firm first
+    await supabase.from("external_contacts").update({ firm_id: null, updated_at: new Date().toISOString() }).eq("firm_id", id);
+    await supabase.from("firms").update({ status: "inactive", updated_at: new Date().toISOString() }).eq("id", id);
+    setDeactivateFirmConfirm(null);
+    setFirmDetailId(null);
+    fetchFirms();
+    fetchExternalContacts();
+  };
+
+  // Contacts for the firm detail view
+  const firmDetailContacts = useMemo(() => {
+    if (!firmDetailId) return [];
+    return externalContacts.filter((c) => c.firm_id === firmDetailId);
+  }, [firmDetailId, externalContacts]);
+
+  const firmDetail = useMemo(() => {
+    if (!firmDetailId) return null;
+    return firms.find((f) => f.id === firmDetailId) ?? null;
+  }, [firmDetailId, firms]);
 
   /* ── computed metrics ────────────────────────────────── */
 
@@ -601,6 +746,19 @@ export default function TalentPartnerNetworkPage() {
                 {copiedLink === "external" ? "Link Copied!" : "Copy Invite Link"}
               </button>
               <button
+                onClick={openAddFirm}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                </svg>
+                + New Firm
+              </button>
+              <button
                 onClick={openAddExternal}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
                 style={{ background: "var(--accent)", color: "#000" }}
@@ -746,7 +904,7 @@ export default function TalentPartnerNetworkPage() {
           </div>
 
           {/* Firm sub-filter */}
-          {externalFirmNames.length > 0 && (
+          {(firms.length > 0 || externalFirmNames.length > 0) && (
             <select
               value={externalFirmFilter}
               onChange={(e) => setExternalFirmFilter(e.target.value)}
@@ -754,8 +912,12 @@ export default function TalentPartnerNetworkPage() {
               style={inputStyle}
             >
               <option value="">All Firms</option>
-              {externalFirmNames.map((f) => (
-                <option key={f} value={f}>{f}</option>
+              {firms.map((f) => (
+                <option key={f.id} value={f.name}>{f.name}</option>
+              ))}
+              {/* Also show company_name values not linked to a firm */}
+              {externalFirmNames.filter((n) => !firms.some((f) => f.name === n)).map((n) => (
+                <option key={n} value={n}>{n} (unlinked)</option>
               ))}
             </select>
           )}
@@ -941,7 +1103,17 @@ export default function TalentPartnerNetworkPage() {
 
                               {contact.firm_name && (
                                 <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                                  {contact.firm_name}
+                                  {contact.firm_id ? (
+                                    <button
+                                      onClick={() => setFirmDetailId(contact.firm_id)}
+                                      className="cursor-pointer underline"
+                                      style={{ color: "var(--accent)" }}
+                                    >
+                                      {contact.firm_name}
+                                    </button>
+                                  ) : (
+                                    contact.firm_name
+                                  )}
                                 </p>
                               )}
 
@@ -1375,20 +1547,42 @@ export default function TalentPartnerNetworkPage() {
                 </div>
               </div>
 
-              {/* Company Name */}
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Company Name (optional)
-                </label>
-                <input
-                  type="text"
-                  value={externalForm.company_name}
-                  onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={inputStyle}
-                  placeholder="Company or firm name..."
-                />
-              </div>
+              {/* Firm (linked) */}
+              {firms.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Attach to Firm
+                  </label>
+                  <select
+                    value={externalForm.firm_id}
+                    onChange={(e) => setExternalForm({ ...externalForm, firm_id: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                    style={inputStyle}
+                  >
+                    <option value="">No firm (standalone contact)</option>
+                    {firms.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}{f.city && f.state ? ` — ${f.city}, ${f.state}` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Company Name — only show if not attached to a firm */}
+              {!externalForm.firm_id && (
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Company Name (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={externalForm.company_name}
+                    onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="Company or firm name..."
+                  />
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -1413,6 +1607,296 @@ export default function TalentPartnerNetworkPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Firm Detail Modal ─────────────────────────── */}
+      {firmDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setFirmDetailId(null); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">{firmDetail.name}</h2>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button
+                    onClick={() => { setFirmDetailId(null); openEditFirm(firmDetail); }}
+                    className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                    title="Edit Firm"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={() => setFirmDetailId(null)}
+                  className="text-lg cursor-pointer"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Firm info grid */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {firmDetail.entity_type && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Type</span>
+                  <span className="text-sm">{firmDetail.entity_type}</span>
+                </div>
+              )}
+              {(firmDetail.city || firmDetail.state) && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Location</span>
+                  <span className="text-sm">{[firmDetail.city, firmDetail.state].filter(Boolean).join(", ")}</span>
+                </div>
+              )}
+              {firmDetail.contact_name && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Primary Contact</span>
+                  <span className="text-sm">{firmDetail.contact_name}</span>
+                </div>
+              )}
+              {firmDetail.contact_email && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Email</span>
+                  <a href={`mailto:${firmDetail.contact_email}`} className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.contact_email}</a>
+                </div>
+              )}
+              {firmDetail.contact_phone && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Phone</span>
+                  <span className="text-sm">{firmDetail.contact_phone}</span>
+                </div>
+              )}
+              {firmDetail.website && (
+                <div>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Website</span>
+                  <span className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.website}</span>
+                </div>
+              )}
+            </div>
+
+            {/* States */}
+            {firmDetail.states && firmDetail.states.length > 0 && (
+              <div className="mb-5">
+                <span className="text-[10px] font-medium block mb-1.5" style={{ color: "var(--text-muted)" }}>States Covered</span>
+                <div className="flex flex-wrap gap-1">
+                  {firmDetail.states.sort().map((s: string) => (
+                    <span key={s} className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Attached contacts */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  People at this firm ({firmDetailContacts.length})
+                </span>
+              </div>
+              {firmDetailContacts.length === 0 ? (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No contacts attached to this firm yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {firmDetailContacts.map((c) => {
+                    const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
+                    return (
+                      <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                        <div>
+                          <span className="text-sm font-medium">{c.name}</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                          {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
+                        </div>
+                        {c.user_id && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Deactivate firm */}
+            {isAdmin && (
+              <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
+                {deactivateFirmConfirm === firmDetail.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs" style={{ color: "#ef4444" }}>Remove this firm and unlink all contacts?</span>
+                    <button onClick={() => handleDeactivateFirm(firmDetail.id)} className="px-3 py-1.5 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Yes, Remove</button>
+                    <button onClick={() => setDeactivateFirmConfirm(null)} className="px-3 py-1.5 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeactivateFirmConfirm(firmDetail.id)}
+                    className="text-xs cursor-pointer"
+                    style={{ color: "#ef4444" }}
+                  >
+                    Remove Firm
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Create/Edit Firm Modal ─────────────────────── */}
+      {showFirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowFirmModal(false); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">{editingFirmId ? "Edit Firm" : "New Firm"}</h2>
+              <button onClick={() => setShowFirmModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Firm Name */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Firm Name *</label>
+                <input
+                  type="text"
+                  value={firmForm.name}
+                  onChange={(e) => setFirmForm({ ...firmForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                  placeholder="e.g. Smith & Associates P.L."
+                />
+              </div>
+
+              {/* Entity Type + Location */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Type</label>
+                  <select
+                    value={firmForm.entity_type}
+                    onChange={(e) => setFirmForm({ ...firmForm, entity_type: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                    style={inputStyle}
+                  >
+                    <option value="">Select...</option>
+                    {ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>City</label>
+                  <input
+                    type="text"
+                    value={firmForm.city}
+                    onChange={(e) => setFirmForm({ ...firmForm, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="City..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>State</label>
+                  <select
+                    value={firmForm.state}
+                    onChange={(e) => setFirmForm({ ...firmForm, state: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                    style={inputStyle}
+                  >
+                    <option value="">Select...</option>
+                    {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Primary Contact */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Name</label>
+                  <input type="text" value={firmForm.contact_name} onChange={(e) => setFirmForm({ ...firmForm, contact_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Name..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Email</label>
+                  <input type="email" value={firmForm.contact_email} onChange={(e) => setFirmForm({ ...firmForm, contact_email: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="email@..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Phone</label>
+                  <input type="text" value={firmForm.contact_phone} onChange={(e) => setFirmForm({ ...firmForm, contact_phone: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="(555)..." />
+                </div>
+              </div>
+
+              {/* Website */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Website</label>
+                <input type="text" value={firmForm.website} onChange={(e) => setFirmForm({ ...firmForm, website: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="www.example.com" />
+              </div>
+
+              {/* States Covered */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>States Covered</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFirmStateDrop(!showFirmStateDrop)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer w-full text-left"
+                    style={inputStyle}
+                  >
+                    {firmForm.states.length > 0 ? firmForm.states.join(", ") : "Select states..."}
+                  </button>
+                  {showFirmStateDrop && (
+                    <div className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                      {firmForm.states.length > 0 && (
+                        <button onClick={() => setFirmForm({ ...firmForm, states: [] })} className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1" style={{ color: "var(--accent)" }}>Clear all</button>
+                      )}
+                      <div className="grid grid-cols-6 gap-1">
+                        {US_STATES.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setFirmForm((prev) => ({ ...prev, states: prev.states.includes(s) ? prev.states.filter((x) => x !== s) : [...prev.states, s] }))}
+                            className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
+                            style={{ background: firmForm.states.includes(s) ? "var(--accent)" : "var(--bg-hover)", color: firmForm.states.includes(s) ? "#000" : "var(--text-secondary)" }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button onClick={() => setShowFirmModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button
+                  onClick={handleSaveFirm}
+                  disabled={savingFirm || !firmForm.name.trim()}
+                  className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50"
+                  style={{ background: "var(--accent)", color: "#000" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+                >
+                  {savingFirm ? "Saving..." : editingFirmId ? "Save Changes" : "Create Firm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close firm state dropdown on outside click */}
+      {showFirmStateDrop && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowFirmStateDrop(false)} />
       )}
 
       {/* Close form state dropdown on outside click */}
