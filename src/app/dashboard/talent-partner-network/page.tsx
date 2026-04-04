@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +13,7 @@ interface TeamMember {
   department: string | null;
   location: string | null;
   profile_picture_url: string | null;
+  availability: "available" | "busy" | "unavailable" | null;
   licenses: LicenseInfo[];
 }
 
@@ -35,6 +36,11 @@ interface Firm {
   created_at: string;
   updated_at: string | null;
   services: string[];
+  website: string | null;
+  city: string | null;
+  firm_state: string | null;
+  entity_type: string | null;
+  rating: number | null;
 }
 
 interface FirmFormData {
@@ -45,6 +51,11 @@ interface FirmFormData {
   states: string;
   status: "active" | "pending" | "inactive";
   services: string;
+  website: string;
+  city: string;
+  firm_state: string;
+  entity_type: string;
+  rating: number;
 }
 
 const EMPTY_FIRM_FORM: FirmFormData = {
@@ -55,11 +66,16 @@ const EMPTY_FIRM_FORM: FirmFormData = {
   states: "",
   status: "pending",
   services: "",
+  website: "",
+  city: "",
+  firm_state: "",
+  entity_type: "",
+  rating: 0,
 };
 
 /* ── helpers ───────────────────────────────────────────── */
 
-type Tab = "overview" | "team" | "firms";
+type Tab = "overview" | "team" | "firms" | "analytics";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   active: { bg: "#1a3a2a", text: "#4ade80" },
@@ -74,6 +90,12 @@ const LICENSE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: "#3a3520", text: "#facc15" },
   rejected: { bg: "#4a1a1a", text: "#ef4444" },
   expired: { bg: "#4a1a1a", text: "#ef4444" },
+};
+
+const AVAILABILITY_COLORS: Record<string, { bg: string; text: string }> = {
+  available: { bg: "#1a3a2a", text: "#4ade80" },
+  busy: { bg: "#3a3520", text: "#facc15" },
+  unavailable: { bg: "#2a2a2a", text: "#888888" },
 };
 
 function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
@@ -138,6 +160,13 @@ const inputStyle: React.CSSProperties = {
   color: "var(--text-primary)",
 };
 
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+  "VA","WA","WV","WI","WY","DC",
+];
+
 /* ── main page ─────────────────────────────────────────── */
 
 export default function TalentPartnerNetworkPage() {
@@ -148,6 +177,12 @@ export default function TalentPartnerNetworkPage() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState("");
   const [search, setSearch] = useState("");
+
+  // Filters
+  const [stateFilter, setStateFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [serviceFilter, setServiceFilter] = useState<string>("");
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
 
   // Data
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -182,7 +217,6 @@ export default function TalentPartnerNetworkPage() {
   /* ── fetch data ──────────────────────────────────────── */
 
   const fetchTeamMembers = useCallback(async () => {
-    // Get user IDs that have talent_network = true
     const { data: permRows } = await supabase
       .from("user_permissions")
       .select("user_id")
@@ -196,10 +230,9 @@ export default function TalentPartnerNetworkPage() {
 
     const userIds = permRows.map((r) => r.user_id);
 
-    // Get user profiles
     const { data: users } = await supabase
       .from("users")
-      .select("id, full_name, position, department, location, profile_picture_url")
+      .select("id, full_name, position, department, location, profile_picture_url, availability")
       .in("id", userIds)
       .eq("status", "active")
       .order("full_name");
@@ -209,7 +242,6 @@ export default function TalentPartnerNetworkPage() {
       return;
     }
 
-    // Get licenses for those users
     const { data: licenses } = await supabase
       .from("licenses")
       .select("id, user_id, state, license_type, expiry_date, status")
@@ -225,6 +257,7 @@ export default function TalentPartnerNetworkPage() {
     setTeamMembers(
       users.map((u) => ({
         ...u,
+        availability: u.availability ?? null,
         licenses: licenseMap.get(u.id) ?? [],
       }))
     );
@@ -233,7 +266,7 @@ export default function TalentPartnerNetworkPage() {
   const fetchFirms = useCallback(async () => {
     const { data: firmRows } = await supabase
       .from("firms")
-      .select("*")
+      .select("id, name, contact_name, contact_email, contact_phone, states, status, created_at, updated_at, org_id, website, city, state, entity_type, rating")
       .eq("org_id", ORG_ID)
       .order("name");
 
@@ -242,7 +275,6 @@ export default function TalentPartnerNetworkPage() {
       return;
     }
 
-    // Get services for all firms
     const firmIds = firmRows.map((f) => f.id);
     const { data: serviceRows } = await supabase
       .from("firm_services")
@@ -258,7 +290,20 @@ export default function TalentPartnerNetworkPage() {
 
     setFirms(
       firmRows.map((f) => ({
-        ...f,
+        id: f.id,
+        name: f.name,
+        contact_name: f.contact_name,
+        contact_email: f.contact_email,
+        contact_phone: f.contact_phone,
+        states: f.states,
+        status: f.status,
+        created_at: f.created_at,
+        updated_at: f.updated_at,
+        website: f.website ?? null,
+        city: f.city ?? null,
+        firm_state: f.state ?? null,
+        entity_type: f.entity_type ?? null,
+        rating: f.rating ?? null,
         services: serviceMap.get(f.id) ?? [],
       }))
     );
@@ -287,6 +332,11 @@ export default function TalentPartnerNetworkPage() {
       states: (firm.states ?? []).join(", "),
       status: firm.status,
       services: firm.services.join(", "),
+      website: firm.website ?? "",
+      city: firm.city ?? "",
+      firm_state: firm.firm_state ?? "",
+      entity_type: firm.entity_type ?? "",
+      rating: firm.rating ?? 0,
     });
     setShowFirmModal(true);
   };
@@ -313,6 +363,11 @@ export default function TalentPartnerNetworkPage() {
       states: statesArray.length > 0 ? statesArray : null,
       status: firmForm.status,
       updated_at: new Date().toISOString(),
+      website: firmForm.website.trim() || null,
+      city: firmForm.city.trim() || null,
+      state: firmForm.firm_state.trim().toUpperCase() || null,
+      entity_type: firmForm.entity_type.trim() || null,
+      rating: firmForm.rating > 0 ? firmForm.rating : null,
     };
 
     let firmId = editingFirmId;
@@ -375,25 +430,131 @@ export default function TalentPartnerNetworkPage() {
     }
   }
 
+  const availableCounts = useMemo(() => {
+    let available = 0, busy = 0, unavailable = 0;
+    for (const m of teamMembers) {
+      if (m.availability === "available") available++;
+      else if (m.availability === "busy") busy++;
+      else unavailable++;
+    }
+    return { available, busy, unavailable };
+  }, [teamMembers]);
+
+  const licenseAlerts = useMemo(() => {
+    let expiring = 0, expired = 0, active = 0;
+    for (const m of teamMembers) {
+      const s = licenseSummary(m.licenses);
+      expiring += s.expiring;
+      expired += s.expired;
+      active += s.active;
+    }
+    return { active, expiring, expired, total: active + expiring + expired };
+  }, [teamMembers]);
+
+  // All unique services across firms
+  const allServices = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of firms) {
+      for (const svc of f.services) s.add(svc);
+    }
+    return Array.from(s).sort();
+  }, [firms]);
+
+  // All states from team licenses
+  const teamLicenseStates = useMemo(() => {
+    const s = new Set<string>();
+    for (const m of teamMembers) {
+      for (const l of m.licenses) {
+        if (calcLicenseStatus(l.expiry_date, l.status) === "approved") s.add(l.state);
+      }
+    }
+    return s;
+  }, [teamMembers]);
+
+  // All states from firms
+  const firmCoverageStates = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of firms) {
+      for (const st of f.states ?? []) s.add(st);
+    }
+    return s;
+  }, [firms]);
+
   /* ── filter ──────────────────────────────────────────── */
 
   const searchLower = search.toLowerCase();
 
-  const filteredTeam = teamMembers.filter(
-    (m) =>
-      m.full_name.toLowerCase().includes(searchLower) ||
-      (m.department ?? "").toLowerCase().includes(searchLower) ||
-      (m.position ?? "").toLowerCase().includes(searchLower) ||
-      (m.location ?? "").toLowerCase().includes(searchLower)
-  );
+  const filteredTeam = useMemo(() => {
+    return teamMembers.filter((m) => {
+      // Search
+      if (searchLower && !(
+        m.full_name.toLowerCase().includes(searchLower) ||
+        (m.department ?? "").toLowerCase().includes(searchLower) ||
+        (m.position ?? "").toLowerCase().includes(searchLower) ||
+        (m.location ?? "").toLowerCase().includes(searchLower)
+      )) return false;
 
-  const filteredFirms = firms.filter(
-    (f) =>
-      f.name.toLowerCase().includes(searchLower) ||
-      (f.contact_name ?? "").toLowerCase().includes(searchLower) ||
-      f.services.some((s) => s.toLowerCase().includes(searchLower)) ||
-      (f.states ?? []).some((s) => s.toLowerCase().includes(searchLower))
-  );
+      // State filter
+      if (stateFilter.length > 0) {
+        const memberStates = m.licenses
+          .filter((l) => calcLicenseStatus(l.expiry_date, l.status) === "approved")
+          .map((l) => l.state);
+        if (!stateFilter.some((s) => memberStates.includes(s))) return false;
+      }
+
+      // Status filter (availability for team)
+      if (statusFilter) {
+        if ((m.availability ?? "unavailable") !== statusFilter) return false;
+      }
+
+      return true;
+    });
+  }, [teamMembers, searchLower, stateFilter, statusFilter]);
+
+  const filteredFirms = useMemo(() => {
+    return firms.filter((f) => {
+      // Search
+      if (searchLower && !(
+        f.name.toLowerCase().includes(searchLower) ||
+        (f.contact_name ?? "").toLowerCase().includes(searchLower) ||
+        f.services.some((s) => s.toLowerCase().includes(searchLower)) ||
+        (f.states ?? []).some((s) => s.toLowerCase().includes(searchLower))
+      )) return false;
+
+      // State filter
+      if (stateFilter.length > 0) {
+        if (!stateFilter.some((s) => (f.states ?? []).includes(s))) return false;
+      }
+
+      // Status filter
+      if (statusFilter) {
+        if (f.status !== statusFilter) return false;
+      }
+
+      // Service filter
+      if (serviceFilter) {
+        if (!f.services.includes(serviceFilter)) return false;
+      }
+
+      return true;
+    });
+  }, [firms, searchLower, stateFilter, statusFilter, serviceFilter]);
+
+  // Reset filters on tab change
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    setSearch("");
+    setStateFilter([]);
+    setStatusFilter("");
+    setServiceFilter("");
+    setShowStateDropdown(false);
+  };
+
+  const toggleStateFilter = (state: string) => {
+    setStateFilter((prev) =>
+      prev.includes(state) ? prev.filter((s) => s !== state) : [...prev, state]
+    );
+  };
 
   /* ── render ──────────────────────────────────────────── */
 
@@ -427,33 +588,140 @@ export default function TalentPartnerNetworkPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-5">
-        {(["overview", "team", "firms"] as Tab[]).map((t) => (
+        {(["overview", "team", "firms", "analytics"] as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => { setTab(t); setSearch(""); }}
+            onClick={() => handleTabChange(t)}
             className="px-4 py-2 rounded-lg text-sm font-medium capitalize cursor-pointer transition-colors"
             style={{
               background: tab === t ? "var(--bg-hover)" : "transparent",
               color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
             }}
           >
-            {t === "team" ? "Team Members" : t === "firms" ? "Firms" : "Overview"}
+            {t === "team" ? "Team Members" : t === "firms" ? "Firms" : t === "analytics" ? "Analytics" : "Overview"}
           </button>
         ))}
       </div>
 
-      {/* Search (team + firms tabs) */}
-      {tab !== "overview" && (
-        <div className="mb-4">
+      {/* Filter bar (team + firms tabs) */}
+      {(tab === "team" || tab === "firms") && (
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          {/* Search */}
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={tab === "team" ? "Search by name, department, position, or location..." : "Search by name, service, or state..."}
-            className="w-full max-w-md px-3 py-2 rounded-lg text-sm outline-none"
+            placeholder={tab === "team" ? "Search name, department, position..." : "Search name, service, state..."}
+            className="w-full max-w-xs px-3 py-2 rounded-lg text-sm outline-none"
             style={inputStyle}
           />
+
+          {/* State filter */}
+          <div className="relative">
+            <button
+              onClick={() => setShowStateDropdown(!showStateDropdown)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
+              style={{ ...inputStyle, minWidth: 120 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                <circle cx="12" cy="10" r="3" />
+                <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
+              </svg>
+              {stateFilter.length > 0 ? `${stateFilter.length} state${stateFilter.length > 1 ? "s" : ""}` : "States"}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {showStateDropdown && (
+              <div
+                className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", minWidth: 200 }}
+              >
+                {stateFilter.length > 0 && (
+                  <button
+                    onClick={() => setStateFilter([])}
+                    className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    Clear all
+                  </button>
+                )}
+                <div className="grid grid-cols-4 gap-1">
+                  {US_STATES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => toggleStateFilter(s)}
+                      className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
+                      style={{
+                        background: stateFilter.includes(s) ? "var(--accent)" : "var(--bg-hover)",
+                        color: stateFilter.includes(s) ? "#000" : "var(--text-secondary)",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+            style={inputStyle}
+          >
+            <option value="">All Status</option>
+            {tab === "team" ? (
+              <>
+                <option value="available">Available</option>
+                <option value="busy">Busy</option>
+                <option value="unavailable">Unavailable</option>
+              </>
+            ) : (
+              <>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="inactive">Inactive</option>
+              </>
+            )}
+          </select>
+
+          {/* Service filter (firms only) */}
+          {tab === "firms" && allServices.length > 0 && (
+            <select
+              value={serviceFilter}
+              onChange={(e) => setServiceFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={inputStyle}
+            >
+              <option value="">All Services</option>
+              {allServices.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Active filter count */}
+          {(stateFilter.length > 0 || statusFilter || serviceFilter) && (
+            <button
+              onClick={() => { setStateFilter([]); setStatusFilter(""); setServiceFilter(""); }}
+              className="text-xs px-2 py-1 rounded cursor-pointer"
+              style={{ color: "var(--accent)" }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
+      )}
+
+      {/* Close state dropdown on outside click */}
+      {showStateDropdown && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => setShowStateDropdown(false)}
+        />
       )}
 
       {loading ? (
@@ -462,11 +730,13 @@ export default function TalentPartnerNetworkPage() {
         <>
           {/* ── Overview Tab ───────────────────────────────── */}
           {tab === "overview" && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <MetricCard label="Team Members" value={totalTeam} icon="team" />
               <MetricCard label="Total Firms" value={totalFirms} sub={`${activeFirms} active`} icon="firm" />
               <MetricCard label="States Covered" value={statesCovered.size} icon="state" />
+              <MetricCard label="Available Now" value={availableCounts.available} icon="available" />
               <MetricCard label="Pending Approvals" value={pendingFirms} icon="pending" highlight={pendingFirms > 0} />
+              <MetricCard label="License Alerts" value={licenseAlerts.expiring + licenseAlerts.expired} sub={licenseAlerts.expiring > 0 ? `${licenseAlerts.expiring} expiring soon` : undefined} icon="alert" highlight={(licenseAlerts.expiring + licenseAlerts.expired) > 0} />
             </div>
           )}
 
@@ -474,11 +744,17 @@ export default function TalentPartnerNetworkPage() {
           {tab === "team" && (
             <>
               {filteredTeam.length === 0 ? (
-                <EmptyState message={search ? "No team members match your search." : "No team members in the network yet."} />
+                <EmptyState message={search || stateFilter.length > 0 || statusFilter ? "No team members match your filters." : "No team members in the network yet."} />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {filteredTeam.map((member) => {
                     const summary = licenseSummary(member.licenses);
+                    const avail = member.availability ?? "unavailable";
+                    const activeStates = member.licenses
+                      .filter((l) => calcLicenseStatus(l.expiry_date, l.status) === "approved")
+                      .map((l) => l.state);
+                    const uniqueStates = Array.from(new Set(activeStates)).sort();
+
                     return (
                       <div
                         key={member.id}
@@ -506,12 +782,30 @@ export default function TalentPartnerNetworkPage() {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold truncate">{member.full_name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold truncate">{member.full_name}</h3>
+                              <Badge label={avail} colors={AVAILABILITY_COLORS[avail] ?? AVAILABILITY_COLORS.unavailable} />
+                            </div>
                             <div className="flex items-center gap-3 mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
                               {member.position && <span>{member.position}</span>}
                               {member.department && <span>{member.department}</span>}
                               {member.location && <span>{member.location}</span>}
                             </div>
+
+                            {/* State code badges */}
+                            {uniqueStates.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {uniqueStates.map((s) => (
+                                  <span
+                                    key={s}
+                                    className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                    style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
 
                             {/* License summary */}
                             {member.licenses.length > 0 && (
@@ -549,7 +843,7 @@ export default function TalentPartnerNetworkPage() {
           {tab === "firms" && (
             <>
               {filteredFirms.length === 0 ? (
-                <EmptyState message={search ? "No firms match your search." : "No firms in the network yet."} />
+                <EmptyState message={search || stateFilter.length > 0 || statusFilter || serviceFilter ? "No firms match your filters." : "No firms in the network yet."} />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {filteredFirms.map((firm) => (
@@ -564,12 +858,62 @@ export default function TalentPartnerNetworkPage() {
                             <h3 className="text-sm font-semibold truncate">{firm.name}</h3>
                             <Badge label={firm.status} colors={STATUS_COLORS[firm.status] ?? STATUS_COLORS.inactive} />
                           </div>
+
+                          {/* Location + Entity type */}
+                          <div className="flex items-center gap-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                            {(firm.city || firm.firm_state) && (
+                              <span>
+                                {[firm.city, firm.firm_state].filter(Boolean).join(", ")}
+                              </span>
+                            )}
+                            {firm.entity_type && (
+                              <span style={{ color: "var(--text-muted)" }}>
+                                {firm.entity_type}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Contact info */}
                           {firm.contact_name && (
-                            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                               {firm.contact_name}
                               {firm.contact_email && ` · ${firm.contact_email}`}
                               {firm.contact_phone && ` · ${firm.contact_phone}`}
                             </p>
+                          )}
+
+                          {/* Website */}
+                          {firm.website && (
+                            <p className="text-[11px] mt-0.5">
+                              <a
+                                href={firm.website.startsWith("http") ? firm.website : `https://${firm.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ color: "var(--accent)" }}
+                              >
+                                {firm.website.replace(/^https?:\/\//, "")}
+                              </a>
+                            </p>
+                          )}
+
+                          {/* Rating */}
+                          {firm.rating != null && firm.rating > 0 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <svg
+                                  key={star}
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill={star <= firm.rating! ? "#facc15" : "none"}
+                                  stroke={star <= firm.rating! ? "#facc15" : "var(--text-muted)"}
+                                  strokeWidth="1.8"
+                                >
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                              ))}
+                            </div>
                           )}
                         </div>
 
@@ -659,6 +1003,112 @@ export default function TalentPartnerNetworkPage() {
               )}
             </>
           )}
+
+          {/* ── Analytics Tab ──────────────────────────────── */}
+          {tab === "analytics" && (
+            <div className="space-y-6">
+              {/* Row 1: License Breakdown + Availability */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* License Status Breakdown */}
+                <div style={cardStyle}>
+                  <h3 className="text-sm font-semibold mb-4">License Status Breakdown</h3>
+                  <div className="space-y-3">
+                    <AnalyticsBar label="Active" count={licenseAlerts.active} total={licenseAlerts.total} color="#4ade80" />
+                    <AnalyticsBar label="Expiring (90 days)" count={licenseAlerts.expiring} total={licenseAlerts.total} color="#facc15" />
+                    <AnalyticsBar label="Expired" count={licenseAlerts.expired} total={licenseAlerts.total} color="#ef4444" />
+                  </div>
+                  <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                    {licenseAlerts.total} total licenses across {totalTeam} team members
+                  </p>
+                </div>
+
+                {/* Availability Breakdown */}
+                <div style={cardStyle}>
+                  <h3 className="text-sm font-semibold mb-4">Team Availability</h3>
+                  <div className="space-y-3">
+                    <AnalyticsBar label="Available" count={availableCounts.available} total={totalTeam} color="#4ade80" />
+                    <AnalyticsBar label="Busy" count={availableCounts.busy} total={totalTeam} color="#facc15" />
+                    <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={totalTeam} color="#888888" />
+                  </div>
+                  <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                    {totalTeam} team members total
+                  </p>
+                </div>
+              </div>
+
+              {/* Row 2: Geographic Coverage */}
+              <div style={cardStyle}>
+                <h3 className="text-sm font-semibold mb-4">Geographic Coverage</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {US_STATES.map((s) => {
+                    const hasTeam = teamLicenseStates.has(s);
+                    const hasFirm = firmCoverageStates.has(s);
+                    const hasBoth = hasTeam && hasFirm;
+
+                    let bg = "var(--bg-hover)";
+                    let text = "var(--text-muted)";
+                    let title = `${s}: No coverage`;
+
+                    if (hasBoth) {
+                      bg = "#1a3a2a";
+                      text = "#4ade80";
+                      title = `${s}: Team + Firm coverage`;
+                    } else if (hasTeam) {
+                      bg = "#1a2a3a";
+                      text = "#60a5fa";
+                      title = `${s}: Team licensed`;
+                    } else if (hasFirm) {
+                      bg = "#2d1b4e";
+                      text = "#a78bfa";
+                      title = `${s}: Firm coverage`;
+                    }
+
+                    return (
+                      <span
+                        key={s}
+                        title={title}
+                        className="text-[10px] font-semibold px-2 py-1 rounded cursor-default"
+                        style={{ background: bg, color: text, minWidth: 32, textAlign: "center" }}
+                      >
+                        {s}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded" style={{ background: "#1a3a2a" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Both</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded" style={{ background: "#1a2a3a" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Team only</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded" style={{ background: "#2d1b4e" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Firm only</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded" style={{ background: "var(--bg-hover)" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>No coverage</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: Firm summary */}
+              <div style={cardStyle}>
+                <h3 className="text-sm font-semibold mb-4">Firm Status</h3>
+                <div className="space-y-3">
+                  <AnalyticsBar label="Active" count={activeFirms} total={totalFirms} color="#4ade80" />
+                  <AnalyticsBar label="Pending" count={pendingFirms} total={totalFirms} color="#facc15" />
+                  <AnalyticsBar label="Inactive" count={firms.filter((f) => f.status === "inactive").length} total={totalFirms} color="#888888" />
+                </div>
+                <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                  {totalFirms} firms across {statesCovered.size} states
+                </p>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -670,7 +1120,7 @@ export default function TalentPartnerNetworkPage() {
           onClick={() => setShowFirmModal(false)}
         >
           <div
-            className="rounded-xl p-6 w-full max-w-lg"
+            className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -762,6 +1212,93 @@ export default function TalentPartnerNetworkPage() {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Website + Entity Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Website
+                  </label>
+                  <input
+                    type="text"
+                    value={firmForm.website}
+                    onChange={(e) => setFirmForm({ ...firmForm, website: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="www.example.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Entity Type
+                  </label>
+                  <input
+                    type="text"
+                    value={firmForm.entity_type}
+                    onChange={(e) => setFirmForm({ ...firmForm, entity_type: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="LLC, Corp, Sole Prop..."
+                  />
+                </div>
+              </div>
+
+              {/* City + State + Rating */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={firmForm.city}
+                    onChange={(e) => setFirmForm({ ...firmForm, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="City..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    HQ State
+                  </label>
+                  <input
+                    type="text"
+                    value={firmForm.firm_state}
+                    onChange={(e) => setFirmForm({ ...firmForm, firm_state: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={inputStyle}
+                    placeholder="FL"
+                    maxLength={2}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                    Rating (1-5)
+                  </label>
+                  <div className="flex items-center gap-1 mt-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFirmForm({ ...firmForm, rating: firmForm.rating === star ? 0 : star })}
+                        className="cursor-pointer"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill={star <= firmForm.rating ? "#facc15" : "none"}
+                          stroke={star <= firmForm.rating ? "#facc15" : "var(--text-muted)"}
+                          strokeWidth="1.8"
+                        >
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -865,6 +1402,19 @@ function MetricCard({
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
+    available: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="1.8">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+    alert: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={highlight ? "#ef4444" : "var(--accent)"} strokeWidth="1.8">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
   };
 
   return (
@@ -888,6 +1438,40 @@ function MetricCard({
           {sub}
         </p>
       )}
+    </div>
+  );
+}
+
+function AnalyticsBar({
+  label,
+  count,
+  total,
+  color,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</span>
+        <span className="text-xs font-semibold" style={{ color }}>
+          {count} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({pct}%)</span>
+        </span>
+      </div>
+      <div
+        className="w-full rounded-full overflow-hidden"
+        style={{ background: "var(--bg-hover)", height: 6 }}
+      >
+        <div
+          className="rounded-full transition-all"
+          style={{ width: `${pct}%`, height: "100%", background: color }}
+        />
+      </div>
     </div>
   );
 }
