@@ -126,7 +126,7 @@ export default function ComplianceAdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [uRes, lRes, bRes] = await Promise.all([
-      supabase.from("users").select("id, full_name, email").eq("org_id", ORG_ID).order("full_name"),
+      supabase.from("users").select("id, full_name, email").eq("org_id", ORG_ID).eq("user_type", "internal").order("full_name"),
       supabase.from("licenses").select("*").eq("org_id", ORG_ID).order("created_at", { ascending: false }),
       supabase.from("bonds").select("*").eq("org_id", ORG_ID).order("created_at", { ascending: false }),
     ]);

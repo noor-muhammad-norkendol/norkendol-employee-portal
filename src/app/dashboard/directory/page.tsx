@@ -88,6 +88,7 @@ export default function DirectoryPage() {
       .select("id, full_name, first_name, last_name, email, position, department, location, primary_phone, work_phone, work_email, employee_id, hire_date, profile_picture_url, bio")
       .eq("org_id", ORG_ID)
       .eq("status", "active")
+      .eq("user_type", "internal")
       .order("full_name", { ascending: true });
     if (error) console.error("directory fetch error:", error);
     setEmployees((data as Employee[]) ?? []);

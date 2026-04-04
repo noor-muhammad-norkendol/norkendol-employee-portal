@@ -653,7 +653,7 @@ function OrgComplianceView() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [usersRes, licensesRes, bondsRes] = await Promise.all([
-      supabase.from("users").select("id, full_name, email, role, department, position").eq("org_id", ORG_ID).eq("status", "active"),
+      supabase.from("users").select("id, full_name, email, role, department, position").eq("org_id", ORG_ID).eq("status", "active").eq("user_type", "internal"),
       supabase.from("licenses").select("*").eq("org_id", ORG_ID).order("expiry_date", { ascending: true }),
       supabase.from("bonds").select("*").eq("org_id", ORG_ID).order("expiry_date", { ascending: true }),
     ]);
