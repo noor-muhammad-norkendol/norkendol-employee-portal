@@ -284,12 +284,13 @@ export default function TalentPartnerNetworkPage() {
   /* ── fetch data ──────────────────────────────────────── */
 
   const fetchInternalUsers = useCallback(async () => {
-    // Load ALL directory users — no talent_network filter
+    // Load ALL internal directory users — exclude external partners
     const { data: users } = await supabase
       .from("users")
       .select("id, full_name, position, department, location, profile_picture_url, availability")
       .eq("org_id", ORG_ID)
       .eq("status", "active")
+      .eq("user_type", "internal")
       .order("full_name");
 
     if (!users) {

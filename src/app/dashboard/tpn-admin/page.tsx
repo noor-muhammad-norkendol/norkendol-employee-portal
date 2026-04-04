@@ -256,6 +256,7 @@ export default function TPNAdminPage() {
       .select("id, full_name, position, department, location, profile_picture_url, availability")
       .eq("org_id", ORG_ID)
       .eq("status", "active")
+      .eq("user_type", "internal")
       .order("full_name");
 
     if (!users) { setInternalUsers([]); return; }
