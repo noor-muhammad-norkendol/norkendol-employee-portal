@@ -230,8 +230,8 @@ After each phase:
 ## Current Status
 - Phase 1: ✅ Done
 - Phase 2: ✅ Done (firms + users schema)
-- Phase 2b: ✅ Partially done — table exists, needs `user_id` FK + RLS update
-- Phase 3: ✅ Partially done — page rewritten with new tabs, needs label fixes + portal access indicator
+- Phase 2b: ✅ Done (external_contacts table + user_id FK + RLS)
+- Phase 3: ✅ Done (hub page with 4 tabs, filtering, cards)
 - Phase 4: ✅ Done (external contact CRUD)
 - Phase 5: ✅ Done (Grant Portal Access — invite-external-user API)
 - Phase 6: ✅ Done (Firm management — CRUD, attach contacts, detail view, filter)
