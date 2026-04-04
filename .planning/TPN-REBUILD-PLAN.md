@@ -245,3 +245,27 @@ After each phase:
 - Phase 6: ✅ Done (Firm management — CRUD, attach contacts, detail view, filter)
 - Phase 7: ✅ Done (TPN Admin — bulk ops, status management, activity log)
 - Phase 8: ✅ Done (deep analytics — both pages)
+- Phase 9: ✅ Done (Pending approval flow + firm hierarchy system)
+
+### Phase 9: Pending Approval Flow + Firm Hierarchy (Session 11)
+- **Pending approval flow:** external contacts insert as `status: 'pending'`, not `active`
+  - Migration: added `pending`/`rejected` to external_contacts CHECK constraint, default changed to `pending`
+  - INSERT RLS opened to any org user (not just admin)
+  - TPN + TPN Admin show "Submitted for approval" toast on add
+  - Pending Users page rebuilt: left sidebar with Pending/Approved/Denied, each with Internal/External sub-tabs
+  - Approve/Deny/Move to Pending (undo) actions on all views
+- **Firm hierarchy system:** `firm_hierarchy_levels` table + 4 columns on `external_contacts`
+  - `hierarchy_level_id` FK, `reports_to_id` self-FK, `region`, `market` — all nullable
+  - Firm modal: collapsible "Organization Levels" section — add/reorder/remove levels with free-text labels
+  - Contact form: conditional Role dropdown (from firm's levels) + Reports To dropdown (filtered to tier above)
+  - Region + Market fields always visible on contact form
+  - Contact cards show role + reports_to line when populated
+  - Firm detail modal: org tree grouped by hierarchy level (with indentation) when levels exist, flat list when not
+- **37 test contacts** inserted from CCS_Talent_Partner_Network_Test.xlsx as pending
+- **Linear Roofing** firm created with 3 hierarchy levels (RVP → Team Lead → PM), Tom Daman linked as TL
+- Commit: `f77c7bd` — pushed to staging
+
+### Known Gaps (Phase 9)
+- Pending Users approval flow doesn't offer firm assignment — need to add "Assign to Firm" option on approve
+- TPN Admin page external contact form missing hierarchy fields in the modal UI (coded in data layer but not rendered)
+- Bulk import tool not yet built — contacts were inserted via SQL
