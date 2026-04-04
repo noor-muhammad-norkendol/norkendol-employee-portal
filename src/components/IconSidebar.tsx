@@ -112,6 +112,7 @@ const internalSections: TierSection[] = [
       { label: "Documents", slug: "documents", paths: icons.documents },
       { label: "AI", slug: "ai", paths: icons.ai },
       { label: "Compliance", slug: "compliance", paths: icons.compliance },
+      { label: "Talent Partner Network", slug: "talent-partner-network", paths: icons.talentNetwork },
     ],
   },
   {
@@ -134,7 +135,7 @@ const internalSections: TierSection[] = [
       { label: "Compliance Settings", slug: "compliance-settings", paths: icons.complianceSettings },
       { label: "Claim Calculator Settings", slug: "claim-calculator-settings", paths: icons.claimCalc },
       { label: "System Settings", slug: "system-settings", paths: icons.systemSettings },
-      { label: "Talent Partner Network", slug: "talent-partner-network", paths: icons.talentNetwork },
+      { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
     ],
   },
   {
