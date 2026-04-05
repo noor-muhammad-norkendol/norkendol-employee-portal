@@ -121,8 +121,16 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 | `user_permissions` | Per-user sidebar and feature toggle permissions |
 | `licenses` | State licenses per user with approval workflow |
 | `bonds` | Surety bonds per user with approval workflow |
+| `training_categories` | Admin-customizable course categories |
+| `training_courses` | Course catalog (title, category, level, passing score) |
+| `training_lessons` | Ordered lessons within courses (video/document/quiz) |
+| `training_quiz_questions` | Multiple choice questions for quiz lessons |
+| `training_assignments` | Who needs to complete what course, with due dates |
+| `training_progress` | Per-user per-course progress, quiz scores, completion |
 
 All tables have `org_id` FK → `public.orgs`, RLS enabled, appropriate policies.
+
+**Supabase Storage:** `training-content` bucket (public) for uploaded videos and documents.
 
 Pre-existing tables: `orgs` (1 row), `firms`, `invitations`
 

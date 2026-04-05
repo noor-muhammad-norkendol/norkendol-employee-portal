@@ -340,3 +340,77 @@ All have RLS enabled, org_id FK to public.orgs, appropriate select/insert/update
 - App suite 2-layer toggle model not built
 - No light mode, no responsive layout
 - No white-label tenant config
+
+---
+
+## Session 14 — April 4-5, 2026
+
+### Context
+Picked up from Session 13. Fixed a bug where external users appeared in the employee directory, then built the full University + Training system.
+
+### Bug Fix: External Users in Employee Directory
+- Employee directory, compliance page, and compliance-settings page were all missing `.eq("user_type", "internal")` filter on their user queries
+- External/partner users were showing up alongside internal employees
+- Fixed all 3 pages with one-line additions
+- Commit: `053dbff`
+
+### University + Training LMS — Full Build
+
+**6 new Supabase tables:**
+- `training_categories` — admin-customizable course categories (seeded: Onboarding, Technical, Compliance, Leadership, Safety)
+- `training_courses` — course catalog with title, description, category, level, passing score, instructor
+- `training_lessons` — ordered content within a course (video, document, or quiz type)
+- `training_quiz_questions` — multiple choice questions for quiz-type lessons (jsonb options with correct answer flagging)
+- `training_assignments` — who needs to complete what, with due dates and status tracking
+- `training_progress` — per-user, per-course progress with completed lessons, quiz scores, percentage
+
+**Supabase Storage:**
+- `training-content` bucket (public) for video and document uploads
+- Migration: `20260405_training_storage_bucket.sql`
+
+**Training Admin** (`/dashboard/training`) — Tier 2A:
+- **Courses tab** — create/edit/delete courses, publish/unpublish toggle, lesson builder
+- **Lesson Builder** — add/reorder/remove lessons (video, document, quiz types), upload videos and documents to Supabase Storage or paste URLs
+- **Quiz Editor** — add multiple choice questions with correct answer flagging, edit/delete questions
+- **Categories tab** — CRUD for custom categories, activate/deactivate
+- **Assignments tab** — assign courses to individual users, departments, all internal, all external, or everyone. Sets due date + priority. Auto-creates action items on dashboard.
+- **Analytics tab** — total courses, published count, total assignments, completion rate, status breakdown bars, courses by category, overdue list
+
+**University** (`/dashboard/university`) — Tier 1A:
+- **My Assignments** — cards with progress bars, due dates, status badges, assigned-by name
+- **Browse Courses** — grid filtered by category tabs, level badges
+- **Completed** — past completions with dates
+- **Course Viewer** — full inline viewer with:
+  - Video player (YouTube embed detection or direct video)
+  - Document viewer (open/download link)
+  - Quiz interface (multiple choice, submit, pass/fail with score, retry on fail)
+  - Lesson playlist sidebar with completion checkmarks
+  - Progress bar and percentage tracking
+  - Auto-advance to next lesson on completion
+  - Course complete celebration when all lessons done + quizzes passed
+
+**Action Items Integration:**
+- Added `training` to action_items `item_type` CHECK constraint (was task/claim only)
+- Assigning training auto-creates an action item with type "training" (green badge)
+- Completing a course auto-marks both the training_assignment AND the action_item as completed
+- Updated action-items page and dashboard to support training type
+
+**TextSidebar updates:**
+- University: "My Assignments", "Browse Courses", "Completed"
+- Training: "Courses", "Categories", "Assignments", "Analytics"
+
+**Mock course created:**
+- "New Adjuster Orientation" — Onboarding category, beginner level, published
+- 3 lessons: "Welcome to the Company" (video, empty), "Tools & Software Setup" (video, empty), "Orientation Quiz" (quiz, no questions yet)
+- Ready for Frank to drop videos in and add quiz questions
+
+### Commits
+- `053dbff` — Fix external users in directory/compliance (bug fix)
+- `64fc7cf` — University + Training pages with full LMS, quiz system, action item integration
+- `d8543bd` — Add file upload for training lessons (Supabase Storage)
+
+### Future Enhancements — Training/University
+- **Drag-and-drop file upload** — currently uses browser file picker (`<input type="file">`). Add a drag-and-drop zone for videos and documents in the lesson builder for a more modern UX. Low priority, same functionality, just nicer feel.
+- Video duration auto-detection from uploaded files
+- Bulk assign from University browse view
+- Certificate generation on course completion
