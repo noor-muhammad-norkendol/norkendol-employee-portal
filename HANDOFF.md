@@ -213,9 +213,45 @@ src/
 - **Sidebar:** "Settlement Tracker" in User tier (1A)
 
 ### What to build:
-1. **TPN pickers on Mediation attorney form** — same pattern as litigation (firm dropdown → attorney dropdown filtered by firm → "Add New"). Currently free text in MediationTrack.tsx.
-2. **Appraisal track** — `src/components/settlement-tracker/AppraisalTrack.tsx`. Spec: `settlement-adr-legal-tracker/ADR_LITIGATION_KPI_SPEC.md` Track 2. Statuses: Pending → Appraiser Selection → In Progress → Impasse → Awarded/Withdrawn. Our appraiser = TPN contact (dropdown). Carrier appraiser + umpire = free text (opposing party, never portal access).
-3. **PA Settlements track** — `src/components/settlement-tracker/PASettlementsTrack.tsx`. Spec: `settlement-adr-legal-tracker/PA_SETTLEMENTS_BUILD_SPEC.md`. 5-tab structure (Active/Pending Supplement/Closed/Archived/Liquidity). 5-section form. Parent/child payments. 15 KPI cards. This is a LEDGER, not a pipeline — no status workflow.
+
+**0. SPLIT USER vs ADMIN PAGES (DO THIS FIRST — currently broken)**
+
+Right now everything is on one page. It needs to be two pages following the same pattern as TPN (user) vs TPN Admin:
+
+**Settlement Tracker (User tier 1A)** — `/dashboard/settlement-tracker`
+- Users see ONLY their assigned files (filtered by their user_id)
+- Can add updates/steps to their files
+- NO create new file, NO delete, NO bulk actions
+- NO Attorney Scorecards, NO Referral Analysis, NO Liquidity tabs
+- Just: Active files | Historical files — that's it
+- Tabs show only Active + Historical
+
+**Settlement Tracker Admin (Admin tier 2A)** — `/dashboard/settlement-tracker-admin`
+- Admins see ALL files across the org
+- Full CRUD: create, edit, delete, bulk delete, archive/unarchive
+- ALL analytics tabs: Attorney Scorecards, Referral Analysis, Liquidity
+- All 4 tracks with full admin capabilities
+- CSV export
+- This is the power user / management view
+
+Add "Settlement Tracker Admin" to sidebar tier 2A. The existing "Settlement Tracker" stays in 1A but gets stripped down to user-only features.
+
+**Role behavior reference (from source app README):**
+
+| Feature | user (attorney/appraiser) | admin/manager | super_admin |
+|---------|--------------------------|---------------|-------------|
+| See files | Only assigned to them | All | All |
+| Create files | No | Yes | Yes |
+| Delete files/steps | No | Yes | Yes |
+| View scorecards/KPIs | No | Yes | Yes |
+| Add steps to their files | Yes | Yes | Yes |
+| Archive/Unarchive | No | Yes | Yes |
+
+**1. TPN pickers on Mediation attorney form** — same pattern as litigation (firm dropdown → attorney dropdown filtered by firm → "Add New"). Currently free text in MediationTrack.tsx.
+
+**2. Appraisal track** — `src/components/settlement-tracker/AppraisalTrack.tsx`. Spec: `settlement-adr-legal-tracker/ADR_LITIGATION_KPI_SPEC.md` Track 2. Statuses: Pending → Appraiser Selection → In Progress → Impasse → Awarded/Withdrawn. Our appraiser = TPN contact (dropdown). Carrier appraiser + umpire = free text (opposing party, never portal access).
+
+**3. PA Settlements track** — `src/components/settlement-tracker/PASettlementsTrack.tsx`. Spec: `settlement-adr-legal-tracker/PA_SETTLEMENTS_BUILD_SPEC.md`. 5-tab structure (Active/Pending Supplement/Closed/Archived/Liquidity). 5-section form. Parent/child payments. 15 KPI cards. This is a LEDGER, not a pipeline — no status workflow.
 
 ### Reference specs (in settlement-adr-legal-tracker repo — REFERENCE ONLY, build fresh):
 - `ADR_LITIGATION_KPI_SPEC.md` — master architecture, all tracks
