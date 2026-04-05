@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
   const result = await callAI<GeneratedCourse>({
     featureKey: "training_course_generator",
     orgId: callerRow.org_id,
+    userId: caller.id,
     userInput: `Generate exactly ${numQuestions} quiz questions.\n\nHere is the training transcript to analyze:\n\n${transcript}`,
   });
 

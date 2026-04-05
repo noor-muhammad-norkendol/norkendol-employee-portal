@@ -46,6 +46,7 @@ export interface AICallOptions {
   featureKey: string;
   orgId: string;
   userInput: string;
+  userId?: string;
 }
 
 export interface AICallResult<T = unknown> {
@@ -60,7 +61,7 @@ export interface AICallResult<T = unknown> {
 export async function callAI<T = unknown>(
   options: AICallOptions
 ): Promise<AICallResult<T>> {
-  const { featureKey, orgId, userInput } = options;
+  const { featureKey, orgId, userInput, userId } = options;
 
   // 1. Fetch locked system prompt by feature key
   const { data: template, error: tErr } = await supabaseAdmin
@@ -101,24 +102,29 @@ export async function callAI<T = unknown>(
     : "";
   const fullSystemPrompt = template.system_prompt + businessContext;
 
-  // 4. Call the provider
+  // 4. Call the provider and capture token usage
   let rawResponse: string;
+  let inputTokens: number | null = null;
+  let outputTokens: number | null = null;
+  const model = settings.ai_model || (settings.ai_provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gpt-4o-mini");
 
   try {
     if (settings.ai_provider === "anthropic") {
       const client = new Anthropic({ apiKey });
       const msg = await client.messages.create({
-        model: settings.ai_model || "claude-haiku-4-5-20251001",
+        model,
         max_tokens: 4096,
         system: fullSystemPrompt,
         messages: [{ role: "user", content: userInput }],
       });
       const block = msg.content[0];
       rawResponse = block.type === "text" ? block.text : "";
+      inputTokens = msg.usage?.input_tokens ?? null;
+      outputTokens = msg.usage?.output_tokens ?? null;
     } else {
       const client = new OpenAI({ apiKey });
       const res = await client.chat.completions.create({
-        model: settings.ai_model || "gpt-4o-mini",
+        model,
         max_tokens: 4096,
         messages: [
           { role: "system", content: fullSystemPrompt },
@@ -126,13 +132,28 @@ export async function callAI<T = unknown>(
         ],
       });
       rawResponse = res.choices[0]?.message?.content ?? "";
+      inputTokens = res.usage?.prompt_tokens ?? null;
+      outputTokens = res.usage?.completion_tokens ?? null;
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "AI provider error";
+    // Log failed call
+    supabaseAdmin.from("ai_usage_log").insert({
+      org_id: orgId, user_id: userId || null, feature_key: featureKey,
+      provider: settings.ai_provider, model, success: false, error_message: message,
+    }).then(() => {});
     return { success: false, error: message };
   }
 
-  // 5. Parse JSON response (strip markdown fences if present)
+  // 5. Log successful call
+  supabaseAdmin.from("ai_usage_log").insert({
+    org_id: orgId, user_id: userId || null, feature_key: featureKey,
+    provider: settings.ai_provider, model,
+    input_tokens: inputTokens, output_tokens: outputTokens,
+    success: true,
+  }).then(() => {});
+
+  // 6. Parse JSON response (strip markdown fences if present)
   try {
     const cleaned = rawResponse
       .replace(/```json\s*/g, "")
