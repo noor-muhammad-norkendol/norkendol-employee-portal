@@ -211,6 +211,7 @@ function licenseSummary(licenses: LicenseInfo[]): { active: number; expiring: nu
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
 const ADMIN_ROLES = ["admin", "super_admin", "system_admin", "ep_admin"];
+const SUPER_ADMIN_ROLES = ["super_admin", "system_admin"];
 const SOFT_CAP = 200;
 
 const cardStyle: React.CSSProperties = {
@@ -290,6 +291,7 @@ export default function TalentPartnerNetworkPage() {
   const [showHierarchySection, setShowHierarchySection] = useState(false);
 
   const isAdmin = ADMIN_ROLES.includes(userRole);
+  const isSuperAdmin = SUPER_ADMIN_ROLES.includes(userRole);
 
   /* ── fetch user role ─────────────────────────────────── */
 
@@ -594,8 +596,15 @@ export default function TalentPartnerNetworkPage() {
     if (editingFirmId) {
       await supabase.from("firms").update(payload).eq("id", editingFirmId);
     } else {
-      const { data: inserted } = await supabase.from("firms").insert({ ...payload, org_id: ORG_ID }).select("id").single();
+      const { data: inserted } = await supabase.from("firms").insert({ ...payload, org_id: ORG_ID, status: isSuperAdmin ? "active" : "pending" }).select("id").single();
       firmId = inserted?.id ?? null;
+      if (!isSuperAdmin) {
+        setSavingFirm(false);
+        setShowFirmModal(false);
+        setSuccessMessage("Firm submitted for approval — a super admin will review it.");
+        setTimeout(() => setSuccessMessage(""), 5000);
+        return;
+      }
     }
 
     // Save hierarchy levels if firm was saved successfully
@@ -1279,7 +1288,7 @@ export default function TalentPartnerNetworkPage() {
                                 </button>
                               ))}
 
-                              {isAdmin && (
+                              {isSuperAdmin && (
                                 <button
                                   onClick={() => openEditExternal(contact)}
                                   className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
@@ -1292,7 +1301,7 @@ export default function TalentPartnerNetworkPage() {
                                 </button>
                               )}
 
-                              {isAdmin && (deactivateConfirm === contact.id ? (
+                              {isSuperAdmin && (deactivateConfirm === contact.id ? (
                                   <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => handleDeactivateExternal(contact.id)}
@@ -1871,7 +1880,7 @@ export default function TalentPartnerNetworkPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">{firmDetail.name}</h2>
               <div className="flex items-center gap-2">
-                {isAdmin && (
+                {isSuperAdmin && (
                   <button
                     onClick={() => { setFirmDetailId(null); openEditFirm(firmDetail); }}
                     className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
@@ -2054,7 +2063,7 @@ export default function TalentPartnerNetworkPage() {
             </div>
 
             {/* Deactivate firm */}
-            {isAdmin && (
+            {isSuperAdmin && (
               <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
                 {deactivateFirmConfirm === firmDetail.id ? (
                   <div className="flex items-center gap-2">
@@ -2201,8 +2210,8 @@ export default function TalentPartnerNetworkPage() {
                 </div>
               </div>
 
-              {/* Organization Levels (optional) */}
-              <div>
+              {/* Organization Levels (optional) — super admins only */}
+              {isSuperAdmin && <div>
                 <button
                   onClick={() => setShowHierarchySection(!showHierarchySection)}
                   className="flex items-center gap-2 text-xs font-medium cursor-pointer"
@@ -2282,7 +2291,7 @@ export default function TalentPartnerNetworkPage() {
                     </button>
                   </div>
                 )}
-              </div>
+              </div>}
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">

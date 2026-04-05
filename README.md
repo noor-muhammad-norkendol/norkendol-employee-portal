@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+---
+
+## ⚠️ KNOWN ISSUE: Calendar / Compliance Date Logic
+
+**The calendar dates displayed for Coastal Claims compliance items are currently off.** The dates imported from Outlook are approximately 1-week-ahead reminders, NOT the actual due dates. The real due dates depend on internal CCS matrices that have not yet been mapped into the system.
+
+**What this means:** If you see a compliance date on the calendar or in action items, treat it as a reminder window — not the hard deadline. Everyone reading this data internally already knows the actual deadlines from the CCS matrix.
+
+**Status:** Parked. Will be corrected once the internal matrix logic is documented and can be applied programmatically.
+
+---
+
 ## Getting Started
 
 First, run the development server:
