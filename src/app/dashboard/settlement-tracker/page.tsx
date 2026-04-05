@@ -802,6 +802,8 @@ function LitigationFileModal({
   onClose: () => void;
   isLoading: boolean;
 }) {
+  const { supabase, userInfo } = useSTSupabase();
+
   const [form, setForm] = useState<CreateLitigationFileInput>({
     file_number: initialData?.file_number || "",
     client_name: initialData?.client_name || "",
@@ -821,7 +823,99 @@ function LitigationFileModal({
     notes: initialData?.notes || "",
   });
 
+  // TPN data for pickers
+  const [firms, setFirms] = useState<{ id: string; name: string }[]>([]);
+  const [attorneys, setAttorneys] = useState<{ id: string; name: string; firm_id: string | null; firm_name: string | null }[]>([]);
+  const [contractors, setContractors] = useState<{ id: string; name: string; firm_name: string | null }[]>([]);
+
+  // "Add New" states
+  const [showAddFirm, setShowAddFirm] = useState(false);
+  const [newFirmName, setNewFirmName] = useState("");
+  const [showAddAttorney, setShowAddAttorney] = useState(false);
+  const [newAttorneyName, setNewAttorneyName] = useState("");
+  const [showAddContractor, setShowAddContractor] = useState(false);
+  const [newContractorName, setNewContractorName] = useState("");
+  const [newContractorCompany, setNewContractorCompany] = useState("");
+
+  // Fetch TPN data (org-scoped)
+  useEffect(() => {
+    if (!userInfo) return;
+    // Firms
+    supabase.from("firms").select("id, name").eq("org_id", userInfo.orgId).eq("status", "active").order("name")
+      .then(({ data }) => { if (data) setFirms(data); });
+    // Attorneys (external_contacts with specialty = Attorney)
+    supabase.from("external_contacts").select("id, name, firm_id, company_name").eq("org_id", userInfo.orgId).eq("specialty", "Attorney").eq("status", "active").order("name")
+      .then(({ data }) => {
+        if (data) setAttorneys(data.map((c: any) => ({ id: c.id, name: c.name, firm_id: c.firm_id, firm_name: c.company_name })));
+      });
+    // Contractors / Referral Sources (all external contacts that aren't attorneys — or firms)
+    supabase.from("external_contacts").select("id, name, company_name")
+      .eq("org_id", userInfo.orgId).eq("status", "active")
+      .in("specialty", ["General Contractor", "Roofer", "Restoration", "Other", "HVAC", "Plumber", "Electrician", "Drywall"])
+      .order("name")
+      .then(({ data }) => {
+        if (data) setContractors(data.map((c: any) => ({ id: c.id, name: c.name, firm_name: c.company_name })));
+      });
+  }, [supabase, userInfo]);
+
+  // Filter attorneys by selected firm
+  const filteredAttorneys = useMemo(() => {
+    if (!form.attorney_firm) return attorneys;
+    const matchedFirm = firms.find((f) => f.name === form.attorney_firm);
+    if (!matchedFirm) return attorneys;
+    return attorneys.filter((a) => a.firm_id === matchedFirm.id);
+  }, [attorneys, firms, form.attorney_firm]);
+
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  // Add New handlers
+  const handleAddFirm = async () => {
+    if (!newFirmName.trim() || !userInfo) return;
+    const { data, error } = await supabase.from("firms").insert({ name: newFirmName.trim(), org_id: userInfo.orgId, status: "active" }).select("id, name").single();
+    if (data) {
+      setFirms((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      update("attorney_firm", data.name);
+    }
+    setNewFirmName("");
+    setShowAddFirm(false);
+  };
+
+  const handleAddAttorney = async () => {
+    if (!newAttorneyName.trim() || !userInfo) return;
+    const matchedFirm = firms.find((f) => f.name === form.attorney_firm);
+    const { data, error } = await supabase.from("external_contacts").insert({
+      name: newAttorneyName.trim(),
+      specialty: "Attorney",
+      org_id: userInfo.orgId,
+      firm_id: matchedFirm?.id || null,
+      company_name: form.attorney_firm || null,
+      status: "active",
+    }).select("id, name, firm_id, company_name").single();
+    if (data) {
+      setAttorneys((prev) => [...prev, { id: data.id, name: data.name, firm_id: data.firm_id, firm_name: data.company_name }].sort((a, b) => a.name.localeCompare(b.name)));
+      update("attorney_contact", data.name);
+    }
+    setNewAttorneyName("");
+    setShowAddAttorney(false);
+  };
+
+  const handleAddContractor = async () => {
+    if (!newContractorName.trim() || !userInfo) return;
+    const { data, error } = await supabase.from("external_contacts").insert({
+      name: newContractorName.trim(),
+      specialty: "General Contractor",
+      org_id: userInfo.orgId,
+      company_name: newContractorCompany.trim() || null,
+      status: "active",
+    }).select("id, name, company_name").single();
+    if (data) {
+      setContractors((prev) => [...prev, { id: data.id, name: data.name, firm_name: data.company_name }].sort((a, b) => a.name.localeCompare(b.name)));
+      update("referral_source", data.company_name || data.name);
+    }
+    setNewContractorName("");
+    setNewContractorCompany("");
+    setShowAddContractor(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -872,17 +966,81 @@ function LitigationFileModal({
               <label style={labelStyle}>Attorney Onboarded Date *</label>
               <input style={inputStyle} type="date" value={form.date_attorney_onboarded} onChange={(e) => update("date_attorney_onboarded", e.target.value)} required />
             </div>
+
+            {/* Law Firm — TPN picker */}
             <div>
               <label style={labelStyle}>Law Firm *</label>
-              <input style={inputStyle} value={form.attorney_firm} onChange={(e) => update("attorney_firm", e.target.value)} required />
+              {showAddFirm ? (
+                <div className="flex gap-2">
+                  <input style={inputStyle} value={newFirmName} onChange={(e) => setNewFirmName(e.target.value)} placeholder="New firm name..." autoFocus />
+                  <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" }} onClick={handleAddFirm}>Add</button>
+                  <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setShowAddFirm(false)}>Cancel</button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select style={selectStyle} value={form.attorney_firm} onChange={(e) => {
+                    if (e.target.value === "__ADD_NEW__") { setShowAddFirm(true); return; }
+                    update("attorney_firm", e.target.value);
+                    update("attorney_contact", ""); // reset attorney when firm changes
+                  }} required>
+                    <option value="">Select law firm...</option>
+                    {firms.filter((f) => f.name).map((f) => (
+                      <option key={f.id} value={f.name}>{f.name}</option>
+                    ))}
+                    <option value="__ADD_NEW__">+ Add New Firm</option>
+                  </select>
+                </div>
+              )}
             </div>
+
+            {/* Contractor — TPN picker */}
             <div>
               <label style={labelStyle}>Contractor (Referral Source) *</label>
-              <input style={inputStyle} value={form.referral_source} onChange={(e) => update("referral_source", e.target.value)} required />
+              {showAddContractor ? (
+                <div className="space-y-2">
+                  <input style={inputStyle} value={newContractorCompany} onChange={(e) => setNewContractorCompany(e.target.value)} placeholder="Company name..." autoFocus />
+                  <input style={inputStyle} value={newContractorName} onChange={(e) => setNewContractorName(e.target.value)} placeholder="Contact name..." />
+                  <div className="flex gap-2">
+                    <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12 }} onClick={handleAddContractor}>Add</button>
+                    <button type="button" style={{ ...btnOutline, fontSize: 12 }} onClick={() => setShowAddContractor(false)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <select style={selectStyle} value={form.referral_source} onChange={(e) => {
+                  if (e.target.value === "__ADD_NEW__") { setShowAddContractor(true); return; }
+                  update("referral_source", e.target.value);
+                }} required>
+                  <option value="">Select contractor...</option>
+                  {/* Show unique company names + individual names */}
+                  {[...new Set(contractors.map((c) => c.firm_name || c.name).filter(Boolean))].sort().map((name) => (
+                    <option key={name} value={name!}>{name}</option>
+                  ))}
+                  <option value="__ADD_NEW__">+ Add New Contractor</option>
+                </select>
+              )}
             </div>
+
+            {/* Attorney — TPN picker (filtered by selected firm) */}
             <div>
-              <label style={labelStyle}>Attorney Contact</label>
-              <input style={inputStyle} value={form.attorney_contact || ""} onChange={(e) => update("attorney_contact", e.target.value)} />
+              <label style={labelStyle}>Attorney</label>
+              {showAddAttorney ? (
+                <div className="flex gap-2">
+                  <input style={inputStyle} value={newAttorneyName} onChange={(e) => setNewAttorneyName(e.target.value)} placeholder="Attorney name..." autoFocus />
+                  <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" }} onClick={handleAddAttorney}>Add</button>
+                  <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setShowAddAttorney(false)}>Cancel</button>
+                </div>
+              ) : (
+                <select style={selectStyle} value={form.attorney_contact || ""} onChange={(e) => {
+                  if (e.target.value === "__ADD_NEW__") { setShowAddAttorney(true); return; }
+                  update("attorney_contact", e.target.value);
+                }}>
+                  <option value="">Select attorney...</option>
+                  {filteredAttorneys.map((a) => (
+                    <option key={a.id} value={a.name}>{a.name}</option>
+                  ))}
+                  <option value="__ADD_NEW__">+ Add New Attorney</option>
+                </select>
+              )}
             </div>
             <div>
               <label style={labelStyle}>Next Action</label>
