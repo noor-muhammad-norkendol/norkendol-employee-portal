@@ -115,6 +115,7 @@ const internalSections: TierSection[] = [
       { label: "AI", slug: "ai", paths: icons.ai },
       { label: "Compliance", slug: "compliance", paths: icons.compliance },
       { label: "Talent Partner Network", slug: "talent-partner-network", paths: icons.talentNetwork },
+      { label: "Settlement Tracker", slug: "settlement-tracker", paths: icons.settlementTracker },
     ],
   },
   {
@@ -129,7 +130,6 @@ const internalSections: TierSection[] = [
       { label: "Departments", slug: "departments", paths: icons.departments },
       { label: "CRM", slug: "crm", paths: icons.crm },
       { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
-      { label: "Settlement Tracker", slug: "settlement-tracker", paths: icons.settlementTracker },
     ],
   },
   {
