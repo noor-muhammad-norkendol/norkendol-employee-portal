@@ -428,7 +428,73 @@ Picked up from Session 13. Fixed a bug where external users appeared in the empl
 - `b427582` — Video-first course creation wizard
 
 ### Future Enhancements — Training/University
-- **AI-powered course generation** — transcript paste + video frame analysis. Full plan at `.claude/plans/jazzy-whistling-rose.md`. Frank's org uses Anthropic. Build Phases A (org_settings + AI config UI), B (transcript generation), C (video analysis).
+- ~~**AI-powered course generation**~~ — DONE in Session 15 (Phases A+B). Phase C (video frame analysis) deferred.
 - **Drag-and-drop file upload** — add drag-and-drop zone for videos/documents in lesson builder. Low priority.
 - Bulk assign from University browse view
 - Certificate generation on course completion
+
+---
+
+## Session 15 — April 5, 2026
+
+### Context & Decisions
+
+**Session goal:** Build central AI layer + transcript-to-course generation.
+
+**Architecture decision (Frank + Claude Desktop):** AI is NOT per-feature. One central AI engine for the whole portal. Every feature (training, compliance, state regs, future features) goes through the same pipe. Two-table design:
+- `ai_context_templates` — Norkendol manages locked system prompts per feature. Tenants never see these. `feature_key` column for programmatic lookup.
+- `org_settings` — one row per org. AI provider, encrypted API key, model, and one `business_context` text field the tenant writes once ("We are a house cleaning company...") that gets prepended to every AI call.
+
+Every AI call = locked system_prompt + business_context + user input. Simple, scalable, white-label.
+
+**Key insight from Frank:** Don't build per-feature tenant customization. One "About My Business" context covers everything. The tenant shouldn't have to configure AI separately for training vs. compliance — the business context is the same everywhere.
+
+**Desktop feedback incorporated:** `ai_context_templates` is a separate table from per-org settings so Norkendol can update a system prompt once and every tenant inherits it. API keys encrypted with AES-256-GCM at application layer (not just DB-level).
+
+### What Was Built
+
+**Central AI Layer:**
+- `supabase/migrations/20260405_ai_foundation.sql` — `ai_context_templates` table + `org_settings` table with `ai_interview_completed` and `onboarding_status` placeholders for future Executive Intelligence work
+- `src/lib/ai.ts` — shared `callAI<T>()` utility. Reads template by feature_key, reads org settings, decrypts API key, calls Anthropic or OpenAI, parses JSON response. Also exports `encryptApiKey()`/`decryptApiKey()` helpers.
+- `src/lib/ai-types.ts` — `GeneratedCourse` interface + `validateGeneratedCourse()` validator
+- `@anthropic-ai/sdk` and `openai` packages installed
+- `ENCRYPTION_KEY` added to `.env.local`
+
+**System Settings Page (was placeholder):**
+- `src/app/dashboard/system-settings/page.tsx` — tabbed page, AI Configuration tab
+- Provider dropdown (Anthropic/OpenAI), API key input (password field, shows "encrypted" status), model selector (with model lists per provider), business context textarea
+- `src/app/api/settings/ai/route.ts` — GET/PUT, super_admin+ only, encrypts key before storing
+
+**Transcript → Course Generation:**
+- `src/app/api/training/generate-from-transcript/route.ts` — POST, admin+ role check, 50K char limit, calls `callAI()`, validates response shape
+- Training wizard Step 2: "Generate with AI — Paste a Transcript" button opens modal
+- Modal: textarea with character count, configurable quiz question count (2-15, default 5)
+- On success: auto-populates title, description, category, level, quiz questions AND renames video lesson to match AI-generated title
+
+**Cover Images:**
+- Training wizard Step 2: optional cover image upload (stored in `training-content/covers/`)
+- `thumbnail_url` wired into course save
+- University page: course cards now show cover image on top (like old CCS portal), with gradient placeholder for courses without covers
+- Assignment cards also show cover images
+
+**Quiz Grading System:**
+- Standard US letter grades: A+ (97+) through F (below 60)
+- Default passing score changed from 80% to 70% (C- or better)
+- Quiz results show: big letter grade → percentage → pass/fail message → attempt count
+- On retry: questions AND answer options are shuffled so users can't memorize positions
+- Failed users CANNOT mark course complete — must retake until they pass
+- Grade stored in `training_progress.quiz_scores` per lesson (score, passed, grade, attempts)
+
+### Commits
+- `d54ad3d` — Central AI layer, transcript-to-course generation, cover images, quiz grading
+
+### Not Built Yet — Next Sessions (PRIORITIZED)
+
+1. **AI Management page** — Super Admin page to browse `ai_context_templates`, see what each AI agent does, add context/instructions per feature. Table and seed data exist, UI does not.
+2. **Rename "Training" sidebar item to "University Admin"** — less confusing since University is the student view
+3. **Training Admin → Categories tab logic** — verify CRUD works end-to-end, ability to reassign courses between categories
+4. **Training Admin → Assignments tab logic** — verify assign-to-individual and assign-by-department works
+5. **Course certification system** — completion certificate per user per course, training coordinator review panel, which-questions-are-failing analytics
+6. **Phase C: Video → Course generation** — frame extraction + vision model for videos without transcripts
+7. **Drag-and-drop file upload** for lesson builder (low priority)
+8. **Add cover image upload to course edit modal** (existing courses can't add covers yet, only new ones)
