@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
+import MediationTrack from "@/components/settlement-tracker/MediationTrack";
 import { useLitigationFiles, useCreateLitigationFile, useUpdateLitigationFile, useDeleteLitigationFiles } from "@/hooks/settlement-tracker";
 import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useDeleteLegalActions, useBulkUpdateLegalActions, useBulkLitigationFileRollups, useLitigationFileRollups } from "@/hooks/settlement-tracker";
 import { useSettlements, useSettlementByFileId, useCreateSettlement, useUpdateSettlement, useDeleteSettlement } from "@/hooks/settlement-tracker";
@@ -419,7 +420,12 @@ export default function SettlementTrackerPage() {
     );
   }
 
-  // Placeholder for non-litigation tracks (Sessions 20-21)
+  // Mediation track
+  if (track === "mediation") {
+    return <MediationTrack onBack={() => setTrack("landing")} />;
+  }
+
+  // Placeholder for remaining tracks
   if (track !== "litigation") {
     return (
       <div className="p-6">
@@ -867,7 +873,7 @@ function LitigationFileModal({
               <input style={inputStyle} type="date" value={form.date_attorney_onboarded} onChange={(e) => update("date_attorney_onboarded", e.target.value)} required />
             </div>
             <div>
-              <label style={labelStyle}>Attorney Firm *</label>
+              <label style={labelStyle}>Law Firm *</label>
               <input style={inputStyle} value={form.attorney_firm} onChange={(e) => update("attorney_firm", e.target.value)} required />
             </div>
             <div>
