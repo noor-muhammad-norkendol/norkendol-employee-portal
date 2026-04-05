@@ -67,6 +67,27 @@ interface UserOption {
   user_type: string;
 }
 
+interface Certificate {
+  id: string;
+  user_id: string;
+  course_id: string;
+  certificate_number: string;
+  issued_at: string;
+  final_score: number | null;
+  final_grade: string | null;
+  review_status: string;
+  review_notes: string | null;
+}
+
+interface ProgressRecord {
+  id: string;
+  user_id: string;
+  course_id: string;
+  status: string;
+  quiz_scores: Record<string, { score: number; passed: boolean; attempts: number; grade?: string }>;
+  completed_at: string | null;
+}
+
 /* ── constants ─────────────────────────────────────────── */
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
@@ -109,13 +130,15 @@ function formatDate(d: string) {
 
 export default function TrainingPage() {
   const supabase = createClient();
-  const [tab, setTab] = useState<"courses" | "categories" | "assignments" | "analytics">("courses");
+  const [tab, setTab] = useState<"courses" | "categories" | "assignments" | "certifications" | "analytics">("courses");
 
   // Shared data
   const [categories, setCategories] = useState<Category[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [allProgress, setAllProgress] = useState<ProgressRecord[]>([]);
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -195,16 +218,20 @@ export default function TrainingPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [catRes, courseRes, assignRes, userRes] = await Promise.all([
+    const [catRes, courseRes, assignRes, userRes, certRes, progRes] = await Promise.all([
       supabase.from("training_categories").select("*").eq("org_id", ORG_ID).order("sort_order"),
       supabase.from("training_courses").select("*").eq("org_id", ORG_ID).order("created_at", { ascending: false }),
       supabase.from("training_assignments").select("*").eq("org_id", ORG_ID).order("created_at", { ascending: false }),
       supabase.from("users").select("id, full_name, department, user_type").eq("org_id", ORG_ID).eq("status", "active").order("full_name"),
+      supabase.from("training_certificates").select("*").eq("org_id", ORG_ID).order("issued_at", { ascending: false }),
+      supabase.from("training_progress").select("id, user_id, course_id, status, quiz_scores, completed_at").eq("org_id", ORG_ID),
     ]);
     if (catRes.data) setCategories(catRes.data as Category[]);
     if (courseRes.data) setCourses(courseRes.data as Course[]);
     if (assignRes.data) setAssignments(assignRes.data as Assignment[]);
     if (userRes.data) setUsers(userRes.data as UserOption[]);
+    if (certRes.data) setCertificates(certRes.data as Certificate[]);
+    if (progRes.data) setAllProgress(progRes.data as ProgressRecord[]);
     setLoading(false);
   }, []);
 
@@ -640,6 +667,7 @@ export default function TrainingPage() {
     { key: "courses", label: "Courses", count: courses.length },
     { key: "categories", label: "Categories", count: categories.length },
     { key: "assignments", label: "Assignments", count: assignments.length },
+    { key: "certifications", label: "Certifications", count: certificates.length },
     { key: "analytics", label: "Analytics" },
   ] as const;
 
@@ -834,6 +862,49 @@ export default function TrainingPage() {
         </div>
       )}
 
+      {/* ── CERTIFICATIONS TAB ─────────────────────────── */}
+      {tab === "certifications" && (
+        <div>
+          {certificates.length === 0 ? (
+            <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No certificates issued yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {certificates.map((cert) => {
+                const course = courses.find((c) => c.id === cert.course_id);
+                const user = users.find((u) => u.id === cert.user_id);
+                return (
+                  <div key={cert.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: "#0a2a1a" }}>🎓</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{course?.title ?? "Unknown Course"}</p>
+                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{user?.full_name ?? "Unknown User"} — #{cert.certificate_number}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {cert.final_grade && (
+                        <p className="text-sm font-bold" style={{ color: cert.final_grade.startsWith("A") ? "#4ade80" : cert.final_grade.startsWith("B") ? "#60a5fa" : cert.final_grade.startsWith("C") ? "#facc15" : "#ef4444" }}>
+                          {cert.final_grade} ({cert.final_score}%)
+                        </p>
+                      )}
+                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{formatDate(cert.issued_at)}</p>
+                    </div>
+                    <div className="shrink-0">
+                      <span className="text-[11px] px-2 py-0.5 rounded-full capitalize" style={{
+                        background: cert.review_status === "flagged" ? "#4a1a1a" : "#1a3a2a",
+                        color: cert.review_status === "flagged" ? "#ef4444" : "#4ade80",
+                      }}>
+                        {cert.review_status.replace("_", " ")}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── ANALYTICS TAB ──────────────────────────────── */}
       {tab === "analytics" && (
         <div>
@@ -906,6 +977,62 @@ export default function TrainingPage() {
               ))}
             </div>
           )}
+
+          {/* Quiz Gap Analytics */}
+          {(() => {
+            // Aggregate quiz scores across all progress records
+            const quizFailures: Record<string, { courseName: string; attempts: number; failures: number; avgScore: number }> = {};
+            for (const p of allProgress) {
+              const course = courses.find((c) => c.id === p.course_id);
+              if (!course || !p.quiz_scores) continue;
+              for (const [lessonId, scoreData] of Object.entries(p.quiz_scores)) {
+                if (!quizFailures[lessonId]) {
+                  quizFailures[lessonId] = { courseName: course.title, attempts: 0, failures: 0, avgScore: 0 };
+                }
+                quizFailures[lessonId].attempts += scoreData.attempts;
+                if (!scoreData.passed) quizFailures[lessonId].failures++;
+                quizFailures[lessonId].avgScore = (quizFailures[lessonId].avgScore * (quizFailures[lessonId].attempts - scoreData.attempts) + scoreData.score * scoreData.attempts) / quizFailures[lessonId].attempts;
+              }
+            }
+            const problemQuizzes = Object.entries(quizFailures)
+              .filter(([, d]) => d.failures > 0)
+              .sort(([, a], [, b]) => b.failures - a.failures)
+              .slice(0, 10);
+
+            if (problemQuizzes.length === 0) return null;
+            return (
+              <div className="rounded-xl p-4 mt-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "#fb923c" }}>Training Gaps — Quizzes with Most Failures</h3>
+                <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>These quizzes have the most failures across all users — may indicate training content that needs improvement.</p>
+                {problemQuizzes.map(([lessonId, data]) => (
+                  <div key={lessonId} className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="text-xs font-medium">{data.courseName}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px]" style={{ color: "#ef4444" }}>{data.failures} failed</span>
+                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{data.attempts} attempts</span>
+                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Avg: {Math.round(data.avgScore)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Certification Summary */}
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            {[
+              { label: "Certificates Issued", value: certificates.length, color: "#4ade80" },
+              { label: "Auto Approved", value: certificates.filter((c) => c.review_status === "auto_approved").length, color: "#60a5fa" },
+              { label: "Flagged for Review", value: certificates.filter((c) => c.review_status === "flagged").length, color: "#ef4444" },
+            ].map((m) => (
+              <div key={m.label} className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{m.label}</p>
+                <p className="text-2xl font-bold" style={{ color: m.color }}>{m.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

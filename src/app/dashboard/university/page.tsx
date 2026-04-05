@@ -159,6 +159,9 @@ export default function UniversityPage() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<{ score: number; passed: boolean; grade: string } | null>(null);
 
+  // Certificates
+  const [certificates, setCertificates] = useState<Record<string, { certificate_number: string; issued_at: string; final_score: number | null; final_grade: string | null }>>({});
+
   /* ── data loading ────────────────────────────────────── */
 
   const fetchAll = useCallback(async (uid: string) => {
@@ -180,14 +183,29 @@ export default function UniversityPage() {
     setLoading(false);
   }, []);
 
+  const fetchCertificates = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch("/api/training/certificate", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (res.ok) {
+      const { certificates: certs } = await res.json();
+      const map: Record<string, { certificate_number: string; issued_at: string; final_score: number | null; final_grade: string | null }> = {};
+      for (const c of certs) map[c.course_id] = c;
+      setCertificates(map);
+    }
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserId(user.id);
         fetchAll(user.id);
+        fetchCertificates();
       }
     });
-  }, [fetchAll]);
+  }, [fetchAll, fetchCertificates]);
 
   /* ── course viewer ───────────────────────────────────── */
 
@@ -270,6 +288,24 @@ export default function UniversityPage() {
       await supabase.from("training_assignments").update({ status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("course_id", viewingCourse.id).eq("assigned_to", userId);
       // Auto-complete action item
       await supabase.from("action_items").update({ status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("item_type", "training").eq("assigned_to", userId).like("title", `%${viewingCourse.title}%`);
+
+      // Issue certificate
+      const quizLessons = courseLessons.filter((l) => l.lesson_type === "quiz");
+      const allScores = quizLessons.map((ql) => courseProgress.quiz_scores[ql.id]?.score ?? 0);
+      const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 100;
+      const avgGrade = getLetterGrade(avgScore);
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return;
+        fetch("/api/training/certificate", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ course_id: viewingCourse.id, final_score: avgScore, final_grade: avgGrade }),
+        }).then((res) => res.json()).then((data) => {
+          if (data.certificate) {
+            setCertificates((prev) => ({ ...prev, [viewingCourse.id]: data.certificate }));
+          }
+        }).catch(() => {});
+      });
     } else {
       await supabase.from("training_assignments").update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("course_id", viewingCourse.id).eq("assigned_to", userId).neq("status", "completed");
     }
@@ -508,7 +544,20 @@ export default function UniversityPage() {
           <div className="rounded-xl p-8 text-center mt-6" style={{ background: "#0a2a1a", border: "1px solid #1a5a3a" }}>
             <p className="text-3xl mb-2">🎓</p>
             <h3 className="text-lg font-bold mb-1" style={{ color: "#4ade80" }}>Course Complete!</h3>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>You&apos;ve finished all lessons in {viewingCourse.title}.</p>
+            <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>You&apos;ve finished all lessons in {viewingCourse.title}.</p>
+            {certificates[viewingCourse.id] && (
+              <div className="inline-block rounded-lg px-4 py-2 mt-1" style={{ background: "rgba(74, 222, 128, 0.1)", border: "1px solid rgba(74, 222, 128, 0.3)" }}>
+                <p className="text-xs font-medium" style={{ color: "#4ade80" }}>Certificate Issued</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  #{certificates[viewingCourse.id].certificate_number}
+                  {certificates[viewingCourse.id].final_grade && (
+                    <span className="ml-2" style={{ color: GRADE_COLORS[certificates[viewingCourse.id].final_grade!] ?? "var(--text-secondary)" }}>
+                      Grade: {certificates[viewingCourse.id].final_grade} ({certificates[viewingCourse.id].final_score}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -639,6 +688,13 @@ export default function UniversityPage() {
                           <div className="h-full rounded-full transition-all" style={{ width: `${progress.progress_percentage}%`, background: "var(--accent)" }} />
                         </div>
                         <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{progress.progress_percentage}% complete</p>
+                      </div>
+                    )}
+                    {certificates[c.id] && (
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px]" style={{ color: "#4ade80" }}>
+                        <span>🎓</span>
+                        <span>Certified</span>
+                        {certificates[c.id].final_grade && <span style={{ color: GRADE_COLORS[certificates[c.id].final_grade!] ?? "#4ade80" }}>({certificates[c.id].final_grade})</span>}
                       </div>
                     )}
                   </div>
