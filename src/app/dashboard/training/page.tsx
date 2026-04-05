@@ -120,12 +120,20 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
 
   // Modals
-  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false); // edit only
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showLessonBuilder, setShowLessonBuilder] = useState(false);
 
-  // Course form
+  // Course creation wizard (video-first)
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [wizardVideo, setWizardVideo] = useState({ url: "", title: "" });
+  const [wizardCourse, setWizardCourse] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 80, instructor_name: "" });
+  const [wizardQuestions, setWizardQuestions] = useState<{ question_text: string; options: { label: string; is_correct: boolean }[] }[]>([]);
+  const [wizardPublish, setWizardPublish] = useState(false);
+
+  // Course form (for edit only)
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [courseForm, setCourseForm] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 80, instructor_name: "" });
 
@@ -203,9 +211,77 @@ export default function TrainingPage() {
   /* ── course CRUD ─────────────────────────────────────── */
 
   const openCreateCourse = () => {
-    setEditingCourseId(null);
-    setCourseForm({ title: "", description: "", category_id: "", level: "beginner", passing_score: 80, instructor_name: "" });
-    setShowCourseModal(true);
+    setWizardStep(1);
+    setWizardVideo({ url: "", title: "" });
+    setWizardCourse({ title: "", description: "", category_id: "", level: "beginner", passing_score: 80, instructor_name: "" });
+    setWizardQuestions([]);
+    setWizardPublish(false);
+    setShowWizard(true);
+  };
+
+  const saveWizard = async () => {
+    if (!wizardCourse.title.trim()) return;
+    setSaving(true);
+
+    // 1. Create the course
+    const { data: courseData } = await supabase.from("training_courses").insert({
+      org_id: ORG_ID,
+      title: wizardCourse.title.trim(),
+      description: wizardCourse.description.trim() || null,
+      category_id: wizardCourse.category_id || null,
+      level: wizardCourse.level,
+      passing_score: wizardCourse.passing_score,
+      instructor_name: wizardCourse.instructor_name.trim() || null,
+      is_published: wizardPublish,
+      created_by: userId,
+    }).select("id").single();
+
+    if (!courseData) { setSaving(false); return; }
+    const courseId = courseData.id;
+    let sortOrder = 0;
+
+    // 2. Create the video lesson (if video was provided)
+    if (wizardVideo.url.trim()) {
+      await supabase.from("training_lessons").insert({
+        course_id: courseId,
+        org_id: ORG_ID,
+        title: wizardVideo.title.trim() || wizardCourse.title.trim(),
+        lesson_type: "video",
+        video_url: wizardVideo.url.trim(),
+        sort_order: sortOrder++,
+      });
+    }
+
+    // 3. Create quiz lesson + questions (if any questions were added)
+    if (wizardQuestions.length > 0) {
+      const validQs = wizardQuestions.filter((q) => q.question_text.trim() && q.options.filter((o) => o.label.trim()).length >= 2);
+      if (validQs.length > 0) {
+        const { data: quizLesson } = await supabase.from("training_lessons").insert({
+          course_id: courseId,
+          org_id: ORG_ID,
+          title: "Quiz",
+          lesson_type: "quiz",
+          sort_order: sortOrder++,
+        }).select("id").single();
+
+        if (quizLesson) {
+          for (let i = 0; i < validQs.length; i++) {
+            const q = validQs[i];
+            await supabase.from("training_quiz_questions").insert({
+              lesson_id: quizLesson.id,
+              org_id: ORG_ID,
+              question_text: q.question_text.trim(),
+              options: q.options.filter((o) => o.label.trim()).map((o) => ({ label: o.label.trim(), is_correct: o.is_correct })),
+              sort_order: i,
+            });
+          }
+        }
+      }
+    }
+
+    setSaving(false);
+    setShowWizard(false);
+    fetchAll();
   };
 
   const openEditCourse = (c: Course) => {
@@ -786,12 +862,179 @@ export default function TrainingPage() {
       {/* ── MODALS ────────────────────────────────────── */}
       {/* ══════════════════════════════════════════════════ */}
 
-      {/* ── Course Create/Edit Modal ──────────────────── */}
+      {/* ── Course Creation Wizard (Video-First) ──────── */}
+      {showWizard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowWizard(false)}>
+          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">Create Course</h2>
+              <button onClick={() => setShowWizard(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+            </div>
+
+            {/* Step indicators */}
+            <div className="flex items-center gap-2 mb-6">
+              {[
+                { step: 1, label: "Content" },
+                { step: 2, label: "Details" },
+                { step: 3, label: "Quiz (Optional)" },
+              ].map((s) => (
+                <button key={s.step} onClick={() => { if (s.step === 1 || (s.step === 2 && wizardVideo.url) || (s.step === 3 && wizardCourse.title)) setWizardStep(s.step as 1 | 2 | 3); }} className="flex items-center gap-2 cursor-pointer">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: wizardStep >= s.step ? "var(--accent)" : "var(--bg-surface)", color: wizardStep >= s.step ? "#000" : "var(--text-muted)", border: `1px solid ${wizardStep >= s.step ? "var(--accent)" : "var(--border-color)"}` }}>
+                    {wizardStep > s.step ? "✓" : s.step}
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: wizardStep === s.step ? "var(--text-primary)" : "var(--text-muted)" }}>{s.label}</span>
+                  {s.step < 3 && <div className="w-8 h-px" style={{ background: "var(--border-color)" }} />}
+                </button>
+              ))}
+            </div>
+
+            {/* Step 1: Upload video or paste URL */}
+            {wizardStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Start by adding your video — upload a file or paste a URL.</p>
+
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Video URL</label>
+                  <input type="text" value={wizardVideo.url} onChange={(e) => setWizardVideo({ ...wizardVideo, url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a YouTube link or video URL" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>or</span>
+                  <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
+                </div>
+
+                <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "2px dashed var(--border-color)", color: "var(--text-secondary)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                  <span className="text-sm font-medium">{uploading ? "Uploading..." : "Upload Video File"}</span>
+                  <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const url = await uploadFile(file, "videos");
+                    if (url) setWizardVideo({ url, title: file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ") });
+                    e.target.value = "";
+                  }} />
+                </label>
+
+                {wizardVideo.url && (
+                  <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "#0a2a1a", border: "1px solid #1a5a3a" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span className="text-sm truncate flex-1" style={{ color: "#4ade80" }}>Video ready</span>
+                    <span className="text-[11px] truncate max-w-[300px]" style={{ color: "var(--text-muted)" }}>{wizardVideo.url}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} className="text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Skip — no video</button>
+                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} disabled={!wizardVideo.url} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Course details */}
+            {wizardStep === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Title</label>
+                  <input type="text" value={wizardCourse.title} onChange={(e) => setWizardCourse({ ...wizardCourse, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Course title..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Description</label>
+                  <textarea value={wizardCourse.description} onChange={(e) => setWizardCourse({ ...wizardCourse, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="What is this course about?" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Category</label>
+                    <select value={wizardCourse.category_id} onChange={(e) => setWizardCourse({ ...wizardCourse, category_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                      <option value="">No category</option>
+                      {categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Level</label>
+                    <select value={wizardCourse.level} onChange={(e) => setWizardCourse({ ...wizardCourse, level: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Passing Score (%)</label>
+                    <input type="number" min={0} max={100} value={wizardCourse.passing_score} onChange={(e) => setWizardCourse({ ...wizardCourse, passing_score: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Instructor Name</label>
+                    <input type="text" value={wizardCourse.instructor_name} onChange={(e) => setWizardCourse({ ...wizardCourse, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Optional" />
+                  </div>
+                </div>
+
+                {/* Publish toggle */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={wizardPublish} onChange={(e) => setWizardPublish(e.target.checked)} className="cursor-pointer" />
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Publish immediately</span>
+                </label>
+
+                <div className="flex items-center justify-between pt-2">
+                  <button onClick={() => setWizardStep(1)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Back</button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50" style={{ color: "var(--text-secondary)" }}>
+                      {saving ? "Saving..." : "Save Without Quiz"}
+                    </button>
+                    <button onClick={() => setWizardStep(3)} disabled={!wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                      Add Quiz
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Quiz questions (optional) */}
+            {wizardStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Add quiz questions. Users must pass with {wizardCourse.passing_score}% to complete the course.</p>
+
+                {wizardQuestions.map((q, qi) => (
+                  <div key={qi} className="rounded-lg p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>Question {qi + 1}</span>
+                      <button onClick={() => setWizardQuestions((prev) => prev.filter((_, i) => i !== qi))} className="text-xs cursor-pointer" style={{ color: "#ef4444" }}>Remove</button>
+                    </div>
+                    <textarea value={q.question_text} onChange={(e) => { const updated = [...wizardQuestions]; updated[qi] = { ...updated[qi], question_text: e.target.value }; setWizardQuestions(updated); }} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y mb-2" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Enter your question..." />
+                    {q.options.map((opt, oi) => (
+                      <div key={oi} className="flex items-center gap-2 mb-1.5">
+                        <input type="checkbox" checked={opt.is_correct} onChange={() => { const updated = [...wizardQuestions]; const newOpts = [...updated[qi].options]; newOpts[oi] = { ...newOpts[oi], is_correct: !newOpts[oi].is_correct }; updated[qi] = { ...updated[qi], options: newOpts }; setWizardQuestions(updated); }} className="cursor-pointer" />
+                        <input type="text" value={opt.label} onChange={(e) => { const updated = [...wizardQuestions]; const newOpts = [...updated[qi].options]; newOpts[oi] = { ...newOpts[oi], label: e.target.value }; updated[qi] = { ...updated[qi], options: newOpts }; setWizardQuestions(updated); }} className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                <button onClick={() => setWizardQuestions((prev) => [...prev, { question_text: "", options: [{ label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }] }])} className="w-full py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-secondary)" }}>
+                  + Add Question
+                </button>
+
+                <div className="flex items-center justify-between pt-2">
+                  <button onClick={() => setWizardStep(2)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Back</button>
+                  <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                    {saving ? "Creating Course..." : `Create Course${wizardQuestions.length > 0 ? ` with ${wizardQuestions.length} Questions` : ""}`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Course Edit Modal ─────────────────────────────── */}
       {showCourseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowCourseModal(false)}>
           <div className="rounded-xl p-6 w-full max-w-lg" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold">{editingCourseId ? "Edit Course" : "Create Course"}</h2>
+              <h2 className="text-lg font-semibold">Edit Course</h2>
               <button onClick={() => setShowCourseModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
             </div>
             <div className="space-y-4">
@@ -833,7 +1076,7 @@ export default function TrainingPage() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={() => setShowCourseModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
                 <button onClick={saveCourse} disabled={saving || !courseForm.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
-                  {saving ? "Saving..." : editingCourseId ? "Save Changes" : "Create Course"}
+                  {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>
