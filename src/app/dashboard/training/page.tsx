@@ -156,6 +156,21 @@ export default function TrainingPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  /* ── file upload ──────────────────────────────────────── */
+
+  const uploadFile = async (file: File, folder: string): Promise<string | null> => {
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const path = `${folder}/${Date.now()}_${safeName}`;
+    const { error } = await supabase.storage.from("training-content").upload(path, file, { upsert: true });
+    setUploading(false);
+    if (error) { console.error("Upload error:", error); return null; }
+    const { data: urlData } = supabase.storage.from("training-content").getPublicUrl(path);
+    return urlData?.publicUrl ?? null;
+  };
 
   /* ── data fetching ───────────────────────────────────── */
 
@@ -1045,8 +1060,20 @@ export default function TrainingPage() {
               {lessonForm.lesson_type === "video" && (
                 <>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Video URL</label>
-                    <input type="text" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="YouTube or direct URL" />
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Video</label>
+                    <input type="text" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a YouTube or video URL, or upload below" />
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                      {uploading ? "Uploading..." : "Upload Video File"}
+                      <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const url = await uploadFile(file, "videos");
+                        if (url) setLessonForm((prev) => ({ ...prev, video_url: url }));
+                        e.target.value = "";
+                      }} />
+                    </label>
+                    {lessonForm.video_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{lessonForm.video_url}</p>}
                   </div>
                   <div>
                     <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Duration (seconds)</label>
@@ -1057,11 +1084,23 @@ export default function TrainingPage() {
               {lessonForm.lesson_type === "document" && (
                 <>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>File URL</label>
-                    <input type="text" value={lessonForm.file_url} onChange={(e) => setLessonForm({ ...lessonForm, file_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Link to PDF or document" />
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Document</label>
+                    <input type="text" value={lessonForm.file_url} onChange={(e) => setLessonForm({ ...lessonForm, file_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a URL, or upload below" />
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                      {uploading ? "Uploading..." : "Upload File"}
+                      <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp" className="hidden" disabled={uploading} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const url = await uploadFile(file, "documents");
+                        if (url) setLessonForm((prev) => ({ ...prev, file_url: url, file_name: prev.file_name || file.name }));
+                        e.target.value = "";
+                      }} />
+                    </label>
+                    {lessonForm.file_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{lessonForm.file_url}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>File Name</label>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Display Name</label>
                     <input type="text" value={lessonForm.file_name} onChange={(e) => setLessonForm({ ...lessonForm, file_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="e.g. Safety Handbook.pdf" />
                   </div>
                 </>
