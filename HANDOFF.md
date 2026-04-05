@@ -200,7 +200,49 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: Compliance Tab
+## Next Session: Settlement Tracker — Appraisal + PA Settlements Tracks
+
+**Priority:** Build the remaining 2 tracks inside `/dashboard/settlement-tracker/page.tsx`.
+
+### What's already done (Sessions 18-19):
+- **Data layer:** 14 DB tables, 7 type files, 11 hook files — all ported and compiling
+- **Landing page:** 4 track cards at `/dashboard/settlement-tracker`
+- **Litigation track (full):** data grid, create/edit modals with TPN pickers (Law Firm, Attorney, Contractor from tenant's TPN with "Add New"), steps panel, attorney scorecards, referral analysis, liquidity
+- **Mediation/Arbitration track (full):** `src/components/settlement-tracker/MediationTrack.tsx` — data grid, create form, updates panel with status-conditional sections, attorney assignment, archive/unarchive, liquidity
+- **QueryClientProvider** in root layout for @tanstack/react-query
+- **Sidebar:** "Settlement Tracker" in User tier (1A)
+
+### What to build:
+1. **TPN pickers on Mediation attorney form** — same pattern as litigation (firm dropdown → attorney dropdown filtered by firm → "Add New"). Currently free text in MediationTrack.tsx.
+2. **Appraisal track** — `src/components/settlement-tracker/AppraisalTrack.tsx`. Spec: `settlement-adr-legal-tracker/ADR_LITIGATION_KPI_SPEC.md` Track 2. Statuses: Pending → Appraiser Selection → In Progress → Impasse → Awarded/Withdrawn. Our appraiser = TPN contact (dropdown). Carrier appraiser + umpire = free text (opposing party, never portal access).
+3. **PA Settlements track** — `src/components/settlement-tracker/PASettlementsTrack.tsx`. Spec: `settlement-adr-legal-tracker/PA_SETTLEMENTS_BUILD_SPEC.md`. 5-tab structure (Active/Pending Supplement/Closed/Archived/Liquidity). 5-section form. Parent/child payments. 15 KPI cards. This is a LEDGER, not a pipeline — no status workflow.
+
+### Reference specs (in settlement-adr-legal-tracker repo — REFERENCE ONLY, build fresh):
+- `ADR_LITIGATION_KPI_SPEC.md` — master architecture, all tracks
+- `APPRAISAL_BUILD_SPEC.md` — appraisal details
+- `PA_SETTLEMENTS_BUILD_SPEC.md` — PA settlements full spec with 15 KPI cards, 5-section form
+- `MEDIATION_BUILD_STATUS.md` — mediation build details
+
+### TPN access model (confirmed with Frank):
+- Everyone (attorneys, appraisers, mediators, contractors) is an `external_contact` in the TPN
+- **No access** = just a record (mediators, opposing appraisers, carrier reps)
+- **ep_user** = sees only their assigned files
+- **ep_admin** = sees all files for their firm/company
+- Hierarchy via `reports_to_id` chain determines viewership scope
+- All pickers are org-scoped from the tenant's TPN
+
+### Portal UI patterns (DO NOT use shadcn or react-hook-form):
+- Inline styles with CSS variables (--bg-primary, --bg-surface, --text-primary, --accent, etc.)
+- Plain HTML tables with thStyle/tdStyle objects
+- useState controlled forms
+- Custom modals with fixed overlay + stopPropagation
+- StatusBadge component for colored pills
+
+**BINGO required before writing any code.**
+
+---
+
+## Previous: Compliance Tab
 
 **Priority:** Build the `/dashboard/compliance` page.
 
