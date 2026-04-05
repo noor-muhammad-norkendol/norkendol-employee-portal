@@ -404,13 +404,31 @@ Picked up from Session 13. Fixed a bug where external users appeared in the empl
 - 3 lessons: "Welcome to the Company" (video, empty), "Tools & Software Setup" (video, empty), "Orientation Quiz" (quiz, no questions yet)
 - Ready for Frank to drop videos in and add quiz questions
 
+### Additional Changes (same session)
+- **Removed video duration field** — duration tracking was unnecessary, removed from lesson builder form and course viewer playlist
+- **Video-first course creation wizard** — replaced the old Create Course modal with a 3-step wizard:
+  - Step 1: Upload video or paste URL (content first)
+  - Step 2: Fill in course details (title auto-fills from filename)
+  - Step 3: Optionally add quiz questions inline
+  - One save creates course + video lesson + quiz lesson all at once
+  - Old modal kept for editing existing courses only
+- **AI-powered course generation plan approved** — not built yet, saved for next session:
+  - Path A (primary): paste transcript → cheap text model generates title/description/category/quiz
+  - Path B (fallback): frame extraction from video → vision model analyzes content
+  - Org-level AI settings (white-label, tenant enters their own API key)
+  - Frank's org will use Anthropic (Claude) for everything
+  - Plan saved at `.claude/plans/jazzy-whistling-rose.md`
+
 ### Commits
 - `053dbff` — Fix external users in directory/compliance (bug fix)
 - `64fc7cf` — University + Training pages with full LMS, quiz system, action item integration
 - `d8543bd` — Add file upload for training lessons (Supabase Storage)
+- `ede0e2c` — Update HISTORY.md and HANDOFF.md for Session 14
+- `8ef7841` — Remove video duration field
+- `b427582` — Video-first course creation wizard
 
 ### Future Enhancements — Training/University
-- **Drag-and-drop file upload** — currently uses browser file picker (`<input type="file">`). Add a drag-and-drop zone for videos and documents in the lesson builder for a more modern UX. Low priority, same functionality, just nicer feel.
-- Video duration auto-detection from uploaded files
+- **AI-powered course generation** — transcript paste + video frame analysis. Full plan at `.claude/plans/jazzy-whistling-rose.md`. Frank's org uses Anthropic. Build Phases A (org_settings + AI config UI), B (transcript generation), C (video analysis).
+- **Drag-and-drop file upload** — add drag-and-drop zone for videos/documents in lesson builder. Low priority.
 - Bulk assign from University browse view
 - Certificate generation on course completion
