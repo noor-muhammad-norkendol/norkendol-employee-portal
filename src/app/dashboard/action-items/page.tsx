@@ -10,7 +10,7 @@ interface ActionItem {
   org_id: string;
   title: string;
   description: string | null;
-  item_type: "task" | "claim";
+  item_type: "task" | "claim" | "training";
   assigned_to: string;
   assigned_by: string | null;
   assigned_to_name: string | null;
@@ -26,7 +26,7 @@ interface ActionItem {
 type FormData = {
   title: string;
   description: string;
-  item_type: "task" | "claim";
+  item_type: "task" | "claim" | "training";
   priority: "low" | "medium" | "high" | "urgent";
   due_date: string;
   assigned_to_name: string;
@@ -60,6 +60,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   task: { bg: "#2d1b4e", text: "#a78bfa" },
   claim: { bg: "#1e3a5f", text: "#60a5fa" },
+  training: { bg: "#1a3a2a", text: "#4ade80" },
 };
 
 function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
@@ -545,6 +546,7 @@ export default function ActionItemsPage() {
                   >
                     <option value="task">Task</option>
                     <option value="claim">Claim</option>
+                    <option value="training">Training</option>
                   </select>
                 </div>
                 <div>

@@ -15,7 +15,7 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "SCHEDULE", items: ["Day View", "Week View", "Month View"] },
   ],
   university: [
-    { group: "LEARNING", items: ["My Courses", "Browse", "Certificates"] },
+    { group: "LEARNING", items: ["My Assignments", "Browse Courses", "Completed"] },
   ],
   directory: [
     { group: "PEOPLE", items: ["All Staff", "By Department", "Search", "Add New User"] },
@@ -42,7 +42,7 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "TASKS", items: ["My Items", "Assigned", "Completed"] },
   ],
   training: [
-    { group: "PROGRAMS", items: ["Active", "Scheduled", "Completed"] },
+    { group: "MANAGE", items: ["Courses", "Categories", "Assignments", "Analytics"] },
   ],
   "company-updates": [
     { group: "NEWS", items: ["Latest", "Announcements", "Archive"] },

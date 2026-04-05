@@ -21,7 +21,7 @@ interface ActionItem {
   id: string;
   title: string;
   description: string | null;
-  item_type: "task" | "claim";
+  item_type: "task" | "claim" | "training";
   assigned_by_name: string | null;
   status: string;
   priority: "low" | "medium" | "high" | "urgent";
