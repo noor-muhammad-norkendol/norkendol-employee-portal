@@ -136,7 +136,7 @@ export default function TrainingPage() {
 
   // Course form (for edit only)
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
-  const [courseForm, setCourseForm] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 70, instructor_name: "" });
+  const [courseForm, setCourseForm] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 70, instructor_name: "", thumbnail_url: "" });
 
   // Category form
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -306,6 +306,7 @@ export default function TrainingPage() {
       level: c.level,
       passing_score: c.passing_score,
       instructor_name: c.instructor_name ?? "",
+      thumbnail_url: c.thumbnail_url ?? "",
     });
     setShowCourseModal(true);
   };
@@ -320,6 +321,7 @@ export default function TrainingPage() {
       level: courseForm.level,
       passing_score: courseForm.passing_score,
       instructor_name: courseForm.instructor_name.trim() || null,
+      thumbnail_url: courseForm.thumbnail_url || null,
       updated_at: new Date().toISOString(),
     };
     if (editingCourseId) {
@@ -1225,6 +1227,28 @@ export default function TrainingPage() {
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Instructor Name</label>
                   <input type="text" value={courseForm.instructor_name} onChange={(e) => setCourseForm({ ...courseForm, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Optional" />
                 </div>
+              </div>
+              {/* Cover Image */}
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Cover Image <span style={{ color: "var(--text-muted)" }}>(optional)</span></label>
+                {courseForm.thumbnail_url ? (
+                  <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)", maxHeight: "160px" }}>
+                    <img src={courseForm.thumbnail_url} alt="Cover" className="w-full h-40 object-cover" />
+                    <button onClick={() => setCourseForm({ ...courseForm, thumbnail_url: "" })} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                    <span className="text-xs font-medium">{uploading ? "Uploading..." : "Upload cover image"}</span>
+                    <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = await uploadFile(file, "covers");
+                      if (url) setCourseForm({ ...courseForm, thumbnail_url: url });
+                      e.target.value = "";
+                    }} />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={() => setShowCourseModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
