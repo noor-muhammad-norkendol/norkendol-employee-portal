@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -353,6 +354,16 @@ export default function TPNAdminPage() {
   const [showHierarchySection, setShowHierarchySection] = useState(false);
   const [firmStatusFilter, setFirmStatusFilter] = useState<"active" | "pending" | "inactive" | "all">("active");
 
+  // Bulk import
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importRows, setImportRows] = useState<Record<string, string>[]>([]);
+  const [importColumns, setImportColumns] = useState<string[]>([]);
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({});
+  const [importPreview, setImportPreview] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; errors: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Activity log
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -543,6 +554,84 @@ export default function TPNAdminPage() {
       ...prev,
       states: prev.states.includes(s) ? prev.states.filter((x) => x !== s) : [...prev.states, s],
     }));
+
+  /* ── bulk import ─────────────────────────────────────── */
+
+  const IMPORT_FIELDS = [
+    { key: "name", label: "Name", required: true },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Phone" },
+    { key: "specialty", label: "Specialty" },
+    { key: "company_name", label: "Company" },
+    { key: "states", label: "States (comma-separated)" },
+    { key: "region", label: "Region" },
+    { key: "market", label: "Market" },
+  ];
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+      if (json.length === 0) return;
+      setImportRows(json);
+      setImportColumns(Object.keys(json[0]));
+      // Auto-map columns by fuzzy name match
+      const autoMap: Record<string, string> = {};
+      for (const field of IMPORT_FIELDS) {
+        const match = Object.keys(json[0]).find(
+          (col) => col.toLowerCase().replace(/[^a-z]/g, "").includes(field.key.replace(/_/g, ""))
+        );
+        if (match) autoMap[field.key] = match;
+      }
+      setImportMapping(autoMap);
+      setImportPreview(false);
+      setImportResult(null);
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    let success = 0;
+    let errors = 0;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    for (const row of importRows) {
+      const name = (row[importMapping.name] ?? "").trim();
+      if (!name) { errors++; continue; }
+
+      const statesRaw = (row[importMapping.states] ?? "").trim();
+      const states = statesRaw ? statesRaw.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean) : null;
+
+      const payload = {
+        name,
+        email: (row[importMapping.email] ?? "").trim() || null,
+        phone: (row[importMapping.phone] ?? "").trim() || null,
+        specialty: (row[importMapping.specialty] ?? "").trim() || "Other",
+        company_name: (row[importMapping.company_name] ?? "").trim() || null,
+        states,
+        region: (row[importMapping.region] ?? "").trim() || null,
+        market: (row[importMapping.market] ?? "").trim() || null,
+        org_id: ORG_ID,
+        status: "pending" as const,
+        created_by: user?.id ?? null,
+      };
+
+      const { error } = await supabase.from("external_contacts").insert(payload);
+      if (error) errors++;
+      else success++;
+    }
+
+    setImporting(false);
+    setImportResult({ success, errors });
+    if (success > 0) fetchExternalContacts();
+  };
 
   const fetchActivityLog = useCallback(async () => {
     setActivityLoading(true);
@@ -1008,6 +1097,13 @@ export default function TPNAdminPage() {
                 style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
               >
                 {copiedLink === "external" ? "Link Copied!" : "Copy Invite Link"}
+              </button>
+              <button
+                onClick={() => { setShowImportModal(true); setImportRows([]); setImportColumns([]); setImportMapping({}); setImportPreview(false); setImportResult(null); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+              >
+                Bulk Import
               </button>
               <button
                 onClick={openAddExternal}
@@ -2308,6 +2404,156 @@ export default function TPNAdminPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Import Modal ───────────────────────────── */}
+      {showImportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowImportModal(false); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">Bulk Import External Contacts</h2>
+              <button onClick={() => setShowImportModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+            </div>
+
+            {/* Step 1: Upload */}
+            {importRows.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+                  Upload an Excel (.xlsx) or CSV file with contact data.
+                </p>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-6 py-3 rounded-lg text-sm font-medium cursor-pointer"
+                  style={{ background: "var(--accent)", color: "#000" }}
+                >
+                  Choose File
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Column mapping */}
+            {importRows.length > 0 && !importPreview && !importResult && (
+              <div>
+                <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+                  Found {importRows.length} rows. Map your spreadsheet columns to contact fields:
+                </p>
+                <div className="space-y-3 mb-5">
+                  {IMPORT_FIELDS.map((field) => (
+                    <div key={field.key} className="flex items-center gap-3">
+                      <span className="text-xs font-medium w-40 shrink-0" style={{ color: "var(--text-secondary)" }}>
+                        {field.label} {field.required && <span style={{ color: "#ef4444" }}>*</span>}
+                      </span>
+                      <select
+                        value={importMapping[field.key] ?? ""}
+                        onChange={(e) => setImportMapping({ ...importMapping, [field.key]: e.target.value })}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none cursor-pointer"
+                        style={inputStyle}
+                      >
+                        <option value="">— Skip —</option>
+                        {importColumns.map((col) => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => { setImportRows([]); setImportColumns([]); }}
+                    className="px-4 py-2 rounded-lg text-sm cursor-pointer"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setImportPreview(true)}
+                    disabled={!importMapping.name}
+                    className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50"
+                    style={{ background: "var(--accent)", color: "#000" }}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Preview */}
+            {importPreview && !importResult && (
+              <div>
+                <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+                  Preview (first 10 of {importRows.length} rows). All will be imported as <strong>pending</strong>.
+                </p>
+                <div className="overflow-x-auto mb-4">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr>
+                        {IMPORT_FIELDS.filter((f) => importMapping[f.key]).map((f) => (
+                          <th key={f.key} className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>{f.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importRows.slice(0, 10).map((row, i) => (
+                        <tr key={i}>
+                          {IMPORT_FIELDS.filter((f) => importMapping[f.key]).map((f) => (
+                            <td key={f.key} className="px-2 py-1.5" style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                              {String(row[importMapping[f.key]] ?? "")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setImportPreview(false)}
+                    className="px-4 py-2 rounded-lg text-sm cursor-pointer"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Back to Mapping
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={importing}
+                    className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50"
+                    style={{ background: "var(--accent)", color: "#000" }}
+                  >
+                    {importing ? `Importing... (${importRows.length} rows)` : `Import ${importRows.length} Contacts`}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Results */}
+            {importResult && (
+              <div className="text-center py-6">
+                <div className="text-3xl mb-3">{importResult.errors === 0 ? "✓" : "⚠"}</div>
+                <p className="text-sm font-semibold mb-1">
+                  {importResult.success} imported, {importResult.errors} failed
+                </p>
+                <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                  All imported contacts are set to &quot;pending&quot; and need approval.
+                </p>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                  style={{ background: "var(--accent)", color: "#000" }}
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
