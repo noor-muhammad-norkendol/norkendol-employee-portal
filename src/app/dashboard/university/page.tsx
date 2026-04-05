@@ -455,9 +455,6 @@ export default function UniversityPage() {
                       <p className="text-xs font-medium truncate">{l.title}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <Badge label={l.lesson_type} colors={LESSON_TYPE_COLORS[l.lesson_type]} />
-                        {l.lesson_type === "video" && l.duration_seconds && (
-                          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{Math.floor(l.duration_seconds / 60)}:{(l.duration_seconds % 60).toString().padStart(2, "0")}</span>
-                        )}
                       </div>
                     </div>
                   </button>

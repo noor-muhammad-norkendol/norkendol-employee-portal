@@ -140,7 +140,7 @@ export default function TrainingPage() {
   const [quizQuestions, setQuizQuestions] = useState<Record<string, QuizQuestion[]>>({});
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [lessonForm, setLessonForm] = useState({ title: "", description: "", lesson_type: "video" as string, video_url: "", file_url: "", file_name: "", duration_seconds: "" });
+  const [lessonForm, setLessonForm] = useState({ title: "", description: "", lesson_type: "video" as string, video_url: "", file_url: "", file_name: "" });
 
   // Quiz question form
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -316,7 +316,7 @@ export default function TrainingPage() {
 
   const openCreateLesson = () => {
     setEditingLessonId(null);
-    setLessonForm({ title: "", description: "", lesson_type: "video", video_url: "", file_url: "", file_name: "", duration_seconds: "" });
+    setLessonForm({ title: "", description: "", lesson_type: "video", video_url: "", file_url: "", file_name: "" });
     setShowLessonModal(true);
   };
 
@@ -329,7 +329,6 @@ export default function TrainingPage() {
       video_url: l.video_url ?? "",
       file_url: l.file_url ?? "",
       file_name: l.file_name ?? "",
-      duration_seconds: l.duration_seconds?.toString() ?? "",
     });
     setShowLessonModal(true);
   };
@@ -344,7 +343,7 @@ export default function TrainingPage() {
       video_url: lessonForm.lesson_type === "video" ? lessonForm.video_url.trim() || null : null,
       file_url: lessonForm.lesson_type === "document" ? lessonForm.file_url.trim() || null : null,
       file_name: lessonForm.lesson_type === "document" ? lessonForm.file_name.trim() || null : null,
-      duration_seconds: lessonForm.lesson_type === "video" && lessonForm.duration_seconds ? parseInt(lessonForm.duration_seconds) : null,
+      duration_seconds: null,
     };
     if (editingLessonId) {
       await supabase.from("training_lessons").update(payload).eq("id", editingLessonId);
@@ -992,9 +991,6 @@ export default function TrainingPage() {
                       <span className="text-xs font-bold w-6 text-center" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
                       <Badge label={l.lesson_type} colors={LESSON_TYPE_COLORS[l.lesson_type]} />
                       <span className="text-sm font-medium flex-1">{l.title}</span>
-                      {l.lesson_type === "video" && l.duration_seconds && (
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{Math.floor(l.duration_seconds / 60)}:{(l.duration_seconds % 60).toString().padStart(2, "0")}</span>
-                      )}
                       {l.lesson_type === "quiz" && (
                         <button onClick={() => openQuizQuestions(l.id)} className="text-[11px] px-2 py-0.5 rounded cursor-pointer" style={{ background: "#3a3520", color: "#facc15" }}>
                           {(quizQuestions[l.id] ?? []).length} questions
@@ -1074,10 +1070,6 @@ export default function TrainingPage() {
                       }} />
                     </label>
                     {lessonForm.video_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{lessonForm.video_url}</p>}
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Duration (seconds)</label>
-                    <input type="number" value={lessonForm.duration_seconds} onChange={(e) => setLessonForm({ ...lessonForm, duration_seconds: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="e.g. 300 for 5 minutes" />
                   </div>
                 </>
               )}
