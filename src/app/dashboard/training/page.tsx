@@ -525,8 +525,8 @@ export default function TrainingPage() {
 
   /* ── assignment CRUD ─────────────────────────────────── */
 
-  const openAssign = () => {
-    setAssignForm({ course_id: "", assign_mode: "individual", selected_users: [], department: "", due_date: "", priority: "medium" });
+  const openAssign = (prefilledCourseId?: string) => {
+    setAssignForm({ course_id: prefilledCourseId || "", assign_mode: "individual", selected_users: [], department: "", due_date: "", priority: "medium" });
     setUserSearch("");
     setShowAssignModal(true);
   };
@@ -637,7 +637,7 @@ export default function TrainingPage() {
           </button>
         )}
         {tab === "assignments" && (
-          <button onClick={openAssign} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+          <button onClick={() => openAssign()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
             <span className="text-lg">+</span> Assign Course
           </button>
         )}
@@ -697,6 +697,10 @@ export default function TrainingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Assign */}
+                  <button onClick={() => openAssign(c.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Assign to Users">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
+                  </button>
                   {/* Lessons */}
                   <button onClick={() => openLessonBuilder(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Manage Lessons">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
