@@ -485,16 +485,22 @@ Every AI call = locked system_prompt + business_context + user input. Simple, sc
 - Failed users CANNOT mark course complete — must retake until they pass
 - Grade stored in `training_progress.quiz_scores` per lesson (score, passed, grade, attempts)
 
+### Additional Changes (same session, after initial commit)
+- **Cover image cropping fix:** University cards increased from h-40 to h-52, switched to object-contain so full image shows
+- **Training admin thumbnails:** course rows now show small 80x56px thumbnail on left
+- **Renamed "Training" to "University Admin"** in sidebar (IconSidebar.tsx) and page header
+
 ### Commits
 - `d54ad3d` — Central AI layer, transcript-to-course generation, cover images, quiz grading
+- `4eabc3a` — Fix cover image cropping, add thumbnails to admin course list
+- `1424609` — Rename Training to University Admin
 
 ### Not Built Yet — Next Sessions (PRIORITIZED)
 
 1. **AI Management page** — Super Admin page to browse `ai_context_templates`, see what each AI agent does, add context/instructions per feature. Table and seed data exist, UI does not.
-2. **Rename "Training" sidebar item to "University Admin"** — less confusing since University is the student view
-3. **Training Admin → Categories tab logic** — verify CRUD works end-to-end, ability to reassign courses between categories
-4. **Training Admin → Assignments tab logic** — verify assign-to-individual and assign-by-department works
-5. **Course certification system** — completion certificate per user per course, training coordinator review panel, which-questions-are-failing analytics
-6. **Phase C: Video → Course generation** — frame extraction + vision model for videos without transcripts
-7. **Drag-and-drop file upload** for lesson builder (low priority)
-8. **Add cover image upload to course edit modal** (existing courses can't add covers yet, only new ones)
+2. **University Admin → Categories tab logic** — verify CRUD works end-to-end, ability to reassign courses between categories
+3. **University Admin → Assignments tab logic** — verify assign-to-individual and assign-by-department works end-to-end
+4. **Course certification system** — completion certificate per user per course, training coordinator review panel, which-questions-are-failing analytics (for identifying training gaps)
+5. **Phase C: Video → Course generation** — frame extraction + vision model for videos without transcripts
+6. **Drag-and-drop file upload** for lesson builder (low priority)
+7. **Add cover image upload to course edit modal** (existing courses can't add covers yet, only new ones)
