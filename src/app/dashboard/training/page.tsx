@@ -20,6 +20,7 @@ interface Course {
   category_id: string | null;
   level: "beginner" | "intermediate" | "advanced";
   passing_score: number;
+  thumbnail_url: string | null;
   instructor_name: string | null;
   is_published: boolean;
   created_at: string;
@@ -669,6 +670,16 @@ export default function TrainingPage() {
           ) : (
             courses.map((c) => (
               <div key={c.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", opacity: c.is_published ? 1 : 0.6 }}>
+                {/* Thumbnail */}
+                {c.thumbnail_url ? (
+                  <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border-color)" }}>
+                    <img src={c.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-14 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="text-sm font-semibold">{c.title}</h3>

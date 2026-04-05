@@ -536,14 +536,14 @@ export default function UniversityPage() {
                 <div key={a.id} onClick={() => openCourseViewer(course)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   {/* Cover image */}
                   {course.thumbnail_url ? (
-                    <div className="relative w-full h-32">
-                      <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
+                    <div className="relative w-full h-44">
+                      <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-contain" />
                       <div className="absolute top-2 right-2 flex gap-1">
                         <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
                       </div>
                     </div>
                   ) : (
-                    <div className="relative w-full h-32 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
+                    <div className="relative w-full h-44 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
                       <div className="absolute top-2 right-2 flex gap-1">
                         <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
@@ -607,8 +607,8 @@ export default function UniversityPage() {
                 <div key={c.id} onClick={() => openCourseViewer(c)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   {/* Cover image */}
                   {c.thumbnail_url ? (
-                    <div className="relative w-full h-40">
-                      <img src={c.thumbnail_url} alt={c.title} className="w-full h-full object-cover" />
+                    <div className="relative w-full h-52">
+                      <img src={c.thumbnail_url} alt={c.title} className="w-full h-full object-contain" />
                       <div className="absolute top-2 right-2 flex gap-1">
                         {isAssigned && <span className="text-[11px] px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ background: "rgba(58, 53, 32, 0.9)", color: "#facc15" }}>Assigned</span>}
                         {progress?.status === "completed" && <span className="text-[11px] px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ background: "rgba(26, 58, 42, 0.9)", color: "#4ade80" }}>Completed</span>}
