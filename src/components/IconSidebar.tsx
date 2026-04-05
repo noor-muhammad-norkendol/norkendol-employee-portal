@@ -120,7 +120,7 @@ const internalSections: TierSection[] = [
       { label: "User Management", slug: "user-management", paths: icons.userManagement },
       { label: "Pending Users", slug: "pending-users", paths: icons.pendingUsers },
       { label: "Action Items", slug: "action-items", paths: icons.actionItems },
-      { label: "Training", slug: "training", paths: icons.training },
+      { label: "University Admin", slug: "training", paths: icons.training },
       { label: "Company Updates", slug: "company-updates", paths: icons.companyUpdates },
       { label: "Notifications", slug: "notifications", paths: icons.notifications },
       { label: "Leaderboard", slug: "leaderboard", paths: icons.leaderboard },
