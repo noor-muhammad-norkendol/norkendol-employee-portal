@@ -129,13 +129,13 @@ export default function TrainingPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [wizardVideo, setWizardVideo] = useState({ url: "", title: "" });
-  const [wizardCourse, setWizardCourse] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 80, instructor_name: "" });
+  const [wizardCourse, setWizardCourse] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 70, instructor_name: "" });
   const [wizardQuestions, setWizardQuestions] = useState<{ question_text: string; options: { label: string; is_correct: boolean }[] }[]>([]);
   const [wizardPublish, setWizardPublish] = useState(false);
 
   // Course form (for edit only)
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
-  const [courseForm, setCourseForm] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 80, instructor_name: "" });
+  const [courseForm, setCourseForm] = useState({ title: "", description: "", category_id: "", level: "beginner" as string, passing_score: 70, instructor_name: "" });
 
   // Category form
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -165,6 +165,16 @@ export default function TrainingPage() {
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Cover image
+  const [wizardCoverUrl, setWizardCoverUrl] = useState("");
+
+  // AI generation
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+  const [quizCount, setQuizCount] = useState(5);
 
   /* ── file upload ──────────────────────────────────────── */
 
@@ -213,9 +223,10 @@ export default function TrainingPage() {
   const openCreateCourse = () => {
     setWizardStep(1);
     setWizardVideo({ url: "", title: "" });
-    setWizardCourse({ title: "", description: "", category_id: "", level: "beginner", passing_score: 80, instructor_name: "" });
+    setWizardCourse({ title: "", description: "", category_id: "", level: "beginner", passing_score: 70, instructor_name: "" });
     setWizardQuestions([]);
     setWizardPublish(false);
+    setWizardCoverUrl("");
     setShowWizard(true);
   };
 
@@ -232,6 +243,7 @@ export default function TrainingPage() {
       level: wizardCourse.level,
       passing_score: wizardCourse.passing_score,
       instructor_name: wizardCourse.instructor_name.trim() || null,
+      thumbnail_url: wizardCoverUrl || null,
       is_published: wizardPublish,
       created_by: userId,
     }).select("id").single();
@@ -936,6 +948,39 @@ export default function TrainingPage() {
             {/* Step 2: Course details */}
             {wizardStep === 2 && (
               <div className="space-y-4">
+                {/* AI Generate button */}
+                <button
+                  onClick={() => { setShowTranscriptModal(true); setTranscript(""); setGenerateError(""); setQuizCount(5); }}
+                  className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%)", border: "1px solid #3b5998", color: "#a78bfa" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" /></svg>
+                  Generate with AI — Paste a Transcript
+                </button>
+
+                {/* Cover image (optional) */}
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Cover Image <span style={{ color: "var(--text-muted)" }}>(optional)</span></label>
+                  {wizardCoverUrl ? (
+                    <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)", maxHeight: "160px" }}>
+                      <img src={wizardCoverUrl} alt="Cover" className="w-full h-40 object-cover" />
+                      <button onClick={() => setWizardCoverUrl("")} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                      <span className="text-xs font-medium">{uploading ? "Uploading..." : "Upload cover image"}</span>
+                      <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const url = await uploadFile(file, "covers");
+                        if (url) setWizardCoverUrl(url);
+                        e.target.value = "";
+                      }} />
+                    </label>
+                  )}
+                </div>
+
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Title</label>
                   <input type="text" value={wizardCourse.title} onChange={(e) => setWizardCourse({ ...wizardCourse, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Course title..." />
@@ -1025,6 +1070,99 @@ export default function TrainingPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Transcript Modal ──────────────────────────── */}
+      {showTranscriptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowTranscriptModal(false)}>
+          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Generate Course from Transcript</h2>
+              <button onClick={() => setShowTranscriptModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+            </div>
+            <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+              Paste a training transcript below. AI will generate a course title, description, category, difficulty level, and quiz questions.
+            </p>
+            <textarea
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              rows={12}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y flex-1 mb-2"
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", minHeight: "200px" }}
+              placeholder="Paste your training transcript here..."
+              disabled={generating}
+            />
+            <div className="flex items-center gap-4 mb-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Quiz Questions:</label>
+                <input type="number" min={2} max={15} value={quizCount} onChange={(e) => setQuizCount(Math.min(15, Math.max(2, parseInt(e.target.value) || 5)))} className="w-16 px-2 py-1 rounded-md text-sm text-center outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>2–15 questions</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: transcript.length > 50000 ? "#ef4444" : "var(--text-muted)" }}>
+                {transcript.length.toLocaleString()} / 50,000 characters
+              </span>
+              <div className="flex items-center gap-2">
+                {generateError && <span className="text-xs" style={{ color: "#ef4444" }}>{generateError}</span>}
+                <button onClick={() => setShowTranscriptModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button
+                  onClick={async () => {
+                    if (!transcript.trim() || transcript.length > 50000) return;
+                    setGenerating(true);
+                    setGenerateError("");
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (!session) { setGenerateError("Not authenticated"); setGenerating(false); return; }
+                      const res = await fetch("/api/training/generate-from-transcript", {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+                        body: JSON.stringify({ transcript, quiz_count: quizCount }),
+                      });
+                      const data = await res.json();
+                      if (!data.success) { setGenerateError(data.error || "Generation failed"); setGenerating(false); return; }
+                      // Auto-populate wizard
+                      const course = data.course;
+                      const matchedCat = categories.find((c) => c.name.toLowerCase() === (course.suggested_category || "").toLowerCase());
+                      setWizardCourse({
+                        title: course.title || wizardCourse.title,
+                        description: course.description || wizardCourse.description,
+                        category_id: matchedCat?.id || wizardCourse.category_id,
+                        level: course.level || wizardCourse.level,
+                        passing_score: wizardCourse.passing_score,
+                        instructor_name: wizardCourse.instructor_name,
+                      });
+                      // Update video lesson title to match AI-generated title instead of ugly storage filename
+                      if (course.title && wizardVideo.url) {
+                        setWizardVideo((prev) => ({ ...prev, title: course.title }));
+                      }
+                      if (course.quiz_questions?.length) {
+                        setWizardQuestions(course.quiz_questions.map((q: { question_text: string; options: { label: string; is_correct: boolean }[] }) => ({
+                          question_text: q.question_text,
+                          options: q.options,
+                        })));
+                      }
+                      setShowTranscriptModal(false);
+                    } catch {
+                      setGenerateError("Network error — please try again");
+                    }
+                    setGenerating(false);
+                  }}
+                  disabled={generating || !transcript.trim() || transcript.length > 50000}
+                  className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-2"
+                  style={{ background: generating ? "#1e3a5f" : "linear-gradient(135deg, #6366f1 0%, #a78bfa 100%)", color: "#fff" }}
+                >
+                  {generating ? (
+                    <>
+                      <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity="0.3" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
+                      Generating...
+                    </>
+                  ) : "Generate Course"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
