@@ -1,0 +1,13 @@
+-- Data migration: Added 7 previously unmatched adjusters as pending users
+-- and imported their compliance items (licenses + bonds) from Outlook calendar PDFs
+-- Also added Eileen "Nell" Dalton's FL bond to her existing record
+--
+-- Users added (pending status):
+--   Ben Perry (Emra "Ben" Perry), Cole Dalton, John Dekker, Kyle Jones,
+--   Luke Barringer, Michael Blicker, Michael Drapikowski
+--
+-- FK constraint users_id_fkey (references auth.users) was dropped to allow
+-- pending users without auth accounts. They'll get real auth when they sign up.
+--
+-- 36 compliance items imported total across all users.
+-- Run date: 2026-04-05
