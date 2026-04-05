@@ -55,8 +55,18 @@ interface ExternalContact {
 interface Firm {
   id: string;
   name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  states: string[] | null;
+  website: string | null;
+  entity_type: string | null;
+  year_established: number | null;
   city: string | null;
   state: string | null;
+  rating: number | null;
+  status: "active" | "pending" | "inactive";
+  contact_count?: number;
 }
 
 interface ActivityEntry {
@@ -98,6 +108,32 @@ const EMPTY_EXTERNAL_FORM: ExternalFormData = {
   market: "",
 };
 
+interface FirmFormData {
+  name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  states: string[];
+  website: string;
+  entity_type: string;
+  city: string;
+  state: string;
+}
+
+const EMPTY_FIRM_FORM: FirmFormData = {
+  name: "",
+  contact_name: "",
+  contact_email: "",
+  contact_phone: "",
+  states: [],
+  website: "",
+  entity_type: "",
+  city: "",
+  state: "",
+};
+
+const ENTITY_TYPES = ["Law Firm", "Corporation", "LLC", "Partnership", "Sole Proprietorship", "Other"];
+
 const SPECIALTIES = [
   "Attorney", "Appraiser", "Engineer", "HVAC", "Plumber",
   "Electrician", "Roofer", "Restoration", "Drywall",
@@ -106,12 +142,13 @@ const SPECIALTIES = [
 
 /* ── helpers ───────────────────────────────────────────── */
 
-type Tab = "overview" | "internal" | "external" | "analytics" | "activity-log" | "partner-settings" | "approval-rules" | "service-types";
+type Tab = "overview" | "internal" | "external" | "firms" | "analytics" | "activity-log" | "partner-settings" | "approval-rules" | "service-types";
 
 const TAB_LABELS: Record<Tab, string> = {
   overview: "Overview",
   internal: "Internal",
   external: "External",
+  firms: "Firms",
   analytics: "Analytics",
   "activity-log": "Activity Log",
   "partner-settings": "Partner Settings",
@@ -304,6 +341,18 @@ export default function TPNAdminPage() {
   const [firms, setFirms] = useState<Firm[]>([]);
   const [allHierarchyLevels, setAllHierarchyLevels] = useState<HierarchyLevel[]>([]);
 
+  // Firm management
+  const [showFirmModal, setShowFirmModal] = useState(false);
+  const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
+  const [firmForm, setFirmForm] = useState<FirmFormData>(EMPTY_FIRM_FORM);
+  const [savingFirm, setSavingFirm] = useState(false);
+  const [showFirmStateDrop, setShowFirmStateDrop] = useState(false);
+  const [firmDetailId, setFirmDetailId] = useState<string | null>(null);
+  const [deactivateFirmConfirm, setDeactivateFirmConfirm] = useState<string | null>(null);
+  const [firmLevelEdits, setFirmLevelEdits] = useState<{ level_number: number; label: string }[]>([]);
+  const [showHierarchySection, setShowHierarchySection] = useState(false);
+  const [firmStatusFilter, setFirmStatusFilter] = useState<"active" | "pending" | "inactive" | "all">("active");
+
   // Activity log
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -384,12 +433,12 @@ export default function TPNAdminPage() {
   }, [externalStatusFilter]);
 
   const fetchFirms = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("firms")
-      .select("id, name, city, state")
+      .select("id, name, contact_name, contact_email, contact_phone, states, website, entity_type, year_established, city, state, rating, status")
       .eq("org_id", ORG_ID)
-      .eq("status", "active")
       .order("name");
+    const { data } = await query;
     setFirms(data ?? []);
   }, []);
 
@@ -400,6 +449,100 @@ export default function TPNAdminPage() {
       .order("level_number");
     setAllHierarchyLevels(data ?? []);
   }, []);
+
+  /* ── firm CRUD ──────────────────────────────────────── */
+
+  const openAddFirm = () => {
+    setEditingFirmId(null);
+    setFirmForm(EMPTY_FIRM_FORM);
+    setFirmLevelEdits([]);
+    setShowHierarchySection(false);
+    setShowFirmModal(true);
+  };
+
+  const openEditFirm = (f: Firm) => {
+    setEditingFirmId(f.id);
+    setFirmForm({
+      name: f.name,
+      contact_name: f.contact_name ?? "",
+      contact_email: f.contact_email ?? "",
+      contact_phone: f.contact_phone ?? "",
+      states: f.states ?? [],
+      website: f.website ?? "",
+      entity_type: f.entity_type ?? "",
+      city: f.city ?? "",
+      state: f.state ?? "",
+    });
+    const existingLevels = allHierarchyLevels
+      .filter((l) => l.firm_id === f.id)
+      .sort((a, b) => a.level_number - b.level_number)
+      .map((l) => ({ level_number: l.level_number, label: l.label }));
+    setFirmLevelEdits(existingLevels);
+    setShowHierarchySection(existingLevels.length > 0);
+    setShowFirmModal(true);
+  };
+
+  const handleSaveFirm = async () => {
+    if (!firmForm.name.trim()) return;
+    setSavingFirm(true);
+    const payload = {
+      name: firmForm.name.trim(),
+      contact_name: firmForm.contact_name.trim() || null,
+      contact_email: firmForm.contact_email.trim() || null,
+      contact_phone: firmForm.contact_phone.trim() || null,
+      states: firmForm.states.length > 0 ? firmForm.states : null,
+      website: firmForm.website.trim() || null,
+      entity_type: firmForm.entity_type || null,
+      city: firmForm.city.trim() || null,
+      state: firmForm.state || null,
+      updated_at: new Date().toISOString(),
+    };
+    let firmId = editingFirmId;
+    if (editingFirmId) {
+      await supabase.from("firms").update(payload).eq("id", editingFirmId);
+    } else {
+      const { data: inserted } = await supabase.from("firms").insert({ ...payload, org_id: ORG_ID, status: "active" }).select("id").single();
+      firmId = inserted?.id ?? null;
+    }
+    if (firmId) {
+      await supabase.from("firm_hierarchy_levels").delete().eq("firm_id", firmId);
+      const validLevels = firmLevelEdits.filter((l) => l.label.trim());
+      if (validLevels.length > 0) {
+        await supabase.from("firm_hierarchy_levels").insert(
+          validLevels.map((l, i) => ({
+            firm_id: firmId!,
+            level_number: i + 1,
+            label: l.label.trim(),
+          }))
+        );
+      }
+    }
+    setSavingFirm(false);
+    setShowFirmModal(false);
+    fetchFirms();
+    fetchHierarchyLevels();
+    fetchExternalContacts();
+  };
+
+  const handleDeactivateFirm = async (id: string) => {
+    await supabase.from("external_contacts").update({ firm_id: null, updated_at: new Date().toISOString() }).eq("firm_id", id);
+    await supabase.from("firms").update({ status: "inactive", updated_at: new Date().toISOString() }).eq("id", id);
+    setDeactivateFirmConfirm(null);
+    setFirmDetailId(null);
+    fetchFirms();
+    fetchExternalContacts();
+  };
+
+  const handleReactivateFirm = async (id: string) => {
+    await supabase.from("firms").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", id);
+    fetchFirms();
+  };
+
+  const toggleFirmFormState = (s: string) =>
+    setFirmForm((prev) => ({
+      ...prev,
+      states: prev.states.includes(s) ? prev.states.filter((x) => x !== s) : [...prev.states, s],
+    }));
 
   const fetchActivityLog = useCallback(async () => {
     setActivityLoading(true);
@@ -739,6 +882,21 @@ export default function TPNAdminPage() {
     return s;
   }, [externalContacts]);
 
+  const filteredFirms = useMemo(() => {
+    if (firmStatusFilter === "all") return firms;
+    return firms.filter((f) => f.status === firmStatusFilter);
+  }, [firms, firmStatusFilter]);
+
+  const firmDetailContacts = useMemo(() => {
+    if (!firmDetailId) return [];
+    return externalContacts.filter((c) => c.firm_id === firmDetailId);
+  }, [firmDetailId, externalContacts]);
+
+  const firmDetail = useMemo(() => {
+    if (!firmDetailId) return null;
+    return firms.find((f) => f.id === firmDetailId) ?? null;
+  }, [firmDetailId, firms]);
+
   /* ── filters ──────────────────────────────────────────── */
 
   const filteredInternal = useMemo(() => {
@@ -803,7 +961,7 @@ export default function TPNAdminPage() {
 
   /* ── render ──────────────────────────────────────────── */
 
-  const networkTabs: Tab[] = ["overview", "internal", "external", "analytics", "activity-log"];
+  const networkTabs: Tab[] = ["overview", "internal", "external", "firms", "analytics", "activity-log"];
   const adminTabs: Tab[] = ["partner-settings", "approval-rules", "service-types"];
 
   // Clear selection when switching tabs or filters
@@ -859,6 +1017,15 @@ export default function TPNAdminPage() {
                 <span className="text-lg">+</span> Add External User
               </button>
             </>
+          )}
+          {tab === "firms" && (
+            <button
+              onClick={openAddFirm}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+              style={{ background: "var(--accent)", color: "#000" }}
+            >
+              <span className="text-lg">+</span> Add Firm
+            </button>
           )}
           {tab === "activity-log" && (
             <button
@@ -1279,6 +1446,94 @@ export default function TPNAdminPage() {
         </>
       )}
 
+      {/* ── Firms ───────────────────────────────────────── */}
+      {!loading && tab === "firms" && (
+        <>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex items-center gap-1">
+              {(["all", "active", "pending", "inactive"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFirmStatusFilter(s)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors capitalize"
+                  style={{
+                    background: firmStatusFilter === s ? "var(--bg-hover)" : "transparent",
+                    color: firmStatusFilter === s ? "var(--text-primary)" : "var(--text-muted)",
+                  }}
+                >
+                  {s === "all" ? "All" : s}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs ml-auto" style={{ color: "var(--text-muted)" }}>
+              {filteredFirms.length} firm{filteredFirms.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filteredFirms.map((firm) => {
+              const contactCount = externalContacts.filter((c) => c.firm_id === firm.id).length;
+              const statusColors: Record<string, { bg: string; color: string }> = {
+                active: { bg: "#1a3a2a", color: "#4ade80" },
+                pending: { bg: "#3a3520", color: "#facc15" },
+                inactive: { bg: "#2a2a2a", color: "#888888" },
+              };
+              const sc = statusColors[firm.status] ?? statusColors.inactive;
+              return (
+                <div
+                  key={firm.id}
+                  className="rounded-xl p-4 cursor-pointer transition-colors"
+                  style={{ ...cardStyle, opacity: firm.status === "inactive" ? 0.6 : 1 }}
+                  onClick={() => setFirmDetailId(firm.id)}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-semibold truncate">{firm.name}</h3>
+                        <span
+                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                          style={{ background: sc.bg, color: sc.color }}
+                        >
+                          {firm.status}
+                        </span>
+                      </div>
+                      {firm.entity_type && (
+                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{firm.entity_type}</p>
+                      )}
+                      {(firm.city || firm.state) && (
+                        <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                          {[firm.city, firm.state].filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                      <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                        {contactCount} contact{contactCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEditFirm(firm); }}
+                      className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                      title="Edit"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {filteredFirms.length === 0 && (
+            <div style={cardStyle} className="text-center py-8">
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No firms found with status &quot;{firmStatusFilter}&quot;.</p>
+            </div>
+          )}
+        </>
+      )}
+
       {/* ── Analytics ───────────────────────────────────── */}
       {!loading && tab === "analytics" && (
         <div className="space-y-6">
@@ -1620,6 +1875,301 @@ export default function TPNAdminPage() {
       )}
 
       {/* ── Add/Edit External Contact Modal ──────────── */}
+      {/* ── Firm Detail Modal ────────────────────────── */}
+      {firmDetailId && firmDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setFirmDetailId(null); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-semibold">{firmDetail.name}</h2>
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                  style={{
+                    background: firmDetail.status === "active" ? "#1a3a2a" : firmDetail.status === "pending" ? "#3a3520" : "#2a2a2a",
+                    color: firmDetail.status === "active" ? "#4ade80" : firmDetail.status === "pending" ? "#facc15" : "#888888",
+                  }}
+                >
+                  {firmDetail.status}
+                </span>
+              </div>
+              <button onClick={() => setFirmDetailId(null)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>&#10005;</button>
+            </div>
+
+            {/* Info grid */}
+            <div className="grid grid-cols-2 gap-4 mb-5">
+              {firmDetail.entity_type && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Entity Type</p>
+                  <p className="text-sm">{firmDetail.entity_type}</p>
+                </div>
+              )}
+              {(firmDetail.city || firmDetail.state) && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Location</p>
+                  <p className="text-sm">{[firmDetail.city, firmDetail.state].filter(Boolean).join(", ")}</p>
+                </div>
+              )}
+              {firmDetail.contact_name && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Contact Name</p>
+                  <p className="text-sm">{firmDetail.contact_name}</p>
+                </div>
+              )}
+              {firmDetail.contact_email && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Email</p>
+                  <a href={`mailto:${firmDetail.contact_email}`} className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.contact_email}</a>
+                </div>
+              )}
+              {firmDetail.contact_phone && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Phone</p>
+                  <p className="text-sm">{firmDetail.contact_phone}</p>
+                </div>
+              )}
+              {firmDetail.website && (
+                <div>
+                  <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>Website</p>
+                  <a href={firmDetail.website.startsWith("http") ? firmDetail.website : `https://${firmDetail.website}`} target="_blank" rel="noopener noreferrer" className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.website}</a>
+                </div>
+              )}
+            </div>
+
+            {/* States covered */}
+            {firmDetail.states && firmDetail.states.length > 0 && (
+              <div className="mb-5">
+                <p className="text-[10px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>States Covered</p>
+                <div className="flex flex-wrap gap-1">
+                  {firmDetail.states.map((s) => (
+                    <span key={s} className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* People at this firm */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold mb-2">People at this Firm ({firmDetailContacts.length})</p>
+              {firmDetailContacts.length === 0 ? (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No contacts linked to this firm yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {firmDetailContacts.map((c) => {
+                    const levelLabel = c.hierarchy_level_id ? allHierarchyLevels.find((l) => l.id === c.hierarchy_level_id)?.label : null;
+                    return (
+                      <div key={c.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{c.name}</p>
+                          <div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--text-muted)" }}>
+                            {levelLabel && <span>{levelLabel}</span>}
+                            {c.reports_to_name && <span>Reports to: {c.reports_to_name}</span>}
+                            {c.region && <span>Region: {c.region}</span>}
+                            {c.market && <span>Market: {c.market}</span>}
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "#2d1b4e", color: "#a78bfa" }}>
+                          {c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2" style={{ borderTop: "1px solid var(--border-color)" }}>
+              <button
+                onClick={() => { setFirmDetailId(null); openEditFirm(firmDetail); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                style={{ background: "var(--accent)", color: "#000" }}
+              >
+                Edit Firm
+              </button>
+              {firmDetail.status === "inactive" ? (
+                <button
+                  onClick={() => handleReactivateFirm(firmDetail.id)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                  style={{ background: "#1a3a2a", color: "#4ade80" }}
+                >
+                  Reactivate
+                </button>
+              ) : deactivateFirmConfirm === firmDetail.id ? (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleDeactivateFirm(firmDetail.id)} className="px-3 py-2 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Confirm Deactivate</button>
+                  <button onClick={() => setDeactivateFirmConfirm(null)} className="px-3 py-2 rounded-lg text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeactivateFirmConfirm(firmDetail.id)}
+                  className="px-4 py-2 rounded-lg text-sm cursor-pointer"
+                  style={{ color: "#ef4444" }}
+                >
+                  Deactivate
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create/Edit Firm Modal ────────────────────── */}
+      {showFirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowFirmModal(false); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold">
+                {editingFirmId ? "Edit Firm" : "Add Firm"}
+              </h2>
+              <button onClick={() => setShowFirmModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>&#10005;</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Firm Name *</label>
+                <input type="text" value={firmForm.name} onChange={(e) => setFirmForm({ ...firmForm, name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Firm name..." />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Entity Type</label>
+                  <select value={firmForm.entity_type} onChange={(e) => setFirmForm({ ...firmForm, entity_type: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={inputStyle}>
+                    <option value="">Select...</option>
+                    {ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>City</label>
+                  <input type="text" value={firmForm.city} onChange={(e) => setFirmForm({ ...firmForm, city: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="City..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>State</label>
+                  <select value={firmForm.state} onChange={(e) => setFirmForm({ ...firmForm, state: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={inputStyle}>
+                    <option value="">Select...</option>
+                    {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Name</label>
+                  <input type="text" value={firmForm.contact_name} onChange={(e) => setFirmForm({ ...firmForm, contact_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Primary contact..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Email</label>
+                  <input type="email" value={firmForm.contact_email} onChange={(e) => setFirmForm({ ...firmForm, contact_email: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="email@firm.com" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Phone</label>
+                  <input type="text" value={firmForm.contact_phone} onChange={(e) => setFirmForm({ ...firmForm, contact_phone: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="(555) 123-4567" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Website</label>
+                <input type="text" value={firmForm.website} onChange={(e) => setFirmForm({ ...firmForm, website: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="https://..." />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>States Covered</label>
+                <div className="relative">
+                  <button onClick={() => setShowFirmStateDrop(!showFirmStateDrop)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer w-full text-left" style={inputStyle}>
+                    {firmForm.states.length > 0 ? firmForm.states.join(", ") : "Select states..."}
+                  </button>
+                  {showFirmStateDrop && (
+                    <div className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                      {firmForm.states.length > 0 && (
+                        <button onClick={() => setFirmForm({ ...firmForm, states: [] })} className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1" style={{ color: "var(--accent)" }}>Clear all</button>
+                      )}
+                      <div className="grid grid-cols-6 gap-1">
+                        {US_STATES.map((s) => (
+                          <button key={s} onClick={() => toggleFirmFormState(s)} className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors" style={{ background: firmForm.states.includes(s) ? "var(--accent)" : "var(--bg-hover)", color: firmForm.states.includes(s) ? "#000" : "var(--text-secondary)" }}>{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Organization Levels */}
+              <div>
+                <button
+                  onClick={() => {
+                    setShowHierarchySection(!showHierarchySection);
+                    if (!showHierarchySection && firmLevelEdits.length === 0) {
+                      setFirmLevelEdits([{ level_number: 1, label: "" }]);
+                    }
+                  }}
+                  className="text-xs font-medium cursor-pointer flex items-center gap-1"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {showHierarchySection ? "Hide" : "Show"} Organization Levels
+                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>({firmLevelEdits.filter((l) => l.label.trim()).length} defined)</span>
+                </button>
+                {showHierarchySection && (
+                  <div className="mt-2 space-y-2">
+                    {firmLevelEdits.map((level, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono w-5 text-center" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                        <input
+                          type="text"
+                          value={level.label}
+                          onChange={(e) => {
+                            const updated = [...firmLevelEdits];
+                            updated[idx] = { ...updated[idx], label: e.target.value };
+                            setFirmLevelEdits(updated);
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none"
+                          style={inputStyle}
+                          placeholder={`Level ${idx + 1} label (e.g. Partner, Associate...)`}
+                        />
+                        <button
+                          onClick={() => setFirmLevelEdits(firmLevelEdits.filter((_, i) => i !== idx))}
+                          className="p-1 cursor-pointer rounded hover:bg-[var(--bg-hover)]"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          &#10005;
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setFirmLevelEdits([...firmLevelEdits, { level_number: firmLevelEdits.length + 1, label: "" }])}
+                      className="text-xs cursor-pointer px-2 py-1 rounded"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      + Add Level
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button onClick={() => setShowFirmModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button onClick={handleSaveFirm} disabled={savingFirm || !firmForm.name.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                  {savingFirm ? "Saving..." : editingFirmId ? "Save Changes" : "Add Firm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Firm state dropdown overlay ────────────────── */}
+      {showFirmStateDrop && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowFirmStateDrop(false)} />
+      )}
+
       {showExternalModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -1700,6 +2250,57 @@ export default function TPNAdminPage() {
                   <input type="text" value={externalForm.company_name} onChange={(e) => setExternalForm({ ...externalForm, company_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Company or firm name..." />
                 </div>
               )}
+              {/* Role + Reports To (only when firm has hierarchy levels) */}
+              {(() => {
+                const firmLevels = externalForm.firm_id
+                  ? allHierarchyLevels.filter((l) => l.firm_id === externalForm.firm_id).sort((a, b) => a.level_number - b.level_number)
+                  : [];
+                if (firmLevels.length === 0) return null;
+                const selectedLevel = firmLevels.find((l) => l.id === externalForm.hierarchy_level_id);
+                const levelAbove = selectedLevel
+                  ? firmLevels.find((l) => l.level_number === selectedLevel.level_number - 1)
+                  : null;
+                const reportsToOptions = levelAbove
+                  ? externalContacts.filter((c) => c.firm_id === externalForm.firm_id && c.hierarchy_level_id === levelAbove.id && c.id !== editingContactId)
+                  : [];
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Role</label>
+                      <select value={externalForm.hierarchy_level_id} onChange={(e) => setExternalForm({ ...externalForm, hierarchy_level_id: e.target.value, reports_to_id: "" })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={inputStyle}>
+                        <option value="">Select role...</option>
+                        {firmLevels.map((l) => (<option key={l.id} value={l.id}>{l.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Reports To</label>
+                      {selectedLevel && selectedLevel.level_number === 1 ? (
+                        <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>Top level — no one</div>
+                      ) : reportsToOptions.length > 0 ? (
+                        <select value={externalForm.reports_to_id} onChange={(e) => setExternalForm({ ...externalForm, reports_to_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={inputStyle}>
+                          <option value="">Select...</option>
+                          {reportsToOptions.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                        </select>
+                      ) : (
+                        <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>
+                          {!selectedLevel ? "Select a role first" : "No one at the level above yet"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Region + Market */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Region</label>
+                  <input type="text" value={externalForm.region} onChange={(e) => setExternalForm({ ...externalForm, region: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="e.g. Southeast, Region 3..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Market</label>
+                  <input type="text" value={externalForm.market} onChange={(e) => setExternalForm({ ...externalForm, market: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="e.g. Florida, DFW, Austin..." />
+                </div>
+              </div>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={() => setShowExternalModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>Cancel</button>
                 <button onClick={handleSaveExternal} disabled={saving || !externalForm.name.trim() || !externalForm.specialty} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
