@@ -53,6 +53,9 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
   crm: [
     { group: "CRM", items: ["Contacts", "Cases", "Pipeline"] },
   ],
+  "my-settings": [
+    { group: "PREFERENCES", items: ["Notifications", "Profile"] },
+  ],
   "ai-agents": [
     { group: "AGENTS", items: ["Active", "Configure", "Logs"] },
   ],

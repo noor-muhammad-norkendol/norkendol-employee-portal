@@ -594,6 +594,28 @@ export default function TrainingPage() {
       });
     }
 
+    // Send email notifications (fire-and-forget — don't block the UI)
+    const assignedIds = targetUsers.map((u) => u.id);
+    if (assignedIds.length > 0) {
+      const dueText = assignForm.due_date ? ` Due: ${new Date(assignForm.due_date).toLocaleDateString()}.` : "";
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return;
+        fetch("/api/email/send-notification", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            recipient_user_ids: assignedIds,
+            type: "training",
+            subject: `New Training Assignment: ${courseName}`,
+            html: `<p>Hi,</p><p>You've been assigned a new training course: <strong>${courseName}</strong>.${dueText}</p><p>Log in to your portal to get started.</p>`,
+          }),
+        }).catch(() => {});
+      });
+    }
+
     setSaving(false);
     setShowAssignModal(false);
     fetchAll();
