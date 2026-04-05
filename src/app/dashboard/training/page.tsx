@@ -199,6 +199,8 @@ export default function TrainingPage() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
   const [quizCount, setQuizCount] = useState(5);
+  const [generatingFromVideo, setGeneratingFromVideo] = useState(false);
+  const [videoGenStatus, setVideoGenStatus] = useState("");
 
   /* ── file upload ──────────────────────────────────────── */
 
@@ -212,6 +214,106 @@ export default function TrainingPage() {
     if (error) { console.error("Upload error:", error); return null; }
     const { data: urlData } = supabase.storage.from("training-content").getPublicUrl(path);
     return urlData?.publicUrl ?? null;
+  };
+
+  /* ── video frame extraction + AI generation ──────────── */
+
+  const generateFromVideo = async () => {
+    if (!wizardVideo.url) return;
+    setGeneratingFromVideo(true);
+    setVideoGenStatus("Loading video...");
+    setGenerateError("");
+
+    try {
+      // Create hidden video element to extract frames
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.src = wizardVideo.url;
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error("Could not load video. Make sure it's a direct video URL (not YouTube)."));
+        setTimeout(() => reject(new Error("Video load timeout")), 15000);
+      });
+
+      const duration = video.duration;
+      if (!duration || duration < 1) {
+        throw new Error("Could not determine video duration");
+      }
+
+      // Extract frames at intervals (max 10 frames, every 30s or evenly spaced)
+      const maxFrames = Math.min(10, Math.max(3, Math.floor(duration / 30)));
+      const interval = duration / (maxFrames + 1);
+      const frames: string[] = [];
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 720;
+      canvas.height = 405;
+      const ctx = canvas.getContext("2d")!;
+
+      for (let i = 1; i <= maxFrames; i++) {
+        const seekTime = interval * i;
+        setVideoGenStatus(`Extracting frame ${i}/${maxFrames}...`);
+
+        video.currentTime = seekTime;
+        await new Promise<void>((resolve) => {
+          video.onseeked = () => resolve();
+        });
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        frames.push(dataUrl);
+      }
+
+      video.remove();
+
+      setVideoGenStatus(`Analyzing ${frames.length} frames with AI...`);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setGenerateError("Not authenticated"); setGeneratingFromVideo(false); return; }
+
+      const res = await fetch("/api/training/generate-from-video", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ frames, quiz_count: quizCount }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        setGenerateError(data.error || "Generation failed");
+        setGeneratingFromVideo(false);
+        setVideoGenStatus("");
+        return;
+      }
+
+      // Auto-populate wizard (same as transcript flow)
+      const course = data.course;
+      const matchedCat = categories.find((c) => c.name.toLowerCase() === (course.suggested_category || "").toLowerCase());
+      setWizardCourse({
+        title: course.title || wizardCourse.title,
+        description: course.description || wizardCourse.description,
+        category_id: matchedCat?.id || wizardCourse.category_id,
+        level: course.level || wizardCourse.level,
+        passing_score: wizardCourse.passing_score,
+        instructor_name: wizardCourse.instructor_name,
+      });
+      if (course.title && wizardVideo.url) {
+        setWizardVideo((prev) => ({ ...prev, title: course.title }));
+      }
+      if (course.quiz_questions?.length) {
+        setWizardQuestions(course.quiz_questions.map((q: { question_text: string; options: { label: string; is_correct: boolean }[] }) => ({
+          question_text: q.question_text,
+          options: q.options,
+        })));
+      }
+      setVideoGenStatus("");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Frame extraction failed";
+      setGenerateError(message);
+      setVideoGenStatus("");
+    }
+    setGeneratingFromVideo(false);
   };
 
   /* ── data fetching ───────────────────────────────────── */
@@ -1114,15 +1216,30 @@ export default function TrainingPage() {
             {/* Step 2: Course details */}
             {wizardStep === 2 && (
               <div className="space-y-4">
-                {/* AI Generate button */}
-                <button
-                  onClick={() => { setShowTranscriptModal(true); setTranscript(""); setGenerateError(""); setQuizCount(5); }}
-                  className="w-full py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%)", border: "1px solid #3b5998", color: "#a78bfa" }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" /></svg>
-                  Generate with AI — Paste a Transcript
-                </button>
+                {/* AI Generate buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => { setShowTranscriptModal(true); setTranscript(""); setGenerateError(""); setQuizCount(5); }}
+                    className="py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2"
+                    style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%)", border: "1px solid #3b5998", color: "#a78bfa" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" /></svg>
+                    Generate from Transcript
+                  </button>
+                  <button
+                    onClick={generateFromVideo}
+                    disabled={!wizardVideo.url || generatingFromVideo}
+                    className="py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: "linear-gradient(135deg, #1e5a3f 0%, #1e3a5f 100%)", border: "1px solid #2a7a5a", color: "#4ade80" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
+                    {generatingFromVideo ? videoGenStatus || "Analyzing..." : "Generate from Video"}
+                  </button>
+                </div>
+                {!wizardVideo.url && (
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Upload a video file in Step 1 to use &quot;Generate from Video&quot; — YouTube links are not supported for frame extraction.</p>
+                )}
+                {generateError && <p className="text-xs" style={{ color: "#ef4444" }}>{generateError}</p>}
 
                 {/* Cover image (optional) */}
                 <div>
