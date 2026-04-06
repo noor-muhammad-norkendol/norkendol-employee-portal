@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useClaimHealthRecords, useCreateClaimHealth, useUpdateClaimHealth, useDeleteClaimHealth } from "@/hooks/claim-health/useClaimHealthRecords";
 import { calculateClaimMetrics, useClaimHealthKPIs, useWriteKPISnapshots } from "@/hooks/claim-health/useClaimHealthKPIs";
 import { CreateClaimHealthInput, ClaimHealthRecord, STATUS_AT_INTAKE_OPTIONS, ROOF_MATERIAL_OPTIONS } from "@/types/claim-health";
@@ -67,6 +67,15 @@ export default function ClaimHealthPage() {
   const [form, setForm] = useState<CreateClaimHealthInput>({ ...EMPTY_FORM });
   const [editId, setEditId] = useState<string | null>(null);
   const [printRecord, setPrintRecord] = useState<ClaimHealthRecord | null>(null);
+
+  // Write KPI snapshots when records change (debounced — once per page load / mutation)
+  const kpiWritten = useRef(false);
+  useEffect(() => {
+    if (records.length > 0 && !kpiWritten.current && !writeKPIs.isPending) {
+      kpiWritten.current = true;
+      writeKPIs.mutate(kpis);
+    }
+  }, [records, kpis, writeKPIs]);
 
   // Incomplete records (auto-created, need adjuster input)
   const incomplete = useMemo(() => records.filter((r) => !r.is_complete && r.source === "auto"), [records]);
