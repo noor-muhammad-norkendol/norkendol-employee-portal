@@ -227,17 +227,25 @@ src/
 
 ### What to build next:
 
-**Session 21 — TPN Viewership Wiring + Polish:**
-1. **User viewership filtering** — ep_admin sees firm-wide files, ep_user sees only own assignments. Filter queries by user_id / reports_to chain.
-2. **Email notifications on assignment** — when a file is assigned to a user, send notification (needs Resend domain from Noor)
-3. **Edit form for PA settlements** — currently create-only, needs edit modal on row click
-4. **Appraisal update log** — hooks for `appraisal_updates` table (exists in DB but no CRUD hooks yet)
-5. **PA settlement update/payment hooks** — currently using raw supabase calls, should be proper hooks
-6. **Cleanup pass:** shared styles across track components (currently duplicated), consistent empty states
+**Session 21 — Polish + Wiring:**
+1. **User viewership filtering** — needs `firm_id` + `external_contact_id` added to users table to link portal users to TPN records. Then filter settlement tracker queries: ep_user sees own files, ep_admin sees firm files, admin+ sees all.
+2. **Email notifications on assignment** — blocked on Noor (Resend domain)
+3. **Edit form for PA settlements** — currently create-only, needs edit modal
+4. **Appraisal update log hooks** — `appraisal_updates` table exists, no CRUD hooks
+5. **PA settlement update/payment hooks** — raw supabase calls → proper hooks
+6. **Cleanup:** shared styles, delete orphaned standalone pages (pending-users, company-updates, action-items, notifications, leaderboard)
+7. **Run Executive Intelligence migration** in Supabase dashboard
+
+**Executive Intelligence (shell — built Session 20):**
+- Page: `/dashboard/executive-intelligence` with 3 sub-tabs (Hierarchy, Feature Assignments, Alert Routing)
+- API routes: `/api/executive/` (hierarchy, feature-assignments, onboarding-interview, alert-routing)
+- DB migration: `20260405_executive_intelligence.sql` — **NOT YET RUN**
+- Intent: routing engine for AI-generated insights. Org hierarchy defines who owns what features. AI interviews profile each person's priorities. Alert routing rules determine who gets notified about what. Every portal feature will eventually feed into this.
 
 **Noor tasks (not code):**
 - Set up Resend verified sending domain
 - Text/SMS provider selection
+- Run `20260405_executive_intelligence.sql` in Supabase dashboard
 
 **BINGO required before writing any code.**
 
