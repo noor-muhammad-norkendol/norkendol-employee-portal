@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useMediations,
   useArchivedMediations,
@@ -463,7 +463,7 @@ function MediationUpdatesPanel({
   disputeType: DisputeType;
   onClose: () => void;
 }) {
-  const { userInfo } = useSTSupabase();
+  const { supabase, userInfo } = useSTSupabase();
   const updateMediation = useUpdateMediation();
   const archiveMediation = useArchiveMediation();
   const unarchiveMediation = useUnarchiveMediation();
@@ -499,6 +499,64 @@ function MediationUpdatesPanel({
   const [attEmail, setAttEmail] = useState(mediation.attorney_email || "");
   const [attEngagement, setAttEngagement] = useState<"Assisting" | "Fully Onboarded">(mediation.attorney_engagement_type || "Assisting");
   const [attDate, setAttDate] = useState(mediation.attorney_assigned_date || new Date().toISOString().split("T")[0]);
+
+  // TPN data for attorney pickers
+  const [firms, setFirms] = useState<{ id: string; name: string }[]>([]);
+  const [attorneys, setAttorneys] = useState<{ id: string; name: string; firm_id: string | null; firm_name: string | null; phone: string | null; email: string | null }[]>([]);
+  const [showAddFirm, setShowAddFirm] = useState(false);
+  const [newFirmName, setNewFirmName] = useState("");
+  const [showAddAttorney, setShowAddAttorney] = useState(false);
+  const [newAttorneyName, setNewAttorneyName] = useState("");
+
+  // Fetch TPN firms + attorneys
+  useEffect(() => {
+    if (!userInfo) return;
+    supabase.from("firms").select("id, name").eq("org_id", userInfo.orgId).eq("status", "active").order("name")
+      .then(({ data }) => { if (data) setFirms(data); });
+    supabase.from("external_contacts").select("id, name, firm_id, company_name, phone, email")
+      .eq("org_id", userInfo.orgId).eq("specialty", "Attorney").eq("status", "active").order("name")
+      .then(({ data }) => {
+        if (data) setAttorneys(data.map((c: any) => ({ id: c.id, name: c.name, firm_id: c.firm_id, firm_name: c.company_name, phone: c.phone, email: c.email })));
+      });
+  }, [supabase, userInfo]);
+
+  // Filter attorneys by selected firm
+  const filteredAttorneys = useMemo(() => {
+    if (!attFirm) return attorneys;
+    const matchedFirm = firms.find((f) => f.name === attFirm);
+    if (!matchedFirm) return attorneys;
+    return attorneys.filter((a) => a.firm_id === matchedFirm.id);
+  }, [attorneys, firms, attFirm]);
+
+  const handleAddFirm = async () => {
+    if (!newFirmName.trim() || !userInfo) return;
+    const { data } = await supabase.from("firms").insert({ name: newFirmName.trim(), org_id: userInfo.orgId, status: "active" }).select("id, name").single();
+    if (data) {
+      setFirms((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setAttFirm(data.name);
+    }
+    setNewFirmName("");
+    setShowAddFirm(false);
+  };
+
+  const handleAddAttorney = async () => {
+    if (!newAttorneyName.trim() || !userInfo) return;
+    const matchedFirm = firms.find((f) => f.name === attFirm);
+    const { data } = await supabase.from("external_contacts").insert({
+      name: newAttorneyName.trim(),
+      specialty: "Attorney",
+      org_id: userInfo.orgId,
+      firm_id: matchedFirm?.id || null,
+      company_name: attFirm || null,
+      status: "active",
+    }).select("id, name, firm_id, company_name, phone, email").single();
+    if (data) {
+      setAttorneys((prev) => [...prev, { id: data.id, name: data.name, firm_id: data.firm_id, firm_name: data.company_name, phone: data.phone, email: data.email }].sort((a, b) => a.name.localeCompare(b.name)));
+      setAttName(data.name);
+    }
+    setNewAttorneyName("");
+    setShowAddAttorney(false);
+  };
 
   const showMediatorFields = ["Scheduling", "Set"].includes(updateStatus);
   const showSettledFields = ["Settled", "Impasse"].includes(updateStatus);
@@ -733,11 +791,52 @@ function MediationUpdatesPanel({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label style={labelStyle}>Law Firm</label>
-                  <input style={inputStyle} value={attFirm} onChange={(e) => setAttFirm(e.target.value)} />
+                  {showAddFirm ? (
+                    <div className="flex gap-2">
+                      <input style={inputStyle} value={newFirmName} onChange={(e) => setNewFirmName(e.target.value)} placeholder="New firm name..." autoFocus />
+                      <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" as const }} onClick={handleAddFirm}>Add</button>
+                      <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" as const }} onClick={() => setShowAddFirm(false)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <select style={selectStyle} value={attFirm} onChange={(e) => {
+                      if (e.target.value === "__ADD_NEW__") { setShowAddFirm(true); return; }
+                      setAttFirm(e.target.value);
+                      setAttName(""); setAttPhone(""); setAttEmail("");
+                    }}>
+                      <option value="">Select law firm...</option>
+                      {firms.filter((f) => f.name).map((f) => (
+                        <option key={f.id} value={f.name}>{f.name}</option>
+                      ))}
+                      <option value="__ADD_NEW__">+ Add New Firm</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Attorney Name</label>
-                  <input style={inputStyle} value={attName} onChange={(e) => setAttName(e.target.value)} />
+                  {showAddAttorney ? (
+                    <div className="flex gap-2">
+                      <input style={inputStyle} value={newAttorneyName} onChange={(e) => setNewAttorneyName(e.target.value)} placeholder="Attorney name..." autoFocus />
+                      <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" as const }} onClick={handleAddAttorney}>Add</button>
+                      <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" as const }} onClick={() => setShowAddAttorney(false)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <select style={selectStyle} value={attName} onChange={(e) => {
+                      if (e.target.value === "__ADD_NEW__") { setShowAddAttorney(true); return; }
+                      setAttName(e.target.value);
+                      // Auto-fill phone/email from TPN contact
+                      const contact = attorneys.find((a) => a.name === e.target.value);
+                      if (contact) {
+                        if (contact.phone) setAttPhone(contact.phone);
+                        if (contact.email) setAttEmail(contact.email);
+                      }
+                    }}>
+                      <option value="">Select attorney...</option>
+                      {filteredAttorneys.map((a) => (
+                        <option key={a.id} value={a.name}>{a.name}</option>
+                      ))}
+                      <option value="__ADD_NEW__">+ Add New Attorney</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Phone</label>
