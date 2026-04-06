@@ -77,7 +77,7 @@ function Section({
 
 /* ───── types ───── */
 interface SubLimit { id: number; type: string; amount: string; policyLimit: string; checked: boolean }
-interface PriorPayment { id: number; amount: string; description: string; paFeesChecked: boolean; paFeesPercent: string; paFeesAmount: number }
+interface PriorPayment { id: number; amount: string; description: string; paFeesChecked: boolean; paFeesPercent: string; paFeesAmount: number; paFeesPaid: boolean }
 interface PaymentWithoutFee { id: number; type: string; typeName: string; amount: string; checked: boolean }
 interface CustomRepair { id: number; description: string; amount: string; checked: boolean }
 interface CustomDeduction { id: number; description: string; amount: string; checked: boolean }
@@ -164,6 +164,12 @@ export default function ClaimCalculatorPage() {
     { id: uid(), type: "legalFees", typeName: "Legal Fees", amount: "", checked: false },
     { id: uid(), type: "paidIncurred", typeName: "Paid / Incurred", amount: "", checked: false },
   ]);
+
+  /* ── PA fee percentages per coverage (default 10%) ── */
+  const [coverageAFeePercent, setCoverageAFeePercent] = useState("10");
+  const [coverageBFeePercent, setCoverageBFeePercent] = useState("10");
+  const [coverageCFeePercent, setCoverageCFeePercent] = useState("10");
+  const [coverageDFeePercent, setCoverageDFeePercent] = useState("10");
 
   /* ── insured repairs ── */
   const [interiorRepairsAmount, setInteriorRepairsAmount] = useState("");
@@ -277,12 +283,29 @@ export default function ClaimCalculatorPage() {
     [totalCoverage, totalDeductions, priorPaymentsTotal, paymentsWithoutFeesTotal, effectiveDeductible]
   );
 
-  const priorPAFees = useMemo(() =>
-    !checkedItems.priorPayments ? 0 : priorPayments.filter((pp) => pp.paFeesChecked).reduce((s, pp) => s + pp.paFeesAmount, 0),
+  const priorPAFeesPaid = useMemo(() =>
+    !checkedItems.priorPayments ? 0 : priorPayments.filter((pp) => pp.paFeesChecked && pp.paFeesPaid).reduce((s, pp) => s + pp.paFeesAmount, 0),
     [checkedItems.priorPayments, priorPayments]
   );
 
-  const currentPAFees = useMemo(() => balanceBeforePAFees * 0.10, [balanceBeforePAFees]);
+  const priorPAFeesOwed = useMemo(() =>
+    !checkedItems.priorPayments ? 0 : priorPayments.filter((pp) => pp.paFeesChecked && !pp.paFeesPaid).reduce((s, pp) => s + pp.paFeesAmount, 0),
+    [checkedItems.priorPayments, priorPayments]
+  );
+
+  const priorPAFees = useMemo(() => priorPAFeesPaid + priorPAFeesOwed, [priorPAFeesPaid, priorPAFeesOwed]);
+
+  // PA fees: proportionally allocated by coverage weight using individual coverage percentages
+  const currentPAFees = useMemo(() => {
+    const totalCoverages = cappedA + cappedB + cappedC + cappedD;
+    if (totalCoverages === 0) return 0;
+    const feeA = (balanceBeforePAFees * cappedA / totalCoverages) * (p(coverageAFeePercent)) / 100;
+    const feeB = (balanceBeforePAFees * cappedB / totalCoverages) * (p(coverageBFeePercent)) / 100;
+    const feeC = (balanceBeforePAFees * cappedC / totalCoverages) * (p(coverageCFeePercent)) / 100;
+    const feeD = (balanceBeforePAFees * cappedD / totalCoverages) * (p(coverageDFeePercent)) / 100;
+    return feeA + feeB + feeC + feeD;
+  }, [balanceBeforePAFees, cappedA, cappedB, cappedC, cappedD, coverageAFeePercent, coverageBFeePercent, coverageCFeePercent, coverageDFeePercent]);
+
   const totalPAFees = useMemo(() => currentPAFees + priorPAFees, [currentPAFees, priorPAFees]);
   const finalBalance = useMemo(() => balanceBeforePAFees - currentPAFees, [balanceBeforePAFees, currentPAFees]);
   const balancePlusDeductible = useMemo(() => finalBalance + effectiveDeductible, [finalBalance, effectiveDeductible]);
@@ -501,7 +524,7 @@ export default function ClaimCalculatorPage() {
                 <input type="checkbox" checked={checkedItems.priorPayments} onChange={() => ck("priorPayments")} />
                 Enable
               </label>
-              <button style={btnOutline} onClick={() => setPriorPayments((prev) => [...prev, { id: uid(), amount: "", description: "", paFeesChecked: false, paFeesPercent: "10", paFeesAmount: 0 }])}>+ Add</button>
+              <button style={btnOutline} onClick={() => setPriorPayments((prev) => [...prev, { id: uid(), amount: "", description: "", paFeesChecked: false, paFeesPercent: "10", paFeesAmount: 0, paFeesPaid: false }])}>+ Add</button>
             </div>
           }
         >
@@ -526,6 +549,12 @@ export default function ClaimCalculatorPage() {
                     const u = [...priorPayments]; u[idx] = { ...u[idx], paFeesPercent: e.target.value }; setPriorPayments(u);
                   }} />
                   <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{fmt(pp.paFeesAmount)}</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                    <input type="checkbox" checked={pp.paFeesPaid} onChange={() => {
+                      const u = [...priorPayments]; u[idx] = { ...u[idx], paFeesPaid: !u[idx].paFeesPaid }; setPriorPayments(u);
+                    }} />
+                    Paid
+                  </label>
                 </>
               )}
               <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setPriorPayments((prev) => prev.filter((_, i) => i !== idx))}>X</button>
@@ -592,15 +621,39 @@ export default function ClaimCalculatorPage() {
             <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{fmt(totalPAFees)}</span>
           </div>
           <div style={{ ...blueBar, fontSize: 14, padding: "10px 16px", marginBottom: 8 }}>
-            <span>Current PA Fees (10%)</span>
+            <span>Current PA Fees</span>
             <span>{fmt(currentPAFees)}</span>
           </div>
-          {priorPAFees > 0 && (
-            <div style={{ ...orangeBar, fontSize: 14, padding: "10px 16px", marginBottom: 8 }}>
-              <span>Prior PA Fees</span>
-              <span>{fmt(priorPAFees)}</span>
+          {priorPAFeesPaid > 0 && (
+            <div style={{ ...greenBar, fontSize: 14, padding: "10px 16px", marginBottom: 8 }}>
+              <span>Prior PA Fees (Paid)</span>
+              <span>{fmt(priorPAFeesPaid)}</span>
             </div>
           )}
+          {priorPAFeesOwed > 0 && (
+            <div style={{ ...orangeBar, fontSize: 14, padding: "10px 16px", marginBottom: 8 }}>
+              <span>Prior PA Fees (Owed)</span>
+              <span>{fmt(priorPAFeesOwed)}</span>
+            </div>
+          )}
+          {/* Per-coverage fee percentages */}
+          <div style={{ marginTop: 12 }}>
+            <label style={{ ...labelStyle, marginBottom: 8 }}>Fee Percentages by Coverage</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {([
+                ["Coverage A", coverageAFeePercent, setCoverageAFeePercent],
+                ["Coverage B", coverageBFeePercent, setCoverageBFeePercent],
+                ["Coverage C", coverageCFeePercent, setCoverageCFeePercent],
+                ["Coverage D", coverageDFeePercent, setCoverageDFeePercent],
+              ] as [string, string, React.Dispatch<React.SetStateAction<string>>][]).map(([label, val, setter]) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 80 }}>{label}</span>
+                  <input style={{ ...inputStyle, width: 70 }} type="number" value={val} onChange={(e) => setter(e.target.value)} />
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>%</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* ── 10. Balance After PA Fees ── */}
@@ -806,7 +859,7 @@ export default function ClaimCalculatorPage() {
 
                     {printOptions.paFees && (
                       <>
-                        <tr><td style={{ padding: "4px 0" }}>Current PA Fees (10%)</td><td style={{ textAlign: "right" }}>{fmt(currentPAFees)}</td></tr>
+                        <tr><td style={{ padding: "4px 0" }}>Current PA Fees</td><td style={{ textAlign: "right" }}>{fmt(currentPAFees)}</td></tr>
                         {priorPAFees > 0 && <tr><td style={{ padding: "4px 0" }}>Prior PA Fees</td><td style={{ textAlign: "right" }}>{fmt(priorPAFees)}</td></tr>}
                       </>
                     )}
@@ -846,7 +899,7 @@ export default function ClaimCalculatorPage() {
             <tr><td style={{ padding: "4px 0" }}>Deductions</td><td style={{ textAlign: "right" }}>({fmt(totalDeductions)})</td></tr>
             <tr><td style={{ padding: "4px 0" }}>Deductible</td><td style={{ textAlign: "right" }}>({fmt(effectiveDeductible)})</td></tr>
             <tr style={{ fontWeight: 700, borderTop: "1px solid #000" }}><td style={{ padding: "4px 0" }}>Balance Before PA Fees</td><td style={{ textAlign: "right" }}>{fmt(balanceBeforePAFees)}</td></tr>
-            <tr><td style={{ padding: "4px 0" }}>PA Fees (10%)</td><td style={{ textAlign: "right" }}>({fmt(currentPAFees)})</td></tr>
+            <tr><td style={{ padding: "4px 0" }}>PA Fees</td><td style={{ textAlign: "right" }}>({fmt(currentPAFees)})</td></tr>
             <tr style={{ fontWeight: 700, borderTop: "1px solid #000" }}><td style={{ padding: "6px 0" }}>Balance After PA Fees</td><td style={{ textAlign: "right" }}>{fmt(finalBalance)}</td></tr>
             <tr style={{ fontWeight: 700 }}><td style={{ padding: "4px 0" }}>Total Possible Recovered</td><td style={{ textAlign: "right" }}>{fmt(totalPossibleRecovered)}</td></tr>
             {totalRepairCosts > 0 && <tr><td style={{ padding: "4px 0" }}>Total Repair Costs</td><td style={{ textAlign: "right" }}>({fmt(totalRepairCosts)})</td></tr>}
