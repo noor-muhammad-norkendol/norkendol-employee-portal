@@ -166,21 +166,34 @@ src/
     dashboard/
       layout.tsx                  — Wraps all dashboard pages in PortalShell
       page.tsx                    — Dashboard home (5 live sections)
-      company-updates/page.tsx    — Admin CRUD for company updates
-      notifications/page.tsx      — Admin CRUD for notifications
-      action-items/page.tsx       — Admin CRUD for action items
-      leaderboard/page.tsx        — Admin CRUD for leaderboards
-      user-management/page.tsx    — Table layout, tabs, filters, edit modal (Session 4)
-      directory/page.tsx          — Employee directory, grid/list views (Session 4)
-      pending-users/page.tsx      — Admin approve/reject pending applicants (Session 4)
+      dashboard-admin/page.tsx     — Dashboard Admin (4 tabs: Updates, Actions, Notifications, Leaderboard)
+      user-management/page.tsx    — Table layout, 3 tabs (Internal, External, Pending Approvals)
+      directory/page.tsx          — Employee directory, grid/list views
+      settlement-tracker/page.tsx — User view (Active + Historical only)
+      settlement-tracker-admin/page.tsx — Admin view (full CRUD + analytics)
+      company-updates/page.tsx    — ORPHANED (now in Dashboard Admin)
+      notifications/page.tsx      — ORPHANED (now in Dashboard Admin)
+      action-items/page.tsx       — ORPHANED (now in Dashboard Admin)
+      leaderboard/page.tsx        — ORPHANED (now in Dashboard Admin)
+      pending-users/page.tsx      — ORPHANED (now in User Management)
       [16 placeholder pages]      — See HISTORY.md for full tier mapping
-    apply/page.tsx                — Public signup form (Session 4)
-    pending/page.tsx              — Holding page for unapproved users (Session 4)
+    apply/page.tsx                — Public signup form
+    pending/page.tsx              — Holding page for unapproved users
   components/
     PortalShell.tsx     — Layout orchestrator (both sidebars + top bar)
     IconSidebar.tsx     — Accordion nav, SVG icons, dnd-kit reorder, role gating
     TextSidebar.tsx     — Right contextual panel, collapsible
     TopBar.tsx          — Date/time + user display
+    PendingApprovalsPanel.tsx — Pending user/contact/firm approvals (used in User Management)
+    dashboard-admin/
+      CompanyUpdatesPanel.tsx   — Company updates CRUD
+      ActionItemsPanel.tsx      — Action items CRUD
+      NotificationsPanel.tsx    — Notifications CRUD
+      LeaderboardPanel.tsx      — Leaderboard CRUD
+    settlement-tracker/
+      MediationTrack.tsx        — Mediation/Arbitration track
+      AppraisalTrack.tsx        — Appraisal track
+      PASettlementsTrack.tsx    — PA Settlements track
   lib/
     supabase.ts         — Browser Supabase client
     supabase-server.ts  — Server-side Supabase client
