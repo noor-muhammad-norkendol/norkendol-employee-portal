@@ -116,6 +116,7 @@ const internalSections: TierSection[] = [
       { label: "Compliance", slug: "compliance", paths: icons.compliance },
       { label: "Talent Partner Network", slug: "talent-partner-network", paths: icons.talentNetwork },
       { label: "Settlement Tracker", slug: "settlement-tracker", paths: icons.settlementTracker },
+      { label: "Claim Calculator", slug: "claim-calculator", paths: icons.claimCalc },
     ],
   },
   {
