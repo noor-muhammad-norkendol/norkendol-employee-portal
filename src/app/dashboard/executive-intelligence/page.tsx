@@ -1070,6 +1070,206 @@ export default function ExecutiveIntelligencePage() {
               })}
             </>
           )}
+
+          {/* ── Settlement Tracker Section ─────────────── */}
+          <div style={{ marginTop: 32 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Settlement Tracker</h2>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>Track and analyze settlement outcomes across all resolution paths</p>
+
+            {/* ── Straight Settlement ── */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", display: "inline-block" }} />
+                Straight Settlement
+              </h3>
+              <div style={{ ...cardStyle, padding: "24px 22px" }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  Direct carrier settlements — data feeds from Claim Health Matrix entries
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {[
+                    { label: "Total Straight Settlements", value: "—" },
+                    { label: "Avg Days to Settle", value: "—" },
+                    { label: "Avg Recovery Rate", value: "—" },
+                    { label: "Total Settled Value", value: "—" },
+                    { label: "Linked Claim Health Files", value: "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-page)", borderRadius: 8, padding: 14, textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12, fontStyle: "italic" }}>
+                  Placeholder — will auto-populate from Claim Health Matrix data when adjuster completes the claim health form
+                </p>
+              </div>
+            </div>
+
+            {/* ── Appraisal Settlement ── */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fbbf24", display: "inline-block" }} />
+                Appraisal Settlement
+              </h3>
+              <div style={{ ...cardStyle, padding: "24px 22px" }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  Claims resolved through appraisal process — appraiser performance and outcome tracking
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {[
+                    { label: "Total Appraisal Settlements", value: "—" },
+                    { label: "Avg Days in Appraisal", value: "—" },
+                    { label: "Avg Recovery Rate", value: "—" },
+                    { label: "Total Estimated Value", value: "—" },
+                    { label: "Total Actual Value", value: "—" },
+                    { label: "Umpire Invoked Rate", value: "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-page)", borderRadius: 8, padding: 14, textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12, fontStyle: "italic" }}>
+                  Placeholder — will populate from appraisal track data in Settlement Tracker
+                </p>
+              </div>
+            </div>
+
+            {/* ── Mediation Settlement ── */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#a78bfa", display: "inline-block" }} />
+                Mediation Settlement
+              </h3>
+              <div style={{ ...cardStyle, padding: "24px 22px" }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  ADR proceedings — mediator performance, settlement rates, and outcome tracking
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {[
+                    { label: "Total Mediations", value: "—" },
+                    { label: "Settlement Rate", value: "—" },
+                    { label: "Avg Days to Mediation", value: "—" },
+                    { label: "Avg Settlement Value", value: "—" },
+                    { label: "Impasse Rate", value: "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-page)", borderRadius: 8, padding: 14, textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12, fontStyle: "italic" }}>
+                  Placeholder — will populate from mediation track data in Settlement Tracker
+                </p>
+              </div>
+            </div>
+
+            {/* ── Litigation Settlement ── */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
+                Litigation Settlement
+              </h3>
+
+              {/* Law Firm Scorecard */}
+              <div style={{ ...cardStyle, padding: "24px 22px", marginBottom: 16 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Law Firm Scorecard</h4>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  Per-firm KPIs — claims volume, litigation rate, retention, duration, recovery rate
+                </p>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Law Firm", "Open Claims", "In Litigation", "Lit. Rate %", "Retention %", "Avg Days in Lit.", "Recovery Rate %", "Total Estimated", "Total Actual"].map((h) => (
+                          <th key={h} style={{ padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textAlign: "left", borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td colSpan={9} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                          No law firm data yet — will populate from litigation track entries
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Duration Analysis */}
+              <div style={{ ...cardStyle, padding: "24px 22px", marginBottom: 16 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Duration Analysis</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                  {[
+                    { label: "0-90 Days", value: "—" },
+                    { label: "91-180 Days", value: "—" },
+                    { label: "181-365 Days", value: "—" },
+                    { label: "366-730 Days", value: "—" },
+                    { label: "730+ Days", value: "—" },
+                    { label: "Avg Days in Litigation", value: "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-page)", borderRadius: 8, padding: 14, textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Financial Performance */}
+              <div style={{ ...cardStyle, padding: "24px 22px", marginBottom: 16 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Financial Performance</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {[
+                    { label: "Total Estimated", value: "—" },
+                    { label: "Total Actual", value: "—" },
+                    { label: "Avg Recovery Rate", value: "—" },
+                    { label: "Avg Estimated / Claim", value: "—" },
+                    { label: "Avg Actual / Claim", value: "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-page)", borderRadius: 8, padding: 14, textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{m.label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Personnel Tracking */}
+              <div style={{ ...cardStyle, padding: "24px 22px" }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Personnel Tracking</h4>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                  Which adjusters/estimators have claims with which law firms
+                </p>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Personnel", "Role", "Open Claims", "Law Firms", "Avg Days in Lit."].map((h) => (
+                          <th key={h} style={{ padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textAlign: "left", borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                          No personnel data yet — will populate from litigation track entries
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12, fontStyle: "italic" }}>
+                Placeholder — metrics derived from law firm comparison spreadsheets (claims volume, litigation duration buckets, financial performance, firm rankings, personnel tracking)
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
