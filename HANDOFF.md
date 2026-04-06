@@ -200,79 +200,31 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: Settlement Tracker — Appraisal + PA Settlements Tracks
+## Next Session: Settlement Tracker — Wiring + Polish
 
-**Priority:** Build the remaining 2 tracks inside `/dashboard/settlement-tracker/page.tsx`.
+### What's done (Sessions 18-20):
+- **Data layer:** 14 DB tables, 7 type files, 11 hook files
+- **User/Admin split DONE:** User page (1A) = Active + Historical only, no CRUD. Admin page (2A) = full features, all analytics.
+- **All 4 tracks have full UI:**
+  - **Litigation:** data grid, create/edit modals, TPN pickers, steps panel, attorney scorecards, referral analysis, liquidity
+  - **Mediation/Arbitration:** data grid, create form, updates panel, TPN pickers for attorney, archive/unarchive, liquidity
+  - **Appraisal:** data grid, create form, updates panel with status-conditional sections, TPN picker for our appraiser, carrier/umpire free text, liquidity with 7 KPIs
+  - **PA Settlements:** 5-section create form (claim/parties/roof/money/settlement), parent/child payments, activity log, carrier adjuster rating, 15 KPI liquidity dashboard
+- **Sidebar:** "Settlement Tracker" in 1A, "Settlement Tracker Admin" in 2A
 
-### What's already done (Sessions 18-19):
-- **Data layer:** 14 DB tables, 7 type files, 11 hook files — all ported and compiling
-- **Landing page:** 4 track cards at `/dashboard/settlement-tracker`
-- **Litigation track (full):** data grid, create/edit modals with TPN pickers (Law Firm, Attorney, Contractor from tenant's TPN with "Add New"), steps panel, attorney scorecards, referral analysis, liquidity
-- **Mediation/Arbitration track (full):** `src/components/settlement-tracker/MediationTrack.tsx` — data grid, create form, updates panel with status-conditional sections, attorney assignment, archive/unarchive, liquidity
-- **QueryClientProvider** in root layout for @tanstack/react-query
-- **Sidebar:** "Settlement Tracker" in User tier (1A)
+### What to build next:
 
-### What to build:
+**Session 21 — TPN Viewership Wiring + Polish:**
+1. **User viewership filtering** — ep_admin sees firm-wide files, ep_user sees only own assignments. Filter queries by user_id / reports_to chain.
+2. **Email notifications on assignment** — when a file is assigned to a user, send notification (needs Resend domain from Noor)
+3. **Edit form for PA settlements** — currently create-only, needs edit modal on row click
+4. **Appraisal update log** — hooks for `appraisal_updates` table (exists in DB but no CRUD hooks yet)
+5. **PA settlement update/payment hooks** — currently using raw supabase calls, should be proper hooks
+6. **Cleanup pass:** shared styles across track components (currently duplicated), consistent empty states
 
-**0. SPLIT USER vs ADMIN PAGES (DO THIS FIRST — currently broken)**
-
-Right now everything is on one page. It needs to be two pages following the same pattern as TPN (user) vs TPN Admin:
-
-**Settlement Tracker (User tier 1A)** — `/dashboard/settlement-tracker`
-- Users see ONLY their assigned files (filtered by their user_id)
-- Can add updates/steps to their files
-- NO create new file, NO delete, NO bulk actions
-- NO Attorney Scorecards, NO Referral Analysis, NO Liquidity tabs
-- Just: Active files | Historical files — that's it
-- Tabs show only Active + Historical
-
-**Settlement Tracker Admin (Admin tier 2A)** — `/dashboard/settlement-tracker-admin`
-- Admins see ALL files across the org
-- Full CRUD: create, edit, delete, bulk delete, archive/unarchive
-- ALL analytics tabs: Attorney Scorecards, Referral Analysis, Liquidity
-- All 4 tracks with full admin capabilities
-- CSV export
-- This is the power user / management view
-
-Add "Settlement Tracker Admin" to sidebar tier 2A. The existing "Settlement Tracker" stays in 1A but gets stripped down to user-only features.
-
-**Role behavior reference (from source app README):**
-
-| Feature | user (attorney/appraiser) | admin/manager | super_admin |
-|---------|--------------------------|---------------|-------------|
-| See files | Only assigned to them | All | All |
-| Create files | No | Yes | Yes |
-| Delete files/steps | No | Yes | Yes |
-| View scorecards/KPIs | No | Yes | Yes |
-| Add steps to their files | Yes | Yes | Yes |
-| Archive/Unarchive | No | Yes | Yes |
-
-**1. TPN pickers on Mediation attorney form** — same pattern as litigation (firm dropdown → attorney dropdown filtered by firm → "Add New"). Currently free text in MediationTrack.tsx.
-
-**2. Appraisal track** — `src/components/settlement-tracker/AppraisalTrack.tsx`. Spec: `settlement-adr-legal-tracker/ADR_LITIGATION_KPI_SPEC.md` Track 2. Statuses: Pending → Appraiser Selection → In Progress → Impasse → Awarded/Withdrawn. Our appraiser = TPN contact (dropdown). Carrier appraiser + umpire = free text (opposing party, never portal access).
-
-**3. PA Settlements track** — `src/components/settlement-tracker/PASettlementsTrack.tsx`. Spec: `settlement-adr-legal-tracker/PA_SETTLEMENTS_BUILD_SPEC.md`. 5-tab structure (Active/Pending Supplement/Closed/Archived/Liquidity). 5-section form. Parent/child payments. 15 KPI cards. This is a LEDGER, not a pipeline — no status workflow.
-
-### Reference specs (in settlement-adr-legal-tracker repo — REFERENCE ONLY, build fresh):
-- `ADR_LITIGATION_KPI_SPEC.md` — master architecture, all tracks
-- `APPRAISAL_BUILD_SPEC.md` — appraisal details
-- `PA_SETTLEMENTS_BUILD_SPEC.md` — PA settlements full spec with 15 KPI cards, 5-section form
-- `MEDIATION_BUILD_STATUS.md` — mediation build details
-
-### TPN access model (confirmed with Frank):
-- Everyone (attorneys, appraisers, mediators, contractors) is an `external_contact` in the TPN
-- **No access** = just a record (mediators, opposing appraisers, carrier reps)
-- **ep_user** = sees only their assigned files
-- **ep_admin** = sees all files for their firm/company
-- Hierarchy via `reports_to_id` chain determines viewership scope
-- All pickers are org-scoped from the tenant's TPN
-
-### Portal UI patterns (DO NOT use shadcn or react-hook-form):
-- Inline styles with CSS variables (--bg-primary, --bg-surface, --text-primary, --accent, etc.)
-- Plain HTML tables with thStyle/tdStyle objects
-- useState controlled forms
-- Custom modals with fixed overlay + stopPropagation
-- StatusBadge component for colored pills
+**Noor tasks (not code):**
+- Set up Resend verified sending domain
+- Text/SMS provider selection
 
 **BINGO required before writing any code.**
 
