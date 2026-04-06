@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase";
+
 
 /* ───── style constants ───── */
 const cardStyle: React.CSSProperties = {
@@ -101,35 +101,36 @@ export default function ClaimCalculatorPage() {
   });
   const toggle = (k: string) => setOpenSections((prev) => ({ ...prev, [k]: !prev[k] }));
 
-  /* ── release type (from Supabase) ── */
-  const supabase = useMemo(() => createClient(), []);
+  /* ── release type (from localStorage — shared with claim-calculator-settings) ── */
   const [releaseTypes, setReleaseTypes] = useState<ReleaseTypeOption[]>([]);
   const [releaseType, setReleaseType] = useState("");
   const [openingStatement, setOpeningStatement] = useState("");
 
   useEffect(() => {
-    async function loadReleaseTypes() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from("users").select("org_id").eq("id", user.id).single();
-      if (!profile) return;
-      const { data } = await supabase
-        .from("claim_release_types")
-        .select("id, name, opening_statement")
-        .eq("org_id", profile.org_id)
-        .order("name");
-      if (data && data.length > 0) {
-        setReleaseTypes(data);
-        setReleaseType(data[0].name);
-        setOpeningStatement(data[0].opening_statement);
+    const defaults: ReleaseTypeOption[] = [
+      { id: "proposed", name: "Proposed Release", opening_statement: "" },
+      { id: "litigated", name: "Litigated Release", opening_statement: "" },
+      { id: "mediation", name: "Mediation Release", opening_statement: "" },
+      { id: "appraisal", name: "Appraisal Release", opening_statement: "" },
+      { id: "standard", name: "Standard Release", opening_statement: "" },
+    ];
+    try {
+      const stored = localStorage.getItem("claimCalc_releaseTypes");
+      const types = stored ? JSON.parse(stored) : defaults;
+      setReleaseTypes(types);
+      if (types.length > 0) {
+        setReleaseType(types[0].name);
+        setOpeningStatement(types[0].opening_statement || "");
       }
+    } catch {
+      setReleaseTypes(defaults);
+      setReleaseType(defaults[0].name);
     }
-    loadReleaseTypes();
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     const match = releaseTypes.find((rt) => rt.name === releaseType);
-    if (match) setOpeningStatement(match.opening_statement);
+    if (match) setOpeningStatement(match.opening_statement || "");
   }, [releaseType, releaseTypes]);
 
   /* ── main inputs ── */

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase";
+import { useState, useEffect } from "react";
 
 /* ── styles ─────────────────────────────────────────── */
 
@@ -67,115 +66,76 @@ const btnDanger: React.CSSProperties = {
 
 interface ReleaseType {
   id: string;
-  org_id: string;
   name: string;
   opening_statement: string;
   is_default: boolean;
-  created_at: string;
 }
+
+const STORAGE_KEY = "claimCalc_releaseTypes";
+
+const DEFAULT_RELEASE_TYPES: ReleaseType[] = [
+  { id: "proposed", name: "Proposed Release", opening_statement: "", is_default: true },
+  { id: "litigated", name: "Litigated Release", opening_statement: "", is_default: true },
+  { id: "mediation", name: "Mediation Release", opening_statement: "", is_default: true },
+  { id: "appraisal", name: "Appraisal Release", opening_statement: "", is_default: true },
+  { id: "standard", name: "Standard Release", opening_statement: "", is_default: true },
+];
 
 /* ── page ───────────────────────────────────────────── */
 
 export default function ClaimCalculatorSettingsPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState("");
   const [releaseTypes, setReleaseTypes] = useState<ReleaseType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  // Get org
+  // Load from localStorage on mount
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from("users").select("org_id").eq("id", user.id).single()
-          .then(({ data }) => { if (data) setOrgId(data.org_id); });
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setReleaseTypes(JSON.parse(stored));
+      } else {
+        setReleaseTypes(DEFAULT_RELEASE_TYPES);
       }
-    });
-  }, [supabase]);
-
-  // Fetch release types
-  const fetchReleaseTypes = useCallback(async () => {
-    if (!orgId) return;
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("claim_release_types")
-      .select("*")
-      .eq("org_id", orgId)
-      .order("is_default", { ascending: false })
-      .order("name");
-
-    if (error) {
-      console.error("Error fetching release types:", error);
-      // Table might not exist yet — seed defaults
-      if (error.code === "42P01" || error.message.includes("does not exist")) {
-        setReleaseTypes([]);
-      }
-    } else if (data && data.length > 0) {
-      setReleaseTypes(data);
-    } else {
-      // No data — seed defaults
-      const defaults = [
-        { name: "Proposed Release", opening_statement: "", is_default: true, org_id: orgId },
-        { name: "Litigated Release", opening_statement: "", is_default: true, org_id: orgId },
-        { name: "Mediation Release", opening_statement: "", is_default: true, org_id: orgId },
-        { name: "Appraisal Release", opening_statement: "", is_default: true, org_id: orgId },
-        { name: "Standard Release", opening_statement: "", is_default: true, org_id: orgId },
-      ];
-      const { data: seeded } = await supabase
-        .from("claim_release_types")
-        .insert(defaults)
-        .select();
-      if (seeded) setReleaseTypes(seeded);
+    } catch {
+      setReleaseTypes(DEFAULT_RELEASE_TYPES);
     }
+  }, []);
 
-    setLoading(false);
-  }, [orgId, supabase]);
-
-  useEffect(() => {
-    fetchReleaseTypes();
-  }, [fetchReleaseTypes]);
-
-  // Update a field locally
+  // Update a field
   const updateField = (id: string, field: "name" | "opening_statement", value: string) => {
     setReleaseTypes((prev) =>
       prev.map((rt) => (rt.id === id ? { ...rt, [field]: value } : rt))
     );
     setDirty(true);
+    setSaved(false);
   };
 
-  // Save all changes
-  const saveAll = async () => {
-    setSaving(true);
-    for (const rt of releaseTypes) {
-      await supabase
-        .from("claim_release_types")
-        .update({ name: rt.name, opening_statement: rt.opening_statement })
-        .eq("id", rt.id);
-    }
-    setSaving(false);
+  // Save all
+  const saveAll = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(releaseTypes));
     setDirty(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  // Add custom release type
-  const addCustom = async () => {
-    if (!orgId) return;
-    const { data } = await supabase
-      .from("claim_release_types")
-      .insert({ name: "Custom Release Type", opening_statement: "", is_default: false, org_id: orgId })
-      .select()
-      .single();
-    if (data) {
-      setReleaseTypes((prev) => [...prev, data]);
-    }
+  // Add custom
+  const addCustom = () => {
+    const newType: ReleaseType = {
+      id: `custom-${Date.now()}`,
+      name: "Custom Release Type",
+      opening_statement: "",
+      is_default: false,
+    };
+    setReleaseTypes((prev) => [...prev, newType]);
+    setDirty(true);
   };
 
-  // Delete custom release type
-  const deleteType = async (id: string) => {
+  // Delete custom
+  const deleteType = (id: string) => {
     if (!confirm("Delete this release type?")) return;
-    await supabase.from("claim_release_types").delete().eq("id", id);
     setReleaseTypes((prev) => prev.filter((rt) => rt.id !== id));
+    setDirty(true);
   };
 
   return (
@@ -190,23 +150,21 @@ export default function ClaimCalculatorSettingsPage() {
             Manage release type templates and opening statements for claim breakdowns.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button style={btnOutline} onClick={addCustom}>
             + Add Release Type
           </button>
           <button
             style={{ ...btnPrimary, opacity: dirty ? 1 : 0.5 }}
             onClick={saveAll}
-            disabled={saving || !dirty}
+            disabled={!dirty}
           >
-            {saving ? "Saving..." : "Save All Changes"}
+            {saved ? "Saved!" : "Save All Changes"}
           </button>
         </div>
       </div>
 
-      {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading...</p>
-      ) : releaseTypes.length === 0 ? (
+      {releaseTypes.length === 0 ? (
         <div style={{ ...cardStyle, textAlign: "center", padding: 40 }}>
           <p style={{ color: "var(--text-muted)" }}>No release types found. Click "+ Add Release Type" to create one.</p>
         </div>
@@ -239,13 +197,13 @@ export default function ClaimCalculatorSettingsPage() {
             <div>
               <label style={labelStyle}>Opening Statement / Expectations</label>
               <textarea
-                style={{ ...inputStyle, minHeight: 100, resize: "vertical" }}
+                style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
                 value={rt.opening_statement}
                 onChange={(e) => updateField(rt.id, "opening_statement", e.target.value)}
-                placeholder="Enter detailed explanation, expectations, and any relevant information for this release type..."
+                placeholder="Enter the paragraph that appears at the top of the claim breakdown for this release type..."
               />
               <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                This text appears on page 1 of release documents for {rt.name.toLowerCase()}.
+                This text appears on page 1 of the claim breakdown when an adjuster selects "{rt.name}".
               </p>
             </div>
           </div>
@@ -254,8 +212,8 @@ export default function ClaimCalculatorSettingsPage() {
 
       {dirty && (
         <div className="flex justify-center mt-4">
-          <button style={btnPrimary} onClick={saveAll} disabled={saving}>
-            {saving ? "Saving..." : "Save All Changes"}
+          <button style={btnPrimary} onClick={saveAll}>
+            Save All Changes
           </button>
         </div>
       )}
