@@ -204,7 +204,7 @@ export default function ClaimCalculatorPage() {
     paidWhenIncurred: false, ordinanceLaw: false,
     priorPayments: false,
     interiorRepairs: false, exteriorRepairs: false, fences: false, screenEnclosure: false,
-    roofRepairs: false, additionalRoof: false, gutters: false, solar: false, soffit: false, fascia: false,
+    roof: false, additionalRoof: false, gutters: false, solar: false, soffit: false, fascia: false,
   });
   const ck = (k: string) => setCheckedItems((prev) => ({ ...prev, [k]: !prev[k] }));
 
@@ -307,8 +307,10 @@ export default function ClaimCalculatorPage() {
   }, [balanceBeforePAFees, cappedA, cappedB, cappedC, cappedD, coverageAFeePercent, coverageBFeePercent, coverageCFeePercent, coverageDFeePercent]);
 
   const totalPAFees = useMemo(() => currentPAFees + priorPAFees, [currentPAFees, priorPAFees]);
-  const finalBalance = useMemo(() => balanceBeforePAFees - currentPAFees, [balanceBeforePAFees, currentPAFees]);
+  // FIX: subtract owed prior PA fees from balance (not just current fees)
+  const finalBalance = useMemo(() => balanceBeforePAFees - currentPAFees - priorPAFeesOwed, [balanceBeforePAFees, currentPAFees, priorPAFeesOwed]);
   const balancePlusDeductible = useMemo(() => finalBalance + effectiveDeductible, [finalBalance, effectiveDeductible]);
+  const remainingPAFeesDue = useMemo(() => Math.max(0, totalPAFees - priorPAFeesPaid), [totalPAFees, priorPAFeesPaid]);
 
   const totalRepairCosts = useMemo(() => {
     let total = 0;
@@ -317,7 +319,8 @@ export default function ClaimCalculatorPage() {
     if (checkedItems.fences) total += p(fencesAmount);
     if (checkedItems.screenEnclosure) total += p(screenEnclosureAmount);
     total += customInsuredRepairs.filter((r) => r.checked).reduce((s, r) => s + p(r.amount), 0);
-    if (checkedItems.roofRepairs) total += p(roofTotalCost);
+    // FIX: checkbox key matches source — "roof" not "roof"
+    if (checkedItems.roof) total += p(roofTotalCost);
     if (checkedItems.additionalRoof) total += p(additionalRoofTotalCost);
     if (checkedItems.gutters) total += p(guttersTotalCost);
     if (checkedItems.solar) total += p(solarTotalCost);
@@ -327,15 +330,17 @@ export default function ClaimCalculatorPage() {
     return total;
   }, [checkedItems, interiorRepairsAmount, exteriorRepairsAmount, fencesAmount, screenEnclosureAmount, customInsuredRepairs, roofTotalCost, additionalRoofTotalCost, guttersTotalCost, solarTotalCost, soffitTotalCost, fasciaTotalCost, customContractorRepairs]);
 
+  // FIX: proper total possible recovered formula (not 0.9 flat multiplier)
+  // Source: (balance - currentPAFees + priorPayments - priorPAFeesPaid + effectiveDeductible + totalDeductions)
   const totalPossibleRecovered = useMemo(() =>
-    (balanceBeforePAFees * 0.9) + priorPaymentsTotal - priorPAFees + effectiveDeductible + totalDeductions,
-    [balanceBeforePAFees, priorPaymentsTotal, priorPAFees, effectiveDeductible, totalDeductions]
+    Math.max(0, (balanceBeforePAFees - currentPAFees) + priorPaymentsTotal - priorPAFeesPaid + effectiveDeductible + totalDeductions),
+    [balanceBeforePAFees, currentPAFees, priorPaymentsTotal, priorPAFeesPaid, effectiveDeductible, totalDeductions]
   );
 
-  const baseAmount = useMemo(() => totalPossibleRecovered - p(nonRecoverableDepreciationAmount), [totalPossibleRecovered, nonRecoverableDepreciationAmount]);
+  const baseAmount = useMemo(() => totalPossibleRecovered - (checkedItems.nonRecoverableDepreciation ? p(nonRecoverableDepreciationAmount) : 0), [totalPossibleRecovered, checkedItems.nonRecoverableDepreciation, nonRecoverableDepreciationAmount]);
   const finalBalanceAmount = useMemo(() => baseAmount - totalRepairCosts, [baseAmount, totalRepairCosts]);
-  const withheldAmount = useMemo(() => totalDeductions - (checkedItems.nonRecoverableDepreciation ? p(nonRecoverableDepreciationAmount) : 0),
-    [totalDeductions, checkedItems.nonRecoverableDepreciation, nonRecoverableDepreciationAmount]);
+  // FIX: withheld amount = full total deductions (source doesn't subtract non-RD)
+  const withheldAmount = useMemo(() => totalDeductions, [totalDeductions]);
 
   const trafficLight = useMemo(() => {
     if (finalBalanceAmount >= 0) return "green";
@@ -743,7 +748,7 @@ export default function ClaimCalculatorPage() {
           extra={<button style={btnOutline} onClick={() => setCustomContractorRepairs((prev) => [...prev, { id: uid(), description: "", amount: "", checked: true }])}>+ Add</button>}
         >
           {([
-            { label: "Roof", key: "roofRepairs", qty: roofSquares, setQty: setRoofSquares, qtyLabel: "Squares", cost: roofTotalCost, setCost: setRoofTotalCost, perUnit: roofCostPerSquare, unitLabel: "/sq" },
+            { label: "Roof", key: "roof", qty: roofSquares, setQty: setRoofSquares, qtyLabel: "Squares", cost: roofTotalCost, setCost: setRoofTotalCost, perUnit: roofCostPerSquare, unitLabel: "/sq" },
             { label: "Additional Roof", key: "additionalRoof", qty: additionalRoofSquares, setQty: setAdditionalRoofSquares, qtyLabel: "Squares", cost: additionalRoofTotalCost, setCost: setAdditionalRoofTotalCost, perUnit: additionalRoofCostPerSquare, unitLabel: "/sq" },
             { label: "Gutters", key: "gutters", qty: guttersLinearFeet, setQty: setGuttersLinearFeet, qtyLabel: "Linear Ft", cost: guttersTotalCost, setCost: setGuttersTotalCost, perUnit: guttersCostPerFoot, unitLabel: "/ft" },
             { label: "Solar Panels", key: "solar", qty: solarPanels, setQty: setSolarPanels, qtyLabel: "Panels", cost: solarTotalCost, setCost: setSolarTotalCost, perUnit: solarCostPerPanel, unitLabel: "/panel" },
