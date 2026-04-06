@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import PendingApprovalsPanel from "@/components/PendingApprovalsPanel";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -212,7 +213,7 @@ function UserManagementInner() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"internal" | "external">("internal");
+  const [activeTab, setActiveTab] = useState<"internal" | "external" | "approvals">("internal");
 
   // Edit modal state
   const [editUser, setEditUser] = useState<UserRow | null>(null);
@@ -228,6 +229,21 @@ function UserManagementInner() {
   const [newBond, setNewBond] = useState({ bond_type: "", state: "", bond_number: "", issuer: "", amount: "", expiry_date: "" });
 
   const ORG_ID = "00000000-0000-0000-0000-000000000001";
+
+  // Pending approvals count for tab badge
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchPendingCount() {
+      const [pu, pc, pf] = await Promise.all([
+        supabase.from("users").select("id", { count: "exact", head: true }).eq("org_id", ORG_ID).eq("status", "pending"),
+        supabase.from("external_contacts").select("id", { count: "exact", head: true }).eq("org_id", ORG_ID).eq("status", "pending"),
+        supabase.from("firms").select("id", { count: "exact", head: true }).eq("org_id", ORG_ID).eq("status", "pending"),
+      ]);
+      setPendingCount((pu.count ?? 0) + (pc.count ?? 0) + (pf.count ?? 0));
+    }
+    fetchPendingCount();
+  }, []);
 
   /* ── fetch ──────────────────────────────────────────── */
 
@@ -593,22 +609,24 @@ function UserManagementInner() {
             {filtered.length} user{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
-        <button
-          className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-          style={{ background: "var(--accent)", color: "#fff" }}
-          onClick={() => {
-            /* TODO: Add user modal */
-            alert("Add user coming soon");
-          }}
-        >
-          + Add Staff Member
-        </button>
+        {activeTab !== "approvals" && (
+          <button
+            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+            style={{ background: "var(--accent)", color: "#fff" }}
+            onClick={() => {
+              /* TODO: Add user modal */
+              alert("Add user coming soon");
+            }}
+          >
+            + Add Staff Member
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4">
-        {(["internal", "external"] as const).map((tab) => {
-          const count = users.filter((u) => u.user_type === tab).length;
+        {(["internal", "external", "approvals"] as const).map((tab) => {
+          const count = tab === "approvals" ? pendingCount : users.filter((u) => u.user_type === tab).length;
           return (
             <button
               key={tab}
@@ -619,8 +637,11 @@ function UserManagementInner() {
                 color: activeTab === tab ? "var(--text-primary)" : "var(--text-muted)",
               }}
             >
-              {tab === "internal" ? "Internal Users" : "External Partners"}
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#1e3a5f", color: "#60a5fa" }}>
+              {tab === "internal" ? "Internal Users" : tab === "external" ? "External Partners" : "Pending Approvals"}
+              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{
+                background: tab === "approvals" ? "#3a3520" : "#1e3a5f",
+                color: tab === "approvals" ? "#facc15" : "#60a5fa",
+              }}>
                 {count}
               </span>
             </button>
@@ -628,6 +649,10 @@ function UserManagementInner() {
         })}
       </div>
 
+      {activeTab === "approvals" ? (
+        <PendingApprovalsPanel />
+      ) : (
+      <>
       {/* Search + Filters */}
       <div className="flex items-center gap-4 mb-4">
         <input
@@ -802,6 +827,9 @@ function UserManagementInner() {
             </tbody>
           </table>
         </div>
+      )}
+
+      </>
       )}
 
       {/* ── Edit Modal ────────────────────────────────── */}
