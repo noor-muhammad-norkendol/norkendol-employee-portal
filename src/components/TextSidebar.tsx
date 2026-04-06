@@ -64,7 +64,8 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "REPORTS", items: ["Print Report Card"] },
   ],
   "estimator-kpi": [
-    { group: "ESTIMATES", items: ["Current Week", "Add Entry"] },
+    { group: "VIEW", items: ["Today", "This Week", "This Month", "History"] },
+    { group: "ACTIONS", items: ["Add Entry"] },
     { group: "MY STATS", items: ["Performance"] },
   ],
   "claim-calculator-settings": [
@@ -169,6 +170,9 @@ export default function TextSidebar({
                   key={item}
                   className="w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap"
                   style={{ color: "var(--text-secondary)" }}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("sidebar-action", { detail: { section: activeSection, item } }));
+                  }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "var(--bg-hover)";
                     e.currentTarget.style.color = "var(--text-primary)";

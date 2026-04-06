@@ -111,6 +111,8 @@ export interface Estimate {
   date_sent_to_carrier?: string | null;
   date_closed?: string | null;
   notes?: string | null;
+  parent_estimate_id?: string | null;
+  revision_number: number;
   created_at: string;
   updated_at: string;
 }
