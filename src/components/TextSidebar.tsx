@@ -68,6 +68,11 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "ACTIONS", items: ["Add Entry"] },
     { group: "MY STATS", items: ["Performance"] },
   ],
+  "onboarder-kpi": [
+    { group: "PIPELINE", items: ["New Clients", "24hr Follow-Up", "48hr Follow-Up", "72hr Escalation", "On Hold", "Completed"] },
+    { group: "ACTIONS", items: ["Add Client"] },
+    { group: "MY STATS", items: ["Performance"] },
+  ],
   "claim-calculator-settings": [
     { group: "CALCULATOR", items: ["Release Types"] },
   ],
