@@ -132,6 +132,7 @@ const internalSections: TierSection[] = [
   },
   {
     tier: "3", heading: "Super Admin", items: [
+      { label: "Executive Intelligence", slug: "executive-intelligence", paths: icons.aiAgents },
       { label: "AI Agents", slug: "ai-agents", paths: icons.aiAgents },
       { label: "App Management", slug: "app-management", paths: icons.appManagement },
       { label: "Compliance Admin", slug: "compliance-settings", paths: icons.complianceSettings },
