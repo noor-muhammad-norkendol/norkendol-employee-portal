@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase";
 
 /* ───── style constants ───── */
 const cardStyle: React.CSSProperties = {
@@ -82,13 +83,11 @@ interface CustomRepair { id: number; description: string; amount: string; checke
 interface CustomDeduction { id: number; description: string; amount: string; checked: boolean }
 
 /* ───── opening statements ───── */
-const defaultStatements: Record<string, string> = {
-  Proposed: "This proposed settlement is based on the following claim breakdown. All figures are subject to verification and final adjustment.",
-  Litigated: "This litigated settlement breakdown reflects the amounts determined through legal proceedings.",
-  Mediation: "This mediation settlement breakdown reflects the amounts agreed upon during mediation proceedings.",
-  Appraisal: "This appraisal settlement breakdown reflects the amounts determined through the appraisal process.",
-  Standard: "This settlement breakdown reflects the standard claim calculation based on policy coverages and applicable deductions.",
-};
+interface ReleaseTypeOption {
+  id: string;
+  name: string;
+  opening_statement: string;
+}
 
 /* ===================================================================
    MAIN COMPONENT
@@ -102,26 +101,36 @@ export default function ClaimCalculatorPage() {
   });
   const toggle = (k: string) => setOpenSections((prev) => ({ ...prev, [k]: !prev[k] }));
 
-  /* ── release type ── */
-  const [releaseType, setReleaseType] = useState("Standard");
-  const [customReleaseTypes, setCustomReleaseTypes] = useState<string[]>([]);
-  const [openingStatement, setOpeningStatement] = useState(defaultStatements.Standard);
+  /* ── release type (from Supabase) ── */
+  const supabase = useMemo(() => createClient(), []);
+  const [releaseTypes, setReleaseTypes] = useState<ReleaseTypeOption[]>([]);
+  const [releaseType, setReleaseType] = useState("");
+  const [openingStatement, setOpeningStatement] = useState("");
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("claimCalc_customReleaseTypes");
-      if (saved) setCustomReleaseTypes(JSON.parse(saved));
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    const stmt = defaultStatements[releaseType];
-    if (stmt) setOpeningStatement(stmt);
-    else {
-      const custom = localStorage.getItem(`claimCalc_stmt_${releaseType}`);
-      setOpeningStatement(custom || "");
+    async function loadReleaseTypes() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from("users").select("org_id").eq("id", user.id).single();
+      if (!profile) return;
+      const { data } = await supabase
+        .from("claim_release_types")
+        .select("id, name, opening_statement")
+        .eq("org_id", profile.org_id)
+        .order("name");
+      if (data && data.length > 0) {
+        setReleaseTypes(data);
+        setReleaseType(data[0].name);
+        setOpeningStatement(data[0].opening_statement);
+      }
     }
-  }, [releaseType]);
+    loadReleaseTypes();
+  }, [supabase]);
+
+  useEffect(() => {
+    const match = releaseTypes.find((rt) => rt.name === releaseType);
+    if (match) setOpeningStatement(match.opening_statement);
+  }, [releaseType, releaseTypes]);
 
   /* ── main inputs ── */
   const [claimAmount, setClaimAmount] = useState("");
@@ -339,20 +348,11 @@ export default function ClaimCalculatorPage() {
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={labelStyle}>Release Type</label>
               <select style={selectStyle} value={releaseType} onChange={(e) => setReleaseType(e.target.value)}>
-                {["Standard", "Proposed", "Litigated", "Mediation", "Appraisal", ...customReleaseTypes].map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {releaseTypes.map((rt) => (
+                  <option key={rt.id} value={rt.name}>{rt.name}</option>
                 ))}
               </select>
             </div>
-            <button style={btnOutline} onClick={() => {
-              const name = prompt("Enter custom release type name:");
-              if (name && name.trim()) {
-                const updated = [...customReleaseTypes, name.trim()];
-                setCustomReleaseTypes(updated);
-                localStorage.setItem("claimCalc_customReleaseTypes", JSON.stringify(updated));
-                setReleaseType(name.trim());
-              }
-            }}>+ Custom Type</button>
           </div>
           <div style={{ marginTop: 12 }}>
             <label style={labelStyle}>Opening Statement</label>
