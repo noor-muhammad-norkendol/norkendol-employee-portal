@@ -63,6 +63,10 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "CLAIMS", items: ["All Claims", "Add New"] },
     { group: "REPORTS", items: ["Print Report Card"] },
   ],
+  "estimator-kpi": [
+    { group: "ESTIMATES", items: ["Current Week", "Add Entry"] },
+    { group: "MY STATS", items: ["Performance"] },
+  ],
   "claim-calculator-settings": [
     { group: "CALCULATOR", items: ["Release Types"] },
   ],

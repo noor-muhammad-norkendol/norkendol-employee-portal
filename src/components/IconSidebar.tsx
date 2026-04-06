@@ -118,6 +118,7 @@ const internalSections: TierSection[] = [
       { label: "Settlement Tracker", slug: "settlement-tracker", paths: icons.settlementTracker },
       { label: "Claim Calculator", slug: "claim-calculator", paths: icons.claimCalc },
       { label: "Claim Health", slug: "claim-health", paths: icons.compliance },
+      { label: "Estimator KPI", slug: "estimator-kpi", paths: icons.leaderboard },
     ],
   },
   {
