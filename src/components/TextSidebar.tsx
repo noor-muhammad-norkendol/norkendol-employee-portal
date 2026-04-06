@@ -59,6 +59,10 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
   "claim-calculator": [
     { group: "CALCULATOR", items: ["New Breakdown", "Print"] },
   ],
+  "claim-health": [
+    { group: "CLAIMS", items: ["All Claims", "Add New"] },
+    { group: "REPORTS", items: ["Print Report Card"] },
+  ],
   "claim-calculator-settings": [
     { group: "CALCULATOR", items: ["Release Types"] },
   ],

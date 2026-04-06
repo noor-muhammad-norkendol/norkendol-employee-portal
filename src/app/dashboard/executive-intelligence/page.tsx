@@ -207,7 +207,10 @@ export default function ExecutiveIntelligencePage() {
   const supabase = createClient();
 
   const [orgId, setOrgId] = useState("");
-  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts">("hierarchy");
+  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis">("hierarchy");
+
+  // KPI data from kpi_snapshots
+  const [kpiSnapshots, setKpiSnapshots] = useState<{ metric_key: string; metric_value: number; metric_unit: string; source_module: string; period_end: string }[]>([]);
 
   // Data
   const [hierarchy, setHierarchy] = useState<HierarchyNode[]>([]);
@@ -288,6 +291,17 @@ export default function ExecutiveIntelligencePage() {
     if (data) setRoutingRules(data);
   }, [orgId, supabase]);
 
+  const fetchKPISnapshots = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("kpi_snapshots")
+      .select("metric_key, metric_value, metric_unit, source_module, period_end")
+      .eq("org_id", orgId)
+      .order("period_end", { ascending: false })
+      .limit(100);
+    if (data) setKpiSnapshots(data);
+  }, [orgId, supabase]);
+
   useEffect(() => {
     if (!orgId) return;
     fetchHierarchy();
@@ -296,7 +310,8 @@ export default function ExecutiveIntelligencePage() {
     fetchUsers();
     fetchInterviews();
     fetchRoutingRules();
-  }, [orgId, fetchHierarchy, fetchFeatures, fetchTemplates, fetchUsers, fetchInterviews, fetchRoutingRules]);
+    fetchKPISnapshots();
+  }, [orgId, fetchHierarchy, fetchFeatures, fetchTemplates, fetchUsers, fetchInterviews, fetchRoutingRules, fetchKPISnapshots]);
 
   /* ── Hierarchy CRUD ─────────────────────────────── */
   const handleAddPerson = async () => {
@@ -987,19 +1002,76 @@ export default function ExecutiveIntelligencePage() {
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
       {/* Header */}
       <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px 0" }}>Executive Intelligence</h1>
-      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 24px 0" }}>Org hierarchy, feature assignments, and alert routing</p>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 24px 0" }}>Org hierarchy, feature assignments, alert routing, and KPI dashboard</p>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 24 }}>
         <button style={tabStyle(activeTab === "hierarchy")} onClick={() => setActiveTab("hierarchy")}>Hierarchy</button>
         <button style={tabStyle(activeTab === "features")} onClick={() => setActiveTab("features")}>Feature Assignments</button>
         <button style={tabStyle(activeTab === "alerts")} onClick={() => setActiveTab("alerts")}>Alert Routing</button>
+        <button style={tabStyle(activeTab === "kpis")} onClick={() => setActiveTab("kpis")}>KPI Dashboard</button>
       </div>
 
       {/* Tab Content */}
       {activeTab === "hierarchy" && renderHierarchyTab()}
       {activeTab === "features" && renderFeaturesTab()}
       {activeTab === "alerts" && renderAlertsTab()}
+      {activeTab === "kpis" && (
+        <div>
+          {kpiSnapshots.length === 0 ? (
+            <div style={{ ...cardStyle, textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
+              <p style={{ fontSize: 14, marginBottom: 8 }}>No KPI data yet</p>
+              <p style={{ fontSize: 12 }}>KPIs will appear here as claim health records, onboarding metrics, and other module data flows in.</p>
+            </div>
+          ) : (
+            <>
+              {/* Group by source module */}
+              {Object.entries(
+                kpiSnapshots.reduce<Record<string, typeof kpiSnapshots>>((acc, s) => {
+                  (acc[s.source_module] = acc[s.source_module] || []).push(s);
+                  return acc;
+                }, {})
+              ).map(([mod, snapshots]) => {
+                // Deduplicate: take the latest value per metric_key
+                const latest: Record<string, typeof snapshots[0]> = {};
+                for (const s of snapshots) {
+                  if (!latest[s.metric_key] || s.period_end > latest[s.metric_key].period_end) {
+                    latest[s.metric_key] = s;
+                  }
+                }
+                const metrics = Object.values(latest);
+                const modLabel = mod.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+                return (
+                  <div key={mod} style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, textTransform: "capitalize" }}>
+                      {modLabel}
+                    </h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                      {metrics.map((m) => {
+                        const label = m.metric_key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                        let display = String(m.metric_value);
+                        if (m.metric_unit === "%") display = m.metric_value.toFixed(2) + "%";
+                        else if (m.metric_unit === "days") display = m.metric_value.toFixed(1) + " days";
+                        else if (m.metric_unit === "per_day") display = m.metric_value.toFixed(2) + "/day";
+                        else if (m.metric_unit === "count") display = String(Math.round(m.metric_value));
+
+                        return (
+                          <div key={m.metric_key} style={{ ...cardStyle, textAlign: "center" }}>
+                            <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>{label}</p>
+                            <p style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{display}</p>
+                            <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>as of {m.period_end}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Modals ───────────────────────────────────── */}
 

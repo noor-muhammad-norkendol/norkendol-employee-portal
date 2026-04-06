@@ -55,7 +55,7 @@ export function useCreateLitigationFile() {
 
 export function useUpdateLitigationFile() {
   const queryClient = useQueryClient();
-  const { supabase } = useSTSupabase();
+  const { supabase, userInfo } = useSTSupabase();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: UpdateLitigationFileInput) => {
@@ -68,8 +68,45 @@ export function useUpdateLitigationFile() {
       if (error) throw new Error(`Failed to update litigation file: ${error.message}`);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation-files'] });
+
+      // Auto-create claim health record when status changes to "Settled"
+      if (data && data.status === 'Settled' && userInfo) {
+        try {
+          // Check if a claim health record already exists for this file
+          const { data: existing } = await supabase
+            .from('claim_health_records')
+            .select('id')
+            .eq('settlement_tracker_file_id', data.id)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase.from('claim_health_records').insert({
+              org_id: userInfo.orgId,
+              adjuster_id: userInfo.userId,
+              adjuster_name: userInfo.fullName,
+              claim_id: data.file_number || '',
+              client_name: data.client_name || '',
+              referral_source: data.referral_source || '',
+              referral_representative: data.referral_rep || '',
+              start_date: data.date_attorney_onboarded || new Date().toISOString().slice(0, 10),
+              settlement_date: new Date().toISOString().slice(0, 10),
+              starting_value: data.current_reserves || 0,
+              final_settlement_value: data.current_offer || null,
+              status_at_intake: 'Partial Paid',
+              is_settled: true,
+              total_communications: 0,
+              source: 'auto',
+              settlement_tracker_file_id: data.id,
+              is_complete: false,
+            });
+            queryClient.invalidateQueries({ queryKey: ['claim-health-records'] });
+          }
+        } catch (e) {
+          console.error('Failed to auto-create claim health record:', e);
+        }
+      }
     },
   });
 }
