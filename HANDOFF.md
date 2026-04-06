@@ -171,12 +171,22 @@ src/
       directory/page.tsx          — Employee directory, grid/list views
       settlement-tracker/page.tsx — User view (Active + Historical only)
       settlement-tracker-admin/page.tsx — Admin view (full CRUD + analytics)
+      claim-calculator/page.tsx  — Claim Breakdown Calculator (adjusters, 1A)
+      claim-calculator-settings/page.tsx — Release type template admin (Super Admin, 3)
+      executive-intelligence/page.tsx — Org hierarchy + AI interviews + alert routing (Super Admin, 3)
       company-updates/page.tsx    — ORPHANED (now in Dashboard Admin)
       notifications/page.tsx      — ORPHANED (now in Dashboard Admin)
       action-items/page.tsx       — ORPHANED (now in Dashboard Admin)
       leaderboard/page.tsx        — ORPHANED (now in Dashboard Admin)
       pending-users/page.tsx      — ORPHANED (now in User Management)
       [16 placeholder pages]      — See HISTORY.md for full tier mapping
+    api/
+      executive/hierarchy/route.ts       — Org hierarchy CRUD
+      executive/hierarchy/[id]/route.ts  — Hierarchy node update/delete
+      executive/feature-assignments/route.ts — Feature assignment CRUD
+      executive/onboarding-interview/route.ts — AI interview generation via callAI()
+      executive/alert-routing/route.ts   — Alert routing rules CRUD
+      ai-templates/route.ts              — AI context template management
     apply/page.tsx                — Public signup form
     pending/page.tsx              — Holding page for unapproved users
   components/
@@ -197,6 +207,7 @@ src/
   lib/
     supabase.ts         — Browser Supabase client
     supabase-server.ts  — Server-side Supabase client
+    ai.ts               — Central AI utility (callAI, encryption, provider-agnostic)
   middleware.ts         — Auth guard for /dashboard routes
 ```
 
