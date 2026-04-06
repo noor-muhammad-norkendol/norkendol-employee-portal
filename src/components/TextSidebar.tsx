@@ -35,17 +35,8 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
   "user-management": [
     { group: "USERS", items: ["All Users", "Roles", "Permissions"] },
   ],
-  "pending-users": [
-    { group: "APPROVALS", items: ["Pending", "Approved", "Denied"] },
-  ],
-  "action-items": [
-    { group: "TASKS", items: ["My Items", "Assigned", "Completed"] },
-  ],
   training: [
     { group: "MANAGE", items: ["Courses", "Categories", "Assignments", "Analytics"] },
-  ],
-  "company-updates": [
-    { group: "NEWS", items: ["Latest", "Announcements", "Archive"] },
   ],
   departments: [
     { group: "DEPARTMENTS", items: ["All", "My Department", "Structure"] },

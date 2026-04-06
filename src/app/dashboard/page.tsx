@@ -514,7 +514,7 @@ export default function DashboardPage() {
             </div>
           )}
           <a
-            href="/dashboard/notifications"
+            href="/dashboard/dashboard-admin"
             className="text-xs mt-4 text-center block transition-colors hover:underline"
             style={{ color: "var(--accent)" }}
           >
