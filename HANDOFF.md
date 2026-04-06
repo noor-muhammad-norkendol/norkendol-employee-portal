@@ -244,8 +244,41 @@ src/
 3. **Edit form for PA settlements** — currently create-only, needs edit modal
 4. **Appraisal update log hooks** — `appraisal_updates` table exists, no CRUD hooks
 5. **PA settlement update/payment hooks** — raw supabase calls → proper hooks
-6. **Cleanup:** shared styles, delete orphaned standalone pages (pending-users, company-updates, action-items, notifications, leaderboard)
-7. **Run Executive Intelligence migration** in Supabase dashboard
+6. **Run Executive Intelligence migration** in Supabase dashboard
+7. **Verify claim calculator math** — see note below
+
+---
+
+## CLAIM CALCULATOR MATH CHANGES — SESSION 20 (NEEDS FRANK TO VERIFY)
+
+The calculator was working before these changes. An automated audit compared our portal build against the latest source repo and made 5 corrections. If the math seems wrong during testing, these are the 5 changes to review/revert. All in `src/app/dashboard/claim-calculator/page.tsx`, commit `268c7db`.
+
+**Change 1 — Final Balance now subtracts owed prior PA fees**
+- BEFORE: `finalBalance = balanceBeforePAFees - currentPAFees`
+- AFTER: `finalBalance = balanceBeforePAFees - currentPAFees - priorPAFeesOwed`
+- IMPACT: If there are prior payments with PA fees marked as NOT paid, the final balance will be lower than before. If no one uses the "Paid" checkbox on prior payments, this changes nothing.
+
+**Change 2 — Roof checkbox key renamed**
+- BEFORE: `checkedItems.roofRepairs` (state key) and `key: "roofRepairs"` (UI)
+- AFTER: `checkedItems.roof` (state key) and `key: "roof"` (UI)
+- IMPACT: Was internally consistent before — both used `roofRepairs`. Changed to match source repo naming. Functionally identical, just renamed.
+
+**Change 3 — Total Possible Recovered uses actual PA fees instead of 0.9 multiplier**
+- BEFORE: `totalPossibleRecovered = (balanceBeforePAFees * 0.9) + priorPayments - priorPAFees + deductible + deductions`
+- AFTER: `totalPossibleRecovered = (balanceBeforePAFees - currentPAFees) + priorPayments - priorPAFeesPaid + deductible + deductions`
+- IMPACT: When all fee percentages are 10%, the 0.9 shortcut gives the same answer as the new formula. Only differs when coverage fee percentages are set to something other than 10%.
+
+**Change 4 — Withheld amount for traffic light uses full deductions**
+- BEFORE: `withheldAmount = totalDeductions - nonRecoverableDepreciation`
+- AFTER: `withheldAmount = totalDeductions`
+- IMPACT: The traffic light color (green/yellow/red) may show yellow instead of red when non-recoverable depreciation is present. This changes the threshold for "Additional Cost to Insured" vs "You Can Possibly Recover".
+
+**Change 5 — Added remainingPAFeesDue calculation**
+- BEFORE: Did not exist
+- AFTER: `remainingPAFeesDue = Math.max(0, totalPAFees - priorPAFeesPaid)`
+- IMPACT: New calculation only — doesn't change any existing display. Available for future use.
+
+**TO REVERT:** If any of these cause problems, tell Claude to revert commit `268c7db` changes in the claim calculator. The commit only touched math formulas, nothing else.
 
 **Executive Intelligence (shell — built Session 20):**
 - Page: `/dashboard/executive-intelligence` with 3 sub-tabs (Hierarchy, Feature Assignments, Alert Routing)
