@@ -3,7 +3,7 @@
 -- Executive Intelligence reads from here.
 CREATE TABLE IF NOT EXISTS kpi_snapshots (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id         uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  org_id         uuid NOT NULL REFERENCES public.orgs(id) ON DELETE CASCADE,
   source_module  text NOT NULL,                     -- 'claim_health', 'onboarding', 'training', etc.
   metric_key     text NOT NULL,                     -- 'avg_days_to_settlement', 'avg_pct_increase', etc.
   metric_value   numeric(14,4) NOT NULL DEFAULT 0,

@@ -1,8 +1,8 @@
 -- Claim Health Records — per-claim data entered by adjusters (or auto-created from settlement tracker)
 CREATE TABLE IF NOT EXISTS claim_health_records (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id        uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  adjuster_id   uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  org_id        uuid NOT NULL REFERENCES public.orgs(id) ON DELETE CASCADE,
+  adjuster_id   uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   adjuster_name text NOT NULL DEFAULT '',
 
   -- Claim identification
