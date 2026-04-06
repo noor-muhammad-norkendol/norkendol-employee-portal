@@ -66,7 +66,7 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "COMPLIANCE ADMIN", items: ["Licenses", "Bonds", "Pending Approvals"] },
   ],
   "claim-calculator-settings": [
-    { group: "CALCULATOR", items: ["Formulas", "Rates", "Defaults"] },
+    { group: "CALCULATOR", items: ["Release Types"] },
   ],
   "system-settings": [
     { group: "SYSTEM", items: ["General", "Security", "Integrations"] },
