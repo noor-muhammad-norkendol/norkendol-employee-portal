@@ -122,11 +122,8 @@ const internalSections: TierSection[] = [
     tier: "2A", heading: "Admin", items: [
       { label: "User Management", slug: "user-management", paths: icons.userManagement },
 
-      { label: "Action Items", slug: "action-items", paths: icons.actionItems },
+      { label: "Dashboard Admin", slug: "dashboard-admin", paths: icons.dashboard },
       { label: "University Admin", slug: "training", paths: icons.training },
-      { label: "Company Updates", slug: "company-updates", paths: icons.companyUpdates },
-      { label: "Notifications", slug: "notifications", paths: icons.notifications },
-      { label: "Leaderboard", slug: "leaderboard", paths: icons.leaderboard },
       { label: "Departments", slug: "departments", paths: icons.departments },
       { label: "CRM", slug: "crm", paths: icons.crm },
       { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
