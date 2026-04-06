@@ -304,7 +304,9 @@ export default function IconSidebar({
 
   const isActive = (slug: string) => {
     if (slug === "dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(`/dashboard/${slug}`);
+    // Exact segment match — prevents "claim-calculator" matching "claim-calculator-settings"
+    const pagePath = `/dashboard/${slug}`;
+    return pathname === pagePath || pathname.startsWith(`${pagePath}/`);
   };
 
   // Get items for a section, sorted by saved order
