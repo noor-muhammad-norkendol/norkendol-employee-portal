@@ -130,6 +130,7 @@ const internalSections: TierSection[] = [
       { label: "Departments", slug: "departments", paths: icons.departments },
       { label: "CRM", slug: "crm", paths: icons.crm },
       { label: "TPN Admin", slug: "tpn-admin", paths: icons.talentNetwork },
+      { label: "Settlement Tracker Admin", slug: "settlement-tracker-admin", paths: icons.settlementTracker },
     ],
   },
   {

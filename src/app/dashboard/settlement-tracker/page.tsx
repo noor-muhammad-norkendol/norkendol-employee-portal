@@ -1,24 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { createClient } from "@/lib/supabase";
+import { useState, useMemo } from "react";
 import MediationTrack from "@/components/settlement-tracker/MediationTrack";
-import { useLitigationFiles, useCreateLitigationFile, useUpdateLitigationFile, useDeleteLitigationFiles } from "@/hooks/settlement-tracker";
-import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useDeleteLegalActions, useBulkUpdateLegalActions, useBulkLitigationFileRollups, useLitigationFileRollups } from "@/hooks/settlement-tracker";
-import { useSettlements, useSettlementByFileId, useCreateSettlement, useUpdateSettlement, useDeleteSettlement } from "@/hooks/settlement-tracker";
-import { useAttorneyScorecard, computeReferralMetrics } from "@/hooks/settlement-tracker";
-import { useStateRequirements } from "@/hooks/settlement-tracker";
+import { useLitigationFiles } from "@/hooks/settlement-tracker";
+import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useBulkLitigationFileRollups } from "@/hooks/settlement-tracker";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
 import {
   LitigationFile,
-  CreateLitigationFileInput,
   calculateDaysSinceOnboarded,
-  isCRNExpired61,
-  isCRNUnlockReady,
-  hasPostCRNStep,
   isOverdue,
-  isDueSoon,
-  CSV_HEADERS,
 } from "@/types/settlement-tracker/litigation";
 import {
   LegalAction,
@@ -28,15 +18,7 @@ import {
   ACTION_TYPE_OPTIONS,
   ACTION_STATUS_OPTIONS,
   DEFAULT_TITLES,
-  getActionStatusClassName,
-  getActionTypeClassName,
-  formatScheduledDate,
 } from "@/types/settlement-tracker/legalAction";
-import {
-  Settlement,
-  SettlementFormData,
-  calculateSettlementValues,
-} from "@/types/settlement-tracker/settlement";
 import {
   derivePhaseFromSteps,
   deriveStatusFromSteps,
@@ -166,8 +148,6 @@ const TRACKS = [
 
 const CLOSED_STATUSES = ["Settled", "Closed (No Pay)"];
 
-const ADMIN_ROLES = ["admin", "super_admin", "system_admin"];
-
 function getTrafficLightColor(nextActionDate?: string | null): string {
   if (!nextActionDate) return "#555";
   const due = new Date(nextActionDate);
@@ -236,24 +216,16 @@ function formatCurrency(amount: number | null | undefined) {
   return currencyFormatter.format(amount);
 }
 
-function formatPercentage(value: number | null | undefined) {
-  if (value == null) return "—";
-  return `${Math.round(value * 100)}%`;
-}
-
 /* ================================================================
-   MAIN PAGE
+   MAIN PAGE — USER VIEW
    ================================================================ */
 
 type Track = "landing" | "litigation" | "appraisal" | "mediation" | "pa-settlements";
-type LitigationTab = "active" | "historical" | "attorneys" | "referrals" | "liquidity";
+type LitigationTab = "active" | "historical";
 
 export default function SettlementTrackerPage() {
-  const { userInfo } = useSTSupabase();
   const [track, setTrack] = useState<Track>("landing");
   const [litTab, setLitTab] = useState<LitigationTab>("active");
-
-  const isAdmin = userInfo ? ADMIN_ROLES.includes(userInfo.role) : false;
 
   /* ── litigation data ── */
   const { data: allFiles = [], isLoading: filesLoading } = useLitigationFiles();
@@ -261,10 +233,7 @@ export default function SettlementTrackerPage() {
   const historicalFiles = useMemo(() => allFiles.filter((f) => CLOSED_STATUSES.includes(f.status)), [allFiles]);
   const displayFiles = litTab === "active" ? activeFiles : historicalFiles;
 
-  /* ── state for forms/modals ── */
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingFile, setEditingFile] = useState<LitigationFile | null>(null);
+  /* ── state for modals ── */
   const [stepsFile, setStepsFile] = useState<LitigationFile | null>(null);
 
   /* ── sorting ── */
@@ -293,79 +262,6 @@ export default function SettlementTrackerPage() {
   /* ── rollups ── */
   const fileIds = useMemo(() => displayFiles.map((f) => f.id), [displayFiles]);
   const { data: rollupsMap = {} } = useBulkLitigationFileRollups(fileIds);
-
-  /* ── mutations ── */
-  const createFile = useCreateLitigationFile();
-  const updateFile = useUpdateLitigationFile();
-  const deleteFiles = useDeleteLitigationFiles();
-
-  const handleCreateFile = async (data: CreateLitigationFileInput) => {
-    if (!userInfo) return;
-    await createFile.mutateAsync({
-      ...data,
-      created_by_name: userInfo.fullName,
-      created_by_email: userInfo.email,
-    });
-    setShowCreateForm(false);
-  };
-
-  const handleUpdateFile = async (data: CreateLitigationFileInput) => {
-    if (!editingFile) return;
-    await updateFile.mutateAsync({ id: editingFile.id, ...data });
-    setEditingFile(null);
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedFiles.length === 0) return;
-    if (!confirm(`Delete ${selectedFiles.length} file(s)? This cannot be undone.`)) return;
-    await deleteFiles.mutateAsync(selectedFiles);
-    setSelectedFiles([]);
-  };
-
-  const handleExportCSV = () => {
-    if (allFiles.length === 0) return;
-    const csvRows = [CSV_HEADERS];
-    allFiles.forEach((file) => {
-      csvRows.push(
-        [
-          file.file_number,
-          file.client_name,
-          file.date_attorney_onboarded,
-          file.attorney_firm,
-          file.attorney_contact || "",
-          file.referral_source,
-          file.status,
-          file.phase,
-          file.policy_number || "",
-          file.loss_address || "",
-          file.date_crn_filed || "",
-          (file.notes || "").replace(/"/g, '""'),
-        ]
-          .map((f) => `"${f}"`)
-          .join(",")
-      );
-    });
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `litigation-files-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  /* ── checkbox helpers ── */
-  const allSelected = sortedFiles.length > 0 && selectedFiles.length === sortedFiles.length;
-
-  const toggleSelectAll = () => {
-    setSelectedFiles(allSelected ? [] : sortedFiles.map((f) => f.id));
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedFiles((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
 
   /* ── RENDER ── */
 
@@ -463,16 +359,6 @@ export default function SettlementTrackerPage() {
             Litigation
           </h1>
         </div>
-        <div className="flex gap-2">
-          <button style={btnOutline} onClick={handleExportCSV}>
-            Export CSV
-          </button>
-          {isAdmin && (
-            <button style={btnPrimary} onClick={() => setShowCreateForm(true)}>
-              + New File
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Tabs */}
@@ -481,13 +367,6 @@ export default function SettlementTrackerPage() {
           [
             { key: "active", label: `Active (${activeFiles.length})` },
             { key: "historical", label: `Historical (${historicalFiles.length})` },
-            ...(isAdmin
-              ? [
-                  { key: "attorneys", label: "Attorney Scorecards" },
-                  { key: "referrals", label: "Referral Analysis" },
-                  { key: "liquidity", label: "Liquidity" },
-                ]
-              : []),
           ] as { key: LitigationTab; label: string }[]
         ).map((tab) => (
           <button
@@ -506,48 +385,16 @@ export default function SettlementTrackerPage() {
       </div>
 
       {/* Tab content */}
-      {(litTab === "active" || litTab === "historical") && (
-        <LitigationDataGrid
-          files={sortedFiles}
-          allFiles={displayFiles}
-          selectedFiles={selectedFiles}
-          rollupsMap={rollupsMap}
-          isLoading={filesLoading}
-          isAdmin={isAdmin}
-          allSelected={allSelected}
-          sortField={sortField}
-          sortDir={sortDir}
-          onSort={handleSort}
-          onToggleSelectAll={toggleSelectAll}
-          onToggleSelect={toggleSelect}
-          onEdit={setEditingFile}
-          onViewSteps={setStepsFile}
-          onDeleteSelected={handleDeleteSelected}
-        />
-      )}
-
-      {litTab === "attorneys" && <AttorneyScorecardView />}
-      {litTab === "referrals" && <ReferralAnalysisView />}
-      {litTab === "liquidity" && <LiquidityView />}
-
-      {/* Create File Modal */}
-      {showCreateForm && (
-        <LitigationFileModal
-          onSubmit={handleCreateFile}
-          onClose={() => setShowCreateForm(false)}
-          isLoading={createFile.isPending}
-        />
-      )}
-
-      {/* Edit File Modal */}
-      {editingFile && (
-        <LitigationFileModal
-          initialData={editingFile}
-          onSubmit={handleUpdateFile}
-          onClose={() => setEditingFile(null)}
-          isLoading={updateFile.isPending}
-        />
-      )}
+      <LitigationDataGrid
+        files={sortedFiles}
+        allFiles={displayFiles}
+        rollupsMap={rollupsMap}
+        isLoading={filesLoading}
+        sortField={sortField}
+        sortDir={sortDir}
+        onSort={handleSort}
+        onViewSteps={setStepsFile}
+      />
 
       {/* Steps Panel Modal */}
       {stepsFile && (
@@ -561,61 +408,38 @@ export default function SettlementTrackerPage() {
 }
 
 /* ================================================================
-   LITIGATION DATA GRID
+   LITIGATION DATA GRID — USER VIEW (no checkboxes, no bulk actions)
    ================================================================ */
 
 function LitigationDataGrid({
   files,
   allFiles,
-  selectedFiles,
   rollupsMap,
   isLoading,
-  isAdmin,
-  allSelected,
   sortField,
   sortDir,
   onSort,
-  onToggleSelectAll,
-  onToggleSelect,
-  onEdit,
   onViewSteps,
-  onDeleteSelected,
 }: {
   files: LitigationFile[];
   allFiles: LitigationFile[];
-  selectedFiles: string[];
   rollupsMap: Record<string, LitigationFileRollups>;
   isLoading: boolean;
-  isAdmin: boolean;
-  allSelected: boolean;
   sortField: string;
   sortDir: "asc" | "desc";
   onSort: (field: string) => void;
-  onToggleSelectAll: () => void;
-  onToggleSelect: (id: string) => void;
-  onEdit: (file: LitigationFile) => void;
   onViewSteps: (file: LitigationFile) => void;
-  onDeleteSelected: () => void;
 }) {
   const sortIndicator = (field: string) =>
     sortField === field ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : "";
 
   return (
     <div>
-      {/* Action bar */}
+      {/* Info bar */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {files.length} of {allFiles.length} files &middot; {selectedFiles.length} selected
+          {files.length} of {allFiles.length} files
         </span>
-        {isAdmin && selectedFiles.length > 0 && (
-          <button
-            onClick={onDeleteSelected}
-            className="text-xs px-3 py-1 rounded"
-            style={{ background: "#4a1a1a", color: "#ef4444", border: "1px solid #ef444444", cursor: "pointer" }}
-          >
-            Delete Selected ({selectedFiles.length})
-          </button>
-        )}
       </div>
 
       {/* Table */}
@@ -627,16 +451,6 @@ function LitigationDataGrid({
           <table className="w-full text-sm" style={{ minWidth: 1200 }}>
             <thead>
               <tr>
-                {isAdmin && (
-                  <th style={{ ...thStyle, width: 40, cursor: "default" }}>
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={onToggleSelectAll}
-                      className="accent-[var(--accent)]"
-                    />
-                  </th>
-                )}
                 <th style={{ ...thStyle, width: 50 }} onClick={() => onSort("state")}>
                   State{sortIndicator("state")}
                 </th>
@@ -677,48 +491,36 @@ function LitigationDataGrid({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 14 : 13} style={{ ...tdStyle, textAlign: "center", padding: 32 }}>
+                  <td colSpan={13} style={{ ...tdStyle, textAlign: "center", padding: 32 }}>
                     <span style={{ color: "var(--text-muted)" }}>Loading litigation files...</span>
                   </td>
                 </tr>
               ) : files.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 14 : 13} style={{ ...tdStyle, textAlign: "center", padding: 32 }}>
+                  <td colSpan={13} style={{ ...tdStyle, textAlign: "center", padding: 32 }}>
                     <span style={{ color: "var(--text-muted)" }}>No litigation files found.</span>
                   </td>
                 </tr>
               ) : (
                 files.map((file) => {
                   const days = calculateDaysSinceOnboarded(file.date_attorney_onboarded);
-                  const selected = selectedFiles.includes(file.id);
                   const rollups = rollupsMap[file.id];
 
                   return (
                     <tr
                       key={file.id}
-                      onClick={() => onEdit(file)}
+                      onClick={() => onViewSteps(file)}
                       style={{
                         cursor: "pointer",
                         borderBottom: "1px solid var(--border-color)",
-                        background: selected ? "var(--bg-hover)" : "transparent",
                       }}
                       onMouseEnter={(e) => {
-                        if (!selected) e.currentTarget.style.background = "var(--bg-hover)";
+                        e.currentTarget.style.background = "var(--bg-hover)";
                       }}
                       onMouseLeave={(e) => {
-                        if (!selected) e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.background = "transparent";
                       }}
                     >
-                      {isAdmin && (
-                        <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => onToggleSelect(file.id)}
-                            className="accent-[var(--accent)]"
-                          />
-                        </td>
-                      )}
                       <td style={tdStyle}>
                         <span
                           className="text-[11px] font-mono px-1.5 py-0.5 rounded"
@@ -756,10 +558,10 @@ function LitigationDataGrid({
                           {days}d
                         </span>
                       </td>
-                      <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                      <td style={tdStyle}>
                         <button
                           style={{ ...btnOutline, fontSize: 11, padding: "2px 8px" }}
-                          onClick={() => onViewSteps(file)}
+                          onClick={(e) => { e.stopPropagation(); onViewSteps(file); }}
                         >
                           {rollups?.stepCount ?? 0} updates
                         </button>
@@ -778,321 +580,7 @@ function LitigationDataGrid({
 }
 
 /* ================================================================
-   LITIGATION FILE FORM MODAL
-   ================================================================ */
-
-const SUPPORTED_STATES = [
-  { code: "FL", name: "Florida" },
-  { code: "TX", name: "Texas" },
-  { code: "GA", name: "Georgia" },
-  { code: "LA", name: "Louisiana" },
-  { code: "SC", name: "South Carolina" },
-];
-
-const PERILS = ["Hurricane", "Hail", "Wind", "Water", "Fire", "Flood", "Mold", "Tornado", "Theft", "Lightning", "Vandalism", "Liability", "Other"];
-
-function LitigationFileModal({
-  initialData,
-  onSubmit,
-  onClose,
-  isLoading,
-}: {
-  initialData?: LitigationFile;
-  onSubmit: (data: CreateLitigationFileInput) => void;
-  onClose: () => void;
-  isLoading: boolean;
-}) {
-  const { supabase, userInfo } = useSTSupabase();
-
-  const [form, setForm] = useState<CreateLitigationFileInput>({
-    file_number: initialData?.file_number || "",
-    client_name: initialData?.client_name || "",
-    date_attorney_onboarded: initialData?.date_attorney_onboarded || new Date().toISOString().split("T")[0],
-    attorney_firm: initialData?.attorney_firm || "",
-    attorney_contact: initialData?.attorney_contact || "",
-    referral_source: initialData?.referral_source || "",
-    status: initialData?.status || "Open",
-    phase: initialData?.phase || "Attorney Onboarding",
-    next_action: initialData?.next_action || "",
-    next_action_date: initialData?.next_action_date || "",
-    policy_number: initialData?.policy_number || "",
-    loss_address: initialData?.loss_address || "",
-    date_crn_filed: initialData?.date_crn_filed || "",
-    state: initialData?.state || "FL",
-    peril: initialData?.peril || "",
-    notes: initialData?.notes || "",
-  });
-
-  // TPN data for pickers
-  const [firms, setFirms] = useState<{ id: string; name: string }[]>([]);
-  const [attorneys, setAttorneys] = useState<{ id: string; name: string; firm_id: string | null; firm_name: string | null }[]>([]);
-  const [contractors, setContractors] = useState<{ id: string; name: string; firm_name: string | null }[]>([]);
-
-  // "Add New" states
-  const [showAddFirm, setShowAddFirm] = useState(false);
-  const [newFirmName, setNewFirmName] = useState("");
-  const [showAddAttorney, setShowAddAttorney] = useState(false);
-  const [newAttorneyName, setNewAttorneyName] = useState("");
-  const [showAddContractor, setShowAddContractor] = useState(false);
-  const [newContractorName, setNewContractorName] = useState("");
-  const [newContractorCompany, setNewContractorCompany] = useState("");
-
-  // Fetch TPN data (org-scoped)
-  useEffect(() => {
-    if (!userInfo) return;
-    // Firms
-    supabase.from("firms").select("id, name").eq("org_id", userInfo.orgId).eq("status", "active").order("name")
-      .then(({ data }) => { if (data) setFirms(data); });
-    // Attorneys (external_contacts with specialty = Attorney)
-    supabase.from("external_contacts").select("id, name, firm_id, company_name").eq("org_id", userInfo.orgId).eq("specialty", "Attorney").eq("status", "active").order("name")
-      .then(({ data }) => {
-        if (data) setAttorneys(data.map((c: any) => ({ id: c.id, name: c.name, firm_id: c.firm_id, firm_name: c.company_name })));
-      });
-    // Contractors / Referral Sources (all external contacts that aren't attorneys — or firms)
-    supabase.from("external_contacts").select("id, name, company_name")
-      .eq("org_id", userInfo.orgId).eq("status", "active")
-      .in("specialty", ["General Contractor", "Roofer", "Restoration", "Other", "HVAC", "Plumber", "Electrician", "Drywall"])
-      .order("name")
-      .then(({ data }) => {
-        if (data) setContractors(data.map((c: any) => ({ id: c.id, name: c.name, firm_name: c.company_name })));
-      });
-  }, [supabase, userInfo]);
-
-  // Filter attorneys by selected firm
-  const filteredAttorneys = useMemo(() => {
-    if (!form.attorney_firm) return attorneys;
-    const matchedFirm = firms.find((f) => f.name === form.attorney_firm);
-    if (!matchedFirm) return attorneys;
-    return attorneys.filter((a) => a.firm_id === matchedFirm.id);
-  }, [attorneys, firms, form.attorney_firm]);
-
-  const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
-
-  // Add New handlers
-  const handleAddFirm = async () => {
-    if (!newFirmName.trim() || !userInfo) return;
-    const { data, error } = await supabase.from("firms").insert({ name: newFirmName.trim(), org_id: userInfo.orgId, status: "active" }).select("id, name").single();
-    if (data) {
-      setFirms((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-      update("attorney_firm", data.name);
-    }
-    setNewFirmName("");
-    setShowAddFirm(false);
-  };
-
-  const handleAddAttorney = async () => {
-    if (!newAttorneyName.trim() || !userInfo) return;
-    const matchedFirm = firms.find((f) => f.name === form.attorney_firm);
-    const { data, error } = await supabase.from("external_contacts").insert({
-      name: newAttorneyName.trim(),
-      specialty: "Attorney",
-      org_id: userInfo.orgId,
-      firm_id: matchedFirm?.id || null,
-      company_name: form.attorney_firm || null,
-      status: "active",
-    }).select("id, name, firm_id, company_name").single();
-    if (data) {
-      setAttorneys((prev) => [...prev, { id: data.id, name: data.name, firm_id: data.firm_id, firm_name: data.company_name }].sort((a, b) => a.name.localeCompare(b.name)));
-      update("attorney_contact", data.name);
-    }
-    setNewAttorneyName("");
-    setShowAddAttorney(false);
-  };
-
-  const handleAddContractor = async () => {
-    if (!newContractorName.trim() || !userInfo) return;
-    const { data, error } = await supabase.from("external_contacts").insert({
-      name: newContractorName.trim(),
-      specialty: "General Contractor",
-      org_id: userInfo.orgId,
-      company_name: newContractorCompany.trim() || null,
-      status: "active",
-    }).select("id, name, company_name").single();
-    if (data) {
-      setContractors((prev) => [...prev, { id: data.id, name: data.name, firm_name: data.company_name }].sort((a, b) => a.name.localeCompare(b.name)));
-      update("referral_source", data.company_name || data.name);
-    }
-    setNewContractorName("");
-    setNewContractorCompany("");
-    setShowAddContractor(false);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.file_number.trim() || !form.client_name.trim()) return;
-    onSubmit(form);
-  };
-
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div
-        style={modalStyle}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-6 pb-3">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-            {initialData ? "Edit Litigation File" : "New Litigation File"}
-          </h2>
-          <button onClick={onClose} style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontSize: 18 }}>
-            &times;
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 pt-2">
-          {/* State */}
-          <div className="mb-4">
-            <label style={labelStyle}>State *</label>
-            <select
-              value={form.state}
-              onChange={(e) => update("state", e.target.value)}
-              style={{ ...selectStyle, width: 200 }}
-            >
-              {SUPPORTED_STATES.map((s) => (
-                <option key={s.code} value={s.code}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label style={labelStyle}>File Number *</label>
-              <input style={inputStyle} value={form.file_number} onChange={(e) => update("file_number", e.target.value)} required />
-            </div>
-            <div>
-              <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={form.client_name} onChange={(e) => update("client_name", e.target.value)} required />
-            </div>
-            <div>
-              <label style={labelStyle}>Attorney Onboarded Date *</label>
-              <input style={inputStyle} type="date" value={form.date_attorney_onboarded} onChange={(e) => update("date_attorney_onboarded", e.target.value)} required />
-            </div>
-
-            {/* Law Firm — TPN picker */}
-            <div>
-              <label style={labelStyle}>Law Firm *</label>
-              {showAddFirm ? (
-                <div className="flex gap-2">
-                  <input style={inputStyle} value={newFirmName} onChange={(e) => setNewFirmName(e.target.value)} placeholder="New firm name..." autoFocus />
-                  <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" }} onClick={handleAddFirm}>Add</button>
-                  <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setShowAddFirm(false)}>Cancel</button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <select style={selectStyle} value={form.attorney_firm} onChange={(e) => {
-                    if (e.target.value === "__ADD_NEW__") { setShowAddFirm(true); return; }
-                    update("attorney_firm", e.target.value);
-                    update("attorney_contact", ""); // reset attorney when firm changes
-                  }} required>
-                    <option value="">Select law firm...</option>
-                    {firms.filter((f) => f.name).map((f) => (
-                      <option key={f.id} value={f.name}>{f.name}</option>
-                    ))}
-                    <option value="__ADD_NEW__">+ Add New Firm</option>
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Contractor — TPN picker */}
-            <div>
-              <label style={labelStyle}>Contractor (Referral Source) *</label>
-              {showAddContractor ? (
-                <div className="space-y-2">
-                  <input style={inputStyle} value={newContractorCompany} onChange={(e) => setNewContractorCompany(e.target.value)} placeholder="Company name..." autoFocus />
-                  <input style={inputStyle} value={newContractorName} onChange={(e) => setNewContractorName(e.target.value)} placeholder="Contact name..." />
-                  <div className="flex gap-2">
-                    <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12 }} onClick={handleAddContractor}>Add</button>
-                    <button type="button" style={{ ...btnOutline, fontSize: 12 }} onClick={() => setShowAddContractor(false)}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <select style={selectStyle} value={form.referral_source} onChange={(e) => {
-                  if (e.target.value === "__ADD_NEW__") { setShowAddContractor(true); return; }
-                  update("referral_source", e.target.value);
-                }} required>
-                  <option value="">Select contractor...</option>
-                  {/* Show unique company names + individual names */}
-                  {[...new Set(contractors.map((c) => c.firm_name || c.name).filter(Boolean))].sort().map((name) => (
-                    <option key={name} value={name!}>{name}</option>
-                  ))}
-                  <option value="__ADD_NEW__">+ Add New Contractor</option>
-                </select>
-              )}
-            </div>
-
-            {/* Attorney — TPN picker (filtered by selected firm) */}
-            <div>
-              <label style={labelStyle}>Attorney</label>
-              {showAddAttorney ? (
-                <div className="flex gap-2">
-                  <input style={inputStyle} value={newAttorneyName} onChange={(e) => setNewAttorneyName(e.target.value)} placeholder="Attorney name..." autoFocus />
-                  <button type="button" style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12, whiteSpace: "nowrap" }} onClick={handleAddAttorney}>Add</button>
-                  <button type="button" style={{ ...btnOutline, fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setShowAddAttorney(false)}>Cancel</button>
-                </div>
-              ) : (
-                <select style={selectStyle} value={form.attorney_contact || ""} onChange={(e) => {
-                  if (e.target.value === "__ADD_NEW__") { setShowAddAttorney(true); return; }
-                  update("attorney_contact", e.target.value);
-                }}>
-                  <option value="">Select attorney...</option>
-                  {filteredAttorneys.map((a) => (
-                    <option key={a.id} value={a.name}>{a.name}</option>
-                  ))}
-                  <option value="__ADD_NEW__">+ Add New Attorney</option>
-                </select>
-              )}
-            </div>
-            <div>
-              <label style={labelStyle}>Next Action</label>
-              <input style={inputStyle} value={form.next_action || ""} onChange={(e) => update("next_action", e.target.value)} placeholder="e.g. Deposition of corporate rep" />
-            </div>
-            <div>
-              <label style={labelStyle}>Due Date</label>
-              <input style={inputStyle} type="date" value={form.next_action_date || ""} onChange={(e) => update("next_action_date", e.target.value)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Peril</label>
-              <select style={selectStyle} value={form.peril || ""} onChange={(e) => update("peril", e.target.value)}>
-                <option value="">Select peril...</option>
-                {PERILS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Policy Number</label>
-              <input style={inputStyle} value={form.policy_number || ""} onChange={(e) => update("policy_number", e.target.value)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Loss Address</label>
-              <input style={inputStyle} value={form.loss_address || ""} onChange={(e) => update("loss_address", e.target.value)} />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label style={labelStyle}>Notes</label>
-            <textarea
-              style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
-              value={form.notes || ""}
-              onChange={(e) => update("notes", e.target.value)}
-              placeholder="Short operational notes..."
-            />
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button type="submit" style={btnPrimary} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save"}
-            </button>
-            <button type="button" style={btnOutline} onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   STEPS PANEL MODAL (Legal Action Updates)
+   STEPS PANEL MODAL — USER VIEW (no bulk select/delete, keep add + quick-complete)
    ================================================================ */
 
 function StepsPanelModal({
@@ -1106,10 +594,7 @@ function StepsPanelModal({
   const { data: steps = [], isLoading } = useLegalActions(litigationFile.id);
   const createStep = useCreateLegalAction();
   const updateStep = useUpdateLegalAction();
-  const deleteSteps = useDeleteLegalActions();
-  const bulkUpdate = useBulkUpdateLegalActions();
 
-  const [selectedSteps, setSelectedSteps] = useState<string[]>([]);
   const [showStepForm, setShowStepForm] = useState(false);
   const [editingStep, setEditingStep] = useState<LegalAction | null>(null);
 
@@ -1127,22 +612,6 @@ function StepsPanelModal({
     if (!editingStep) return;
     await updateStep.mutateAsync({ id: editingStep.id, ...data });
     setEditingStep(null);
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedSteps.length === 0) return;
-    if (!confirm(`Delete ${selectedSteps.length} update(s)?`)) return;
-    await deleteSteps.mutateAsync(selectedSteps);
-    setSelectedSteps([]);
-  };
-
-  const handleBulkComplete = async () => {
-    if (selectedSteps.length === 0) return;
-    await bulkUpdate.mutateAsync({
-      ids: selectedSteps,
-      updates: { status: "Completed", completed_date: new Date().toISOString().split("T")[0] },
-    });
-    setSelectedSteps([]);
   };
 
   const handleQuickComplete = async (stepId: string) => {
@@ -1220,22 +689,7 @@ function StepsPanelModal({
         {/* Steps content */}
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           {/* Action bar */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex gap-2">
-              {selectedSteps.length > 0 && (
-                <>
-                  <button style={{ ...btnOutline, fontSize: 11 }} onClick={handleBulkComplete}>
-                    Complete ({selectedSteps.length})
-                  </button>
-                  <button
-                    style={{ ...btnOutline, fontSize: 11, borderColor: "#ef444444", color: "#ef4444" }}
-                    onClick={handleDeleteSelected}
-                  >
-                    Delete ({selectedSteps.length})
-                  </button>
-                </>
-              )}
-            </div>
+          <div className="flex items-center justify-end mb-3">
             <button style={btnPrimary} onClick={() => setShowStepForm(true)}>
               + Add Update
             </button>
@@ -1249,18 +703,6 @@ function StepsPanelModal({
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th style={{ ...thStyle, width: 40, cursor: "default" }}>
-                    <input
-                      type="checkbox"
-                      checked={steps.length > 0 && selectedSteps.length === steps.length}
-                      onChange={() =>
-                        setSelectedSteps(
-                          selectedSteps.length === steps.length ? [] : steps.map((s) => s.id)
-                        )
-                      }
-                      className="accent-[var(--accent)]"
-                    />
-                  </th>
                   <th style={thStyle}>Type</th>
                   <th style={thStyle}>Title</th>
                   <th style={thStyle}>Status</th>
@@ -1274,13 +716,13 @@ function StepsPanelModal({
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
+                    <td colSpan={8} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
                       <span style={{ color: "var(--text-muted)" }}>Loading updates...</span>
                     </td>
                   </tr>
                 ) : steps.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
+                    <td colSpan={8} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
                       <span style={{ color: "var(--text-muted)" }}>No updates yet.</span>
                     </td>
                   </tr>
@@ -1297,20 +739,6 @@ function StepsPanelModal({
                         }}
                         onClick={() => setEditingStep(step)}
                       >
-                        <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedSteps.includes(step.id)}
-                            onChange={() =>
-                              setSelectedSteps((prev) =>
-                                prev.includes(step.id)
-                                  ? prev.filter((x) => x !== step.id)
-                                  : [...prev, step.id]
-                              )
-                            }
-                            className="accent-[var(--accent)]"
-                          />
-                        </td>
                         <td style={tdStyle}>
                           <StatusBadge label={step.action_type} color="blue" />
                         </td>
@@ -1496,287 +924,6 @@ function StepFormModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   ATTORNEY SCORECARD VIEW
-   ================================================================ */
-
-function AttorneyScorecardView() {
-  const metrics = useAttorneyScorecard();
-  const [sortBy, setSortBy] = useState<string>("totalFiles");
-  const [sortDesc, setSortDesc] = useState(true);
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) setSortDesc(!sortDesc);
-    else { setSortBy(field); setSortDesc(true); }
-  };
-
-  const sorted = [...metrics].sort((a, b) => {
-    const aVal = (a as any)[sortBy] ?? 0;
-    const bVal = (b as any)[sortBy] ?? 0;
-    return sortDesc ? bVal - aVal : aVal - bVal;
-  });
-
-  if (metrics.length === 0) {
-    return (
-      <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)" }}>
-        <p style={{ color: "var(--text-secondary)" }}>No attorney data available yet.</p>
-      </div>
-    );
-  }
-
-  const avg = (arr: (number | null)[]) => {
-    const valid = arr.filter((v): v is number => v != null && !isNaN(v));
-    return valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
-  };
-
-  return (
-    <div>
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        {[
-          { label: "Total Attorneys", value: String(metrics.length) },
-          { label: "Active Files", value: String(metrics.reduce((a, m) => a + m.openFiles, 0)) },
-          { label: "Avg Days to CRN", value: String(Math.round(avg(metrics.map((m) => m.avgDaysToCRN))) || "—") },
-          { label: "Avg Settlement", value: formatCurrency(avg(metrics.map((m) => m.avgSettlementAmount))) },
-          { label: "Avg Fee Rate", value: formatPercentage(avg(metrics.map((m) => m.feeEfficiency))) },
-        ].map((card) => (
-          <div key={card.label} style={cardStyle}>
-            <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{card.label}</p>
-            <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{card.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th style={thStyle} onClick={() => handleSort("attorneyFirm")}>Attorney Firm</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("totalFiles")}>Total</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("openFiles")}>Open</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("settledFiles")}>Settled</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("avgDaysToCRN")}>Avg Days CRN</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("avgDaysToSettlement")}>Avg Days Settle</th>
-              <th style={{ ...thStyle, textAlign: "right" }} onClick={() => handleSort("avgSettlementAmount")}>Avg Settlement</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("feeEfficiency")}>Fee Rate</th>
-              <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("successRate")}>Success</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((m) => (
-              <tr key={m.attorneyFirm} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                <td style={{ ...tdStyle, fontWeight: 500 }}>{m.attorneyFirm}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{m.totalFiles}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{m.openFiles}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{m.settledFiles}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{m.avgDaysToCRN ?? "—"}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{m.avgDaysToSettlement ?? "—"}</td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>{formatCurrency(m.avgSettlementAmount)}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>{formatPercentage(m.feeEfficiency)}</td>
-                <td style={{ ...tdStyle, textAlign: "center" }}>
-                  <StatusBadge label={formatPercentage(m.successRate)} color={m.successRate > 0.7 ? "green" : "gray"} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   REFERRAL ANALYSIS VIEW
-   ================================================================ */
-
-function ReferralAnalysisView() {
-  const { data: files = [] } = useLitigationFiles();
-  const { data: settlements = [] } = useSettlements();
-
-  const [sortBy, setSortBy] = useState<string>("totalReferrals");
-  const [sortDesc, setSortDesc] = useState(true);
-
-  const metrics = useMemo(() => computeReferralMetrics(files, settlements), [files, settlements]);
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) setSortDesc(!sortDesc);
-    else { setSortBy(field); setSortDesc(true); }
-  };
-
-  const sorted = [...metrics].sort((a, b) => {
-    const aVal = (a as any)[sortBy] ?? 0;
-    const bVal = (b as any)[sortBy] ?? 0;
-    return sortDesc ? bVal - aVal : aVal - bVal;
-  });
-
-  if (metrics.length === 0) {
-    return (
-      <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)" }}>
-        <p style={{ color: "var(--text-secondary)" }}>No referral data available yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-    >
-      <table className="w-full text-sm">
-        <thead>
-          <tr>
-            <th style={thStyle} onClick={() => handleSort("referralSource")}>Referral Source</th>
-            <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("totalReferrals")}>Total</th>
-            <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("settledCount")}>Settled</th>
-            <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("successRate")}>Success Rate</th>
-            <th style={{ ...thStyle, textAlign: "center" }} onClick={() => handleSort("avgCycleTime")}>Avg Days</th>
-            <th style={{ ...thStyle, textAlign: "right" }} onClick={() => handleSort("avgSettlementAmount")}>Avg Settlement</th>
-            <th style={thStyle}>Top Firms</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((m) => (
-            <tr key={m.referralSource} style={{ borderBottom: "1px solid var(--border-color)" }}>
-              <td style={{ ...tdStyle, fontWeight: 500 }}>{m.referralSource}</td>
-              <td style={{ ...tdStyle, textAlign: "center" }}>{m.totalReferrals}</td>
-              <td style={{ ...tdStyle, textAlign: "center" }}>{m.settledCount}</td>
-              <td style={{ ...tdStyle, textAlign: "center" }}>
-                <StatusBadge label={formatPercentage(m.successRate)} color={m.successRate > 0.7 ? "green" : "gray"} />
-              </td>
-              <td style={{ ...tdStyle, textAlign: "center" }}>{m.avgCycleTime ?? "—"}</td>
-              <td style={{ ...tdStyle, textAlign: "right" }}>{formatCurrency(m.avgSettlementAmount)}</td>
-              <td style={tdStyle}>
-                {m.topAttorneys.slice(0, 2).map((a) => (
-                  <div key={a.firm} className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-                    {a.firm} ({a.count})
-                  </div>
-                ))}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ================================================================
-   LIQUIDITY VIEW
-   ================================================================ */
-
-function LiquidityView() {
-  const { data: settlements = [], isLoading } = useSettlements();
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!search) return settlements;
-    const q = search.toLowerCase();
-    return settlements.filter(
-      (s) =>
-        s.litigation_file?.file_number?.toLowerCase().includes(q) ||
-        s.litigation_file?.client_name?.toLowerCase().includes(q)
-    );
-  }, [settlements, search]);
-
-  const totals = useMemo(() => {
-    const total = filtered.reduce((a, s) => a + s.settlement_amount, 0);
-    const fees = filtered.reduce((a, s) => a + (s.attorney_fees || 0), 0);
-    const costs = filtered.reduce((a, s) => a + s.costs, 0);
-    const net = filtered.reduce((a, s) => a + s.net_to_client, 0);
-    return { total, fees, costs, net, count: filtered.length };
-  }, [filtered]);
-
-  return (
-    <div>
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>Total Settlements</p>
-          <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(totals.total)}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{totals.count} settlements</p>
-        </div>
-        <div style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>Attorney Fees</p>
-          <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(totals.fees)}</p>
-        </div>
-        <div style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>Total Costs</p>
-          <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(totals.costs)}</p>
-        </div>
-        <div style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>Net to Clients</p>
-          <p className="text-xl font-bold" style={{ color: "#4ade80" }}>{formatCurrency(totals.net)}</p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="mb-4">
-        <input
-          style={{ ...inputStyle, maxWidth: 320 }}
-          placeholder="Search by file # or client..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th style={thStyle}>File #</th>
-              <th style={thStyle}>Client</th>
-              <th style={thStyle}>Attorney Firm</th>
-              <th style={thStyle}>Contractor</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Settlement</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Fees</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Costs</th>
-              <th style={{ ...thStyle, textAlign: "right" }}>Net to Client</th>
-              <th style={thStyle}>Date Settled</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={9} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
-                  <span style={{ color: "var(--text-muted)" }}>Loading...</span>
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={9} style={{ ...tdStyle, textAlign: "center", padding: 24 }}>
-                  <span style={{ color: "var(--text-muted)" }}>No settlements found.</span>
-                </td>
-              </tr>
-            ) : (
-              filtered.map((s) => (
-                <tr key={s.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ ...tdStyle, fontWeight: 500 }}>{s.litigation_file?.file_number}</td>
-                  <td style={tdStyle}>{s.litigation_file?.client_name}</td>
-                  <td style={tdStyle}>{s.litigation_file?.attorney_firm}</td>
-                  <td style={tdStyle}>{s.litigation_file?.referral_source}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 600 }}>{formatCurrency(s.settlement_amount)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right" }}>{formatCurrency(s.attorney_fees)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right" }}>{formatCurrency(s.costs)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "#4ade80" }}>{formatCurrency(s.net_to_client)}</td>
-                  <td style={tdStyle}>{formatDate(s.date_settled)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
       </div>
     </div>
   );
