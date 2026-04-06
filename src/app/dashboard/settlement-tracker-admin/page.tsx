@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import MediationTrack from "@/components/settlement-tracker/MediationTrack";
+import AppraisalTrack from "@/components/settlement-tracker/AppraisalTrack";
 import { useLitigationFiles, useCreateLitigationFile, useUpdateLitigationFile, useDeleteLitigationFiles } from "@/hooks/settlement-tracker";
 import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useDeleteLegalActions, useBulkUpdateLegalActions, useBulkLitigationFileRollups, useLitigationFileRollups } from "@/hooks/settlement-tracker";
 import { useSettlements, useSettlementByFileId, useCreateSettlement, useUpdateSettlement, useDeleteSettlement } from "@/hooks/settlement-tracker";
@@ -424,6 +425,11 @@ export default function SettlementTrackerAdminPage() {
   // Mediation track
   if (track === "mediation") {
     return <MediationTrack onBack={() => setTrack("landing")} />;
+  }
+
+  // Appraisal track
+  if (track === "appraisal") {
+    return <AppraisalTrack onBack={() => setTrack("landing")} />;
   }
 
   // Placeholder for remaining tracks

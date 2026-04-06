@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import MediationTrack from "@/components/settlement-tracker/MediationTrack";
+import AppraisalTrack from "@/components/settlement-tracker/AppraisalTrack";
 import { useLitigationFiles } from "@/hooks/settlement-tracker";
 import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useBulkLitigationFileRollups } from "@/hooks/settlement-tracker";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
@@ -319,6 +320,11 @@ export default function SettlementTrackerPage() {
   // Mediation track
   if (track === "mediation") {
     return <MediationTrack onBack={() => setTrack("landing")} />;
+  }
+
+  // Appraisal track
+  if (track === "appraisal") {
+    return <AppraisalTrack onBack={() => setTrack("landing")} />;
   }
 
   // Placeholder for remaining tracks
