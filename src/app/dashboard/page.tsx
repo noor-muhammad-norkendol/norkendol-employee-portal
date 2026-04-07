@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -142,10 +157,98 @@ function AppIcon({ name, iconUrl }: { name: string; iconUrl: string | null }) {
   );
 }
 
+/* ── drag handle ──────────────────────────────────────── */
+
+function DragHandle({ listeners, attributes }: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) {
+  return (
+    <button
+      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-white/10 transition-colors"
+      style={{ color: "var(--text-muted)" }}
+      {...attributes}
+      {...listeners}
+      title="Drag to reorder"
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <circle cx="5" cy="3" r="1.5" />
+        <circle cx="11" cy="3" r="1.5" />
+        <circle cx="5" cy="8" r="1.5" />
+        <circle cx="11" cy="8" r="1.5" />
+        <circle cx="5" cy="13" r="1.5" />
+        <circle cx="11" cy="13" r="1.5" />
+      </svg>
+    </button>
+  );
+}
+
+/* ── sortable panel wrapper ───────────────────────────── */
+
+function SortablePanel({ id, children }: { id: string; children: (props: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) => React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative" as const,
+    zIndex: isDragging ? 50 : "auto" as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ listeners, attributes })}
+    </div>
+  );
+}
+
+/* ── panel order persistence ──────────────────────────── */
+
+const DEFAULT_ORDER = [
+  "company-updates",
+  "quick-access",
+  "bottom-row",
+];
+
+const STORAGE_KEY = "dashboard-panel-order";
+
+function loadPanelOrder(userId: string): string[] {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY}-${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as string[];
+      // Validate — must contain exactly the same panels
+      if (
+        parsed.length === DEFAULT_ORDER.length &&
+        DEFAULT_ORDER.every((p) => parsed.includes(p))
+      ) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_ORDER;
+}
+
+function savePanelOrder(userId: string, order: string[]) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY}-${userId}`, JSON.stringify(order));
+  } catch {
+    // ignore
+  }
+}
+
 /* ── main dashboard ────────────────────────────────────── */
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
   const [updates, setUpdates] = useState<CompanyUpdate[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
@@ -154,14 +257,22 @@ export default function DashboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardMetric, setLeaderboardMetric] = useState("Leaderboard");
   const [expandedUpdate, setExpandedUpdate] = useState<string | null>(null);
+  const [panelOrder, setPanelOrder] = useState<string[]>(DEFAULT_ORDER);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   useEffect(() => {
     // Get user name
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
+        const uid = user.id;
+        setUserId(uid);
         setUserName(
           user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? ""
         );
+        setPanelOrder(loadPanelOrder(uid));
       }
     });
 
@@ -220,29 +331,33 @@ export default function DashboardPage() {
       });
   }, []);
 
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      setPanelOrder((prev) => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        const next = arrayMove(prev, oldIndex, newIndex);
+        if (userId) savePanelOrder(userId, next);
+        return next;
+      });
+    },
+    [userId]
+  );
+
   const firstName = userName.split(" ")[0] || "there";
 
-  return (
-    <div className="space-y-6">
-      {/* ── Welcome Header ─────────────────────────────── */}
-      <div
-        className="rounded-xl p-6"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-      >
-        <h1 className="text-2xl font-semibold">Welcome back, {firstName}</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
-      </div>
+  /* ── panel content map ──────────────────────────────── */
 
-      {/* ── Company Updates ────────────────────────────── */}
+  const panels: Record<string, (dragProps: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) => React.ReactNode> = {
+    "company-updates": ({ listeners, attributes }) => (
       <section>
-        <h2 className="text-lg font-semibold mb-3">Company Updates</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <DragHandle listeners={listeners} attributes={attributes} />
+          <h2 className="text-lg font-semibold">Company Updates</h2>
+        </div>
         {updates.length === 0 ? (
           <div
             className="rounded-xl p-8 text-center"
@@ -298,11 +413,15 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+    ),
 
-      {/* ── Quick Access ───────────────────────────────── */}
+    "quick-access": ({ listeners, attributes }) => (
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Quick Access</h2>
+          <div className="flex items-center gap-2">
+            <DragHandle listeners={listeners} attributes={attributes} />
+            <h2 className="text-lg font-semibold">Quick Access</h2>
+          </div>
           <a
             href="/dashboard/applications"
             className="text-sm transition-colors hover:underline"
@@ -349,15 +468,19 @@ export default function DashboardPage() {
           )}
         </div>
       </section>
+    ),
 
-      {/* ── Bottom 3 Columns ───────────────────────────── */}
+    "bottom-row": ({ listeners, attributes }) => (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* My Action Items */}
         <div
           className="rounded-xl p-5 flex flex-col"
           style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
         >
-          <h2 className="text-lg font-semibold mb-4">My Action Items</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <DragHandle listeners={listeners} attributes={attributes} />
+            <h2 className="text-lg font-semibold">My Action Items</h2>
+          </div>
           {actionItems.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-8 gap-2">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
@@ -522,6 +645,43 @@ export default function DashboardPage() {
           </a>
         </div>
       </div>
+    ),
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* ── Welcome Header (fixed, not draggable) ──────── */}
+      <div
+        className="rounded-xl p-6"
+        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+      >
+        <h1 className="text-2xl font-semibold">Welcome back, {firstName}</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+      </div>
+
+      {/* ── Draggable Panels ───────────────────────────── */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={panelOrder} strategy={verticalListSortingStrategy}>
+          <div className="space-y-6">
+            {panelOrder.map((panelId) => (
+              <SortablePanel key={panelId} id={panelId}>
+                {(dragProps) => panels[panelId](dragProps)}
+              </SortablePanel>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
