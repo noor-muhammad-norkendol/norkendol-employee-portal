@@ -382,6 +382,34 @@ When adding a new section or feature:
 
 ---
 
+## Architecture: Employee ID Format
+
+Employee IDs follow the same convention as file numbers. Auto-generated when a user profile is saved without one (requires location with a state code).
+
+### Format: `{STATE}-{SEQUENCE}-{YEAR}`
+
+- `{STATE}` = 2-letter state code of the employee's home state (extracted from `location` field, e.g., "Tampa, FL" → FL)
+- `{SEQUENCE}` = next available number across the org (does NOT reset per year — one continuous sequence)
+- `{YEAR}` = 2-digit year the employee was onboarded
+
+Examples: `FL-001-18` (Frank Dalton, founder), `FL-266-21` (Bill Prendergast), `CA-310-26` (Alana Love)
+
+### Auto-Generation Logic
+
+- Located in: `src/app/dashboard/user-management/page.tsx` → `generateEmployeeId()`
+- Triggers on profile save when `employee_id` is blank and `location` contains a 2-letter state code
+- Queries all existing employee IDs, finds the highest number, assigns next
+- Field shows "Auto-generated if blank" placeholder
+- Admins can still manually enter/override an employee ID
+
+### Special Cases
+
+- `ADMIN001` (Talha Masood), `ADMIN002` (Noor Muhammad) — dev/admin accounts, exempt from format
+- External partners (`ep_user` role) — typically don't get employee IDs
+- Pending users from `/apply` — get employee ID assigned when admin edits their profile
+
+---
+
 ## Key Rules
 
 - **BINGO** required before writing any code

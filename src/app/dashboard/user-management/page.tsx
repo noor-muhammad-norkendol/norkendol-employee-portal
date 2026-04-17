@@ -353,11 +353,47 @@ function UserManagementInner() {
     setNewBond({ bond_type: "", state: "", bond_number: "", issuer: "", amount: "", expiry_date: "" });
   };
 
+  /* ── auto-generate employee ID ────────────────────── */
+
+  const generateEmployeeId = async (location: string | null): Promise<string | null> => {
+    // Extract 2-letter state code from location (e.g., "Tampa, FL" → "FL")
+    const stateMatch = location?.match(/\b([A-Z]{2})\b/);
+    if (!stateMatch) return null;
+    const stateCode = stateMatch[1];
+
+    // Find highest employee number in the system (format: XX-NNN-YY)
+    const { data } = await supabase
+      .from("users")
+      .select("employee_id")
+      .not("employee_id", "is", null);
+
+    let maxNum = 0;
+    for (const row of data || []) {
+      const m = (row.employee_id as string).match(/^[A-Z]{2}-(\d+)-\d{2}$/);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    }
+
+    const nextNum = maxNum + 1;
+    const year = new Date().getFullYear().toString().slice(-2);
+    return `${stateCode}-${nextNum}-${year}`;
+  };
+
   /* ── save profile ───────────────────────────────────── */
 
   const saveProfile = async () => {
     if (!editUser) return;
     setSaving(true);
+
+    // Auto-generate employee ID if empty and location has a state
+    let empId = editUser.employee_id;
+    if (!empId || empId.trim() === "") {
+      const generated = await generateEmployeeId(editUser.location);
+      if (generated) {
+        empId = generated;
+        setEditUser({ ...editUser, employee_id: generated });
+      }
+    }
+
     await supabase
       .from("users")
       .update({
@@ -370,7 +406,7 @@ function UserManagementInner() {
         position: editUser.position,
         location: editUser.location,
         department: editUser.department,
-        employee_id: editUser.employee_id,
+        employee_id: empId,
         hire_date: editUser.hire_date || null,
         bio: editUser.bio,
         time_zone: editUser.time_zone,
@@ -910,7 +946,7 @@ function UserManagementInner() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Location" value={editUser.location ?? ""} onChange={(v) => setEditUser({ ...editUser, location: v })} placeholder="e.g. Tampa, FL" />
-                    <Field label="Employee ID" value={editUser.employee_id ?? ""} onChange={(v) => setEditUser({ ...editUser, employee_id: v })} />
+                    <Field label="Employee ID" value={editUser.employee_id ?? ""} onChange={(v) => setEditUser({ ...editUser, employee_id: v })} placeholder="Auto-generated if blank" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Hire Date" value={editUser.hire_date ?? ""} onChange={(v) => setEditUser({ ...editUser, hire_date: v })} type="date" />
