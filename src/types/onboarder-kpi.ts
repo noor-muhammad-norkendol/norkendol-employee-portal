@@ -44,6 +44,24 @@ export const CONTRACT_STATUS_OPTIONS: ContractStatus[] = [
   'not_sent', 'sent', 'signed', 'viewed', 'bounced', 'failed',
 ];
 
+export const ASSIGNMENT_TYPE_OPTIONS = [
+  'Standard', 'Public Adjusting', 'Reinspection', 'Supplement', 'Cat', 'Other',
+];
+
+export const STATUS_CLAIM_OPTIONS = [
+  'New', 'Active', 'Supplement', 'Pending', 'Denied',
+  'Loss Below Deductible', 'Closed', 'Other',
+];
+
+export const REFERRAL_SOURCE_OPTIONS = [
+  'Contractor', 'Other',
+];
+
+export const CAUSE_OF_LOSS_OPTIONS: Peril[] = [
+  'Water', 'Fire', 'Hurricane', 'Hail', 'Wind',
+  'Wind/Hail', 'Flood', 'Lightning', 'Theft', 'Vandalism', 'Other',
+];
+
 export const ACTIVITY_TYPE_OPTIONS: ActivityType[] = [
   'call', 'text', 'email', 'note', 'document', 'status_change',
 ];
@@ -88,17 +106,38 @@ export interface OnboardingClient {
   file_number?: string | null;
   loss_address?: string | null;
   client_name: string;
+  client_first_name?: string | null;
+  client_last_name?: string | null;
+  additional_policyholder_first?: string | null;
+  additional_policyholder_last?: string | null;
+  additional_policyholder_email?: string | null;
+  additional_policyholder_phone?: string | null;
   referral_source?: string | null;
   state?: string | null;
   peril?: Peril | null;
   onboard_type?: OnboardType | null;
   email?: string | null;
   phone?: string | null;
+  loss_street?: string | null;
+  loss_line2?: string | null;
+  loss_city?: string | null;
+  loss_state?: string | null;
+  loss_zip?: string | null;
+  loss_description?: string | null;
+  contractor_company?: string | null;
+  contractor_name?: string | null;
+  contractor_email?: string | null;
+  contractor_phone?: string | null;
+  source_email?: string | null;
   assigned_user_id?: string | null;
   assigned_user_name?: string | null;
   assigned_pa_name?: string | null;
   assignment_type?: string | null;
   date_of_loss?: string | null;
+  insurance_company?: string | null;
+  policy_number?: string | null;
+  status_claim?: string | null;
+  supplement_notes?: string | null;
   status: OnboardingStatus;
   status_entered_at: string;
   first_attempt_at?: string | null;
@@ -120,17 +159,38 @@ export interface CreateClientInput {
   file_number?: string | null;
   loss_address?: string | null;
   client_name: string;
+  client_first_name?: string | null;
+  client_last_name?: string | null;
+  additional_policyholder_first?: string | null;
+  additional_policyholder_last?: string | null;
+  additional_policyholder_email?: string | null;
+  additional_policyholder_phone?: string | null;
   referral_source?: string | null;
   state?: string | null;
   peril?: Peril | null;
   onboard_type?: OnboardType | null;
   email?: string | null;
   phone?: string | null;
+  loss_street?: string | null;
+  loss_line2?: string | null;
+  loss_city?: string | null;
+  loss_state?: string | null;
+  loss_zip?: string | null;
+  loss_description?: string | null;
+  contractor_company?: string | null;
+  contractor_name?: string | null;
+  contractor_email?: string | null;
+  contractor_phone?: string | null;
+  source_email?: string | null;
   assigned_user_id?: string | null;
   assigned_user_name?: string | null;
   assigned_pa_name?: string | null;
   assignment_type?: string | null;
   date_of_loss?: string | null;
+  insurance_company?: string | null;
+  policy_number?: string | null;
+  status_claim?: string | null;
+  supplement_notes?: string | null;
   initial_hours?: number;
   notes?: string | null;
 }

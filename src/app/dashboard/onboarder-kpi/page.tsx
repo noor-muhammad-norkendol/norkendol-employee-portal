@@ -17,6 +17,8 @@ import {
 import { useOKSupabase } from "@/hooks/onboarder-kpi/useSupabase";
 import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
 import ClaimMatchBanner from "@/components/ClaimMatchBanner";
+import AddFirmModal from "@/components/tpn/AddFirmModal";
+import AddExternalUserModal from "@/components/tpn/AddExternalUserModal";
 import {
   OnboardingClient,
   CreateClientInput,
@@ -27,6 +29,9 @@ import {
   CONTRACT_STATUS_OPTIONS,
   ALLOWED_TRANSITIONS,
   STAGE_TARGET_HOURS,
+  ASSIGNMENT_TYPE_OPTIONS,
+  STATUS_CLAIM_OPTIONS,
+  REFERRAL_SOURCE_OPTIONS,
 } from "@/types/onboarder-kpi";
 
 /* ───── style constants (portal pattern) ───── */
@@ -100,17 +105,38 @@ const EMPTY_FORM: CreateClientInput = {
   file_number: null,
   loss_address: null,
   client_name: "",
+  client_first_name: null,
+  client_last_name: null,
+  additional_policyholder_first: null,
+  additional_policyholder_last: null,
+  additional_policyholder_email: null,
+  additional_policyholder_phone: null,
   referral_source: null,
   state: null,
   peril: null,
   onboard_type: null,
   email: null,
   phone: null,
+  loss_street: null,
+  loss_line2: null,
+  loss_city: null,
+  loss_state: null,
+  loss_zip: null,
+  loss_description: null,
+  contractor_company: null,
+  contractor_name: null,
+  contractor_email: null,
+  contractor_phone: null,
+  source_email: null,
   assigned_user_id: null,
   assigned_user_name: null,
   assigned_pa_name: null,
   assignment_type: null,
   date_of_loss: null,
+  insurance_company: null,
+  policy_number: null,
+  status_claim: null,
+  supplement_notes: null,
   initial_hours: 0,
   notes: null,
 };
@@ -134,6 +160,187 @@ export default function OnboarderKPIPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+
+  // Auto-generate file number when state is set (new clients only)
+  const fileNumGenRef = useRef<string | null>(null); // tracks which state we already generated for
+  useEffect(() => {
+    const stateCode = (form.state || form.loss_state || "").toUpperCase().trim();
+    if (!stateCode || stateCode.length !== 2 || editId || !supabase || !userInfo) return;
+    if (form.file_number && fileNumGenRef.current === stateCode) return; // already generated for this state
+    let cancelled = false;
+    (async () => {
+      try {
+        const year = new Date().getFullYear();
+        const prefix = `${stateCode}-`;
+        const suffix = `-${year}`;
+        const { data } = await supabase
+          .from("onboarding_clients")
+          .select("file_number")
+          .eq("org_id", userInfo.orgId)
+          .like("file_number", `${prefix}%${suffix}`)
+          .order("file_number", { ascending: false })
+          .limit(1);
+        if (cancelled) return;
+        let nextSeq = 1;
+        if (data && data.length > 0 && data[0].file_number) {
+          const match = data[0].file_number.match(/-(\d+)-/);
+          if (match) nextSeq = parseInt(match[1], 10) + 1;
+        }
+        const fileNum = `${prefix}${String(nextSeq).padStart(5, "0")}${suffix}`;
+        fileNumGenRef.current = stateCode;
+        setForm((prev) => ({ ...prev, file_number: fileNum }));
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.state, form.loss_state, editId, supabase, userInfo?.orgId]);
+
+  // AI Assist state
+  const [showAIAssist, setShowAIAssist] = useState(false);
+  const [aiEmailText, setAiEmailText] = useState("");
+  const [aiParsing, setAiParsing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Contractor → TPN flow (uses shared Add Firm + Add External User modals)
+  interface ContractorData { name: string; company: string; email: string; phone: string; state: string }
+  const [pendingContractor, setPendingContractor] = useState<ContractorData | null>(null);
+  const [showAddFirmModal, setShowAddFirmModal] = useState(false);
+  const [showAddExternalModal, setShowAddExternalModal] = useState(false);
+  const [newFirmId, setNewFirmId] = useState<string | null>(null);
+  const [newFirmName, setNewFirmName] = useState<string | null>(null);
+  const [tpnMessage, setTpnMessage] = useState<string | null>(null);
+
+  function stripPhone(p: string): string {
+    return (p || "").replace(/\D/g, "");
+  }
+
+  async function checkContractorInTPN(contractorData: ContractorData) {
+    if (!supabase || !userInfo) return;
+    const { company, email, phone } = contractorData;
+    if (!phone && !email && !company) return;
+
+    // 1. Search by phone (most reliable key)
+    if (phone) {
+      const digits = stripPhone(phone);
+      const { data: allContacts } = await supabase
+        .from("external_contacts")
+        .select("id, name, company_name, email, phone")
+        .eq("org_id", userInfo.orgId);
+      if (allContacts) {
+        const phoneMatch = allContacts.find((c) => stripPhone(c.phone || "") === digits);
+        if (phoneMatch) {
+          // Person exists — check if missing info to update
+          const missingEmail = !phoneMatch.email && email;
+          const missingPhone = !phoneMatch.phone && phone;
+          if (missingEmail || missingPhone) {
+            const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+            if (missingEmail) updates.email = email;
+            if (missingPhone) updates.phone = phone;
+            await supabase.from("external_contacts").update(updates).eq("id", phoneMatch.id);
+            setTpnMessage(`Updated ${phoneMatch.name}'s contact info in the partner network.`);
+            setTimeout(() => setTpnMessage(null), 5000);
+          }
+          return; // person found, done
+        }
+      }
+    }
+
+    // 2. Search by email
+    if (email) {
+      const { data: emailMatches } = await supabase
+        .from("external_contacts")
+        .select("id, name")
+        .eq("org_id", userInfo.orgId)
+        .ilike("email", email);
+      if (emailMatches && emailMatches.length > 0) return; // person found
+    }
+
+    // 3. No person found — check if firm/company exists
+    setPendingContractor(contractorData);
+    if (company) {
+      const { data: firmMatches } = await supabase
+        .from("firms")
+        .select("id, name")
+        .eq("org_id", userInfo.orgId)
+        .ilike("name", company)
+        .limit(1);
+      if (firmMatches && firmMatches.length > 0) {
+        // Firm exists, just need to add the person
+        setNewFirmId(firmMatches[0].id);
+        setNewFirmName(firmMatches[0].name);
+        setShowAddExternalModal(true);
+        return;
+      }
+    }
+
+    // 4. Nothing found — start with Add Firm, then Add External User
+    setShowAddFirmModal(true);
+  }
+
+  async function handleAIParse() {
+    if (!aiEmailText.trim() || !supabase) return;
+    setAiParsing(true);
+    setAiError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/onboarder/parse-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ emailText: aiEmailText.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setAiError(json.error || "Failed to parse email");
+        return;
+      }
+      const f = json.fields;
+      setForm((prev) => ({
+        ...prev,
+        client_first_name: f.client_first_name || prev.client_first_name,
+        client_last_name: f.client_last_name || prev.client_last_name,
+        client_name: [f.client_first_name, f.client_last_name].filter(Boolean).join(" ") || prev.client_name,
+        additional_policyholder_first: f.additional_policyholder_first || prev.additional_policyholder_first,
+        additional_policyholder_last: f.additional_policyholder_last || prev.additional_policyholder_last,
+        email: f.email || prev.email,
+        additional_policyholder_email: f.additional_policyholder_email || prev.additional_policyholder_email,
+        phone: f.phone || prev.phone,
+        additional_policyholder_phone: f.additional_policyholder_phone || prev.additional_policyholder_phone,
+        state: f.state || prev.state,
+        date_of_loss: f.date_of_loss || prev.date_of_loss,
+        loss_street: f.loss_street || prev.loss_street,
+        loss_line2: f.loss_line2 || prev.loss_line2,
+        loss_city: f.loss_city || prev.loss_city,
+        loss_state: f.loss_state || prev.loss_state,
+        loss_zip: f.loss_zip || prev.loss_zip,
+        loss_description: f.loss_description || prev.loss_description,
+        peril: f.peril || prev.peril,
+        claim_number: f.claim_number || prev.claim_number,
+        insurance_company: f.insurance_company || prev.insurance_company,
+        policy_number: f.policy_number || prev.policy_number,
+        status_claim: f.status_claim || prev.status_claim,
+        onboard_type: f.onboard_type || prev.onboard_type,
+        referral_source: f.referral_source || prev.referral_source,
+        source_email: f.source_email || prev.source_email,
+        contractor_company: f.contractor_company || prev.contractor_company,
+        contractor_name: f.contractor_name || prev.contractor_name,
+        contractor_email: f.contractor_email || prev.contractor_email,
+        contractor_phone: f.contractor_phone || prev.contractor_phone,
+        assigned_pa_name: f.assigned_pa_name || prev.assigned_pa_name,
+        assignment_type: f.assignment_type || prev.assignment_type,
+        supplement_notes: f.supplement_notes || prev.supplement_notes,
+        notes: f.notes || prev.notes,
+      }));
+      setShowAIAssist(false);
+      setAiEmailText("");
+    } catch {
+      setAiError("Network error — could not reach AI service");
+    } finally {
+      setAiParsing(false);
+    }
+  }
 
   // Shared claim lookup — search by whichever field has the most input
   const [lookupField, setLookupField] = useState<LookupField>('client_name');
@@ -175,8 +382,9 @@ export default function OnboarderKPIPage() {
       } else if (item === "Add Client") {
         setView("add");
         setEditId(null);
-        setForm({ ...EMPTY_FORM });
+        setForm({ ...EMPTY_FORM, assigned_user_name: userInfo?.fullName || null });
         setFormError(null);
+        fileNumGenRef.current = null;
       } else if (item === "Performance") {
         setView("performance");
       }
@@ -216,22 +424,78 @@ export default function OnboarderKPIPage() {
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  async function generateFileNumber(stateCode: string): Promise<string> {
+    const st = (stateCode || "XX").toUpperCase().slice(0, 2);
+    const year = new Date().getFullYear();
+    const prefix = `${st}-`;
+    const suffix = `-${year}`;
+    // Find the highest existing file number for this state+year
+    const { data } = await supabase
+      .from("onboarding_clients")
+      .select("file_number")
+      .eq("org_id", userInfo?.orgId || "")
+      .like("file_number", `${prefix}%${suffix}`)
+      .order("file_number", { ascending: false })
+      .limit(1);
+    let nextSeq = 1;
+    if (data && data.length > 0 && data[0].file_number) {
+      const match = data[0].file_number.match(/-(\d+)-/);
+      if (match) nextSeq = parseInt(match[1], 10) + 1;
+    }
+    return `${prefix}${String(nextSeq).padStart(5, "0")}${suffix}`;
+  }
+
   async function handleSubmit() {
     setFormError(null);
-    if (!form.client_name) {
-      setFormError("Client Name is required.");
+    // Auto-compute client_name from first/last
+    const computedName = [form.client_first_name, form.client_last_name].filter(Boolean).join(" ").trim();
+    if (!computedName) {
+      setFormError("Policyholder Name is required.");
       return;
     }
+    // Auto-compute loss_address from components
+    const computedAddress = [form.loss_street, form.loss_line2, form.loss_city, form.loss_state, form.loss_zip].filter(Boolean).join(", ").trim();
+    // Auto-generate file number for new clients
+    let fileNumber = form.file_number;
+    if (!editId && !fileNumber) {
+      try {
+        fileNumber = await generateFileNumber(form.state || form.loss_state || "XX");
+      } catch {
+        setFormError("Could not generate file number. Please try again.");
+        return;
+      }
+    }
+    const submitForm = {
+      ...form,
+      client_name: computedName,
+      loss_address: computedAddress || form.loss_address,
+      file_number: fileNumber,
+    };
+    // Capture contractor data before form clears
+    const contractorData: ContractorData = {
+      name: form.contractor_name || "",
+      company: form.contractor_company || "",
+      email: form.contractor_email || "",
+      phone: form.contractor_phone || "",
+      state: form.state || form.loss_state || "",
+    };
+    const isNewClient = !editId;
+    const hasContractorInfo = !!(contractorData.phone || contractorData.email || contractorData.company);
+
     try {
       if (editId) {
-        await updateMut.mutateAsync({ id: editId, ...form });
+        await updateMut.mutateAsync({ id: editId, ...submitForm });
         setEditId(null);
       } else {
-        await createMut.mutateAsync(form);
+        await createMut.mutateAsync(submitForm);
       }
       setForm({ ...EMPTY_FORM });
       setView("pipeline");
       setStatusFilter("new");
+      // After successful save, check if contractor should be added to TPN
+      if (isNewClient && hasContractorInfo) {
+        checkContractorInTPN(contractorData);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Save failed.";
       setFormError(msg);
@@ -461,9 +725,17 @@ export default function OnboarderKPIPage() {
       {view === "add" && (
         <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-              {editId ? "Edit Client" : "New Client"}
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+                {editId ? "Edit Client" : "New Client"}
+              </h2>
+              <button
+                style={{ ...btnOutline, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent)", borderColor: "var(--accent)" }}
+                onClick={() => setShowAIAssist(true)}
+              >
+                <span style={{ fontSize: 16 }}>&#x1F916;</span> AI Assist
+              </button>
+            </div>
             {userInfo && (
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
                 {userInfo.fullName}
@@ -471,56 +743,214 @@ export default function OnboarderKPIPage() {
             )}
           </div>
 
-          {/* Section: Claim / File Info */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim / File Info</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
+          {/* AI Assist Modal */}
+          {showAIAssist && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={(e) => { if (e.target === e.currentTarget) setShowAIAssist(false); }}>
+              <div style={{ background: "var(--bg-surface)", borderRadius: 12, padding: 24, width: "100%", maxWidth: 600, border: "1px solid var(--border-color)", maxHeight: "80vh", overflow: "auto" }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>AI Assist — Paste Onboarding Email</h3>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
+                  Paste the onboarding form submission email below and click Extract. The AI will pull out all the client data and fill the form.
+                </p>
+                <textarea
+                  style={{ ...inputStyle, minHeight: 220, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
+                  value={aiEmailText}
+                  onChange={(e) => setAiEmailText(e.target.value)}
+                  placeholder="Paste the full onboarding email here..."
+                  autoFocus
+                />
+                {aiError && (
+                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "8px 12px", marginTop: 8, color: "#ef4444", fontSize: 12 }}>
+                    {aiError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+                  <button style={btnOutline} onClick={() => { setShowAIAssist(false); setAiEmailText(""); setAiError(null); }}>Cancel</button>
+                  <button
+                    style={{ ...btnPrimary, opacity: !aiEmailText.trim() || aiParsing ? 0.5 : 1 }}
+                    onClick={handleAIParse}
+                    disabled={!aiEmailText.trim() || aiParsing}
+                  >
+                    {aiParsing ? "Extracting..." : "Extract & Fill Form"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Section: Policyholder ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Policyholder</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
             <div>
-              <label style={labelStyle}>Claim Number</label>
-              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => { set("claim_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('claim_number'); }} placeholder="Claim #" />
+              <label style={labelStyle}>Policyholder Name * — First</label>
+              <input style={inputStyle} value={form.client_first_name || ""} onChange={(e) => { set("client_first_name", e.target.value || null); const full = [e.target.value, form.client_last_name].filter(Boolean).join(" "); set("client_name", full); if (full.length >= 3 && !form.claim_number && !form.file_number) setLookupField('client_name'); }} placeholder="First" />
             </div>
             <div>
-              <label style={labelStyle}>File Number</label>
-              <input style={inputStyle} value={form.file_number || ""} onChange={(e) => { set("file_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('file_number'); }} placeholder="File #" />
+              <label style={labelStyle}>Last</label>
+              <input style={inputStyle} value={form.client_last_name || ""} onChange={(e) => { set("client_last_name", e.target.value || null); const full = [form.client_first_name, e.target.value].filter(Boolean).join(" "); set("client_name", full); }} placeholder="Last" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>Additional Policyholder Name — First</label>
+              <input style={inputStyle} value={form.additional_policyholder_first || ""} onChange={(e) => set("additional_policyholder_first", e.target.value || null)} placeholder="First" />
             </div>
             <div>
-              <label style={labelStyle}>Loss Address</label>
-              <input style={inputStyle} value={form.loss_address || ""} onChange={(e) => { set("loss_address", e.target.value || null); if (e.target.value.length >= 3) setLookupField('address'); }} placeholder="123 Main St" />
+              <label style={labelStyle}>Last</label>
+              <input style={inputStyle} value={form.additional_policyholder_last || ""} onChange={(e) => set("additional_policyholder_last", e.target.value || null)} placeholder="Last" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>Policyholder Email *</label>
+              <input style={inputStyle} value={form.email || ""} onChange={(e) => set("email", e.target.value || null)} placeholder="Enter email" />
+            </div>
+            <div>
+              <label style={labelStyle}>Additional Policyholder Email</label>
+              <input style={inputStyle} value={form.additional_policyholder_email || ""} onChange={(e) => set("additional_policyholder_email", e.target.value || null)} placeholder="Enter email" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div>
+              <label style={labelStyle}>Policyholder Phone *</label>
+              <input style={inputStyle} value={form.phone || ""} onChange={(e) => set("phone", e.target.value || null)} placeholder="Enter phone" />
+            </div>
+            <div>
+              <label style={labelStyle}>Additional Policyholder Phone</label>
+              <input style={inputStyle} value={form.additional_policyholder_phone || ""} onChange={(e) => set("additional_policyholder_phone", e.target.value || null)} placeholder="Enter phone" />
             </div>
           </div>
 
-          {/* Claim lookup banner */}
-          <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleClaimAccept} onDismiss={clearLookup} />
-
-          {/* Section: Client Info */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Client Info</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+          {/* ─── Section: Loss Info ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Loss Info</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
             <div>
-              <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={form.client_name} onChange={(e) => { set("client_name", e.target.value); if (e.target.value.length >= 3 && !form.claim_number && !form.file_number) setLookupField('client_name'); }} placeholder="Enter client name" />
+              <label style={labelStyle}>What State is Loss Located? *</label>
+              <input style={inputStyle} value={form.state || ""} onChange={(e) => set("state", e.target.value || null)} placeholder="2-letter state code" maxLength={2} />
             </div>
             <div>
-              <label style={labelStyle}>Email</label>
-              <input style={inputStyle} value={form.email || ""} onChange={(e) => set("email", e.target.value || null)} placeholder="email@example.com" />
+              <label style={labelStyle}>Date of Loss *</label>
+              <input type="date" style={inputStyle} value={form.date_of_loss || ""} onChange={(e) => set("date_of_loss", e.target.value || null)} />
             </div>
             <div>
-              <label style={labelStyle}>Phone</label>
-              <input style={inputStyle} value={form.phone || ""} onChange={(e) => set("phone", e.target.value || null)} placeholder="(555) 555-5555" />
-            </div>
-          </div>
-
-          {/* Section: Details */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Details</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>State</label>
-              <input style={inputStyle} value={form.state || ""} onChange={(e) => set("state", e.target.value || null)} placeholder="FL" />
-            </div>
-            <div>
-              <label style={labelStyle}>Peril</label>
+              <label style={labelStyle}>Cause of Loss *</label>
               <select style={selectStyle} value={form.peril || ""} onChange={(e) => set("peril", e.target.value || null)}>
-                <option value="">Select...</option>
+                <option value="">Select cause</option>
                 {PERIL_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
+            </div>
+          </div>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, marginTop: 8 }}>Address of Loss *</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 4 }}>
+            <input style={inputStyle} value={form.loss_street || ""} onChange={(e) => set("loss_street", e.target.value || null)} placeholder="Street" />
+            <input style={inputStyle} value={form.loss_line2 || ""} onChange={(e) => set("loss_line2", e.target.value || null)} placeholder="Address Line 2" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <input style={inputStyle} value={form.loss_city || ""} onChange={(e) => set("loss_city", e.target.value || null)} placeholder="City" />
+            <input style={inputStyle} value={form.loss_state || ""} onChange={(e) => set("loss_state", e.target.value || null)} placeholder="State" maxLength={2} />
+            <input style={inputStyle} value={form.loss_zip || ""} onChange={(e) => set("loss_zip", e.target.value || null)} placeholder="ZIP" />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Loss/Damage Description *</label>
+            <textarea style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} value={form.loss_description || ""} onChange={(e) => set("loss_description", e.target.value || null)} placeholder="Describe the loss or damage" maxLength={205} />
+          </div>
+
+          {/* Claim lookup banner (triggers from claim#, file#, or client name) */}
+          <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleClaimAccept} onDismiss={clearLookup} />
+
+          {/* ─── Section: Parties ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Parties</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>Contractor Company Name</label>
+              <input style={inputStyle} value={form.contractor_company || ""} onChange={(e) => set("contractor_company", e.target.value || null)} placeholder="Enter company name" />
+            </div>
+            <div>
+              <label style={labelStyle}>Contractor Name</label>
+              <input style={inputStyle} value={form.contractor_name || ""} onChange={(e) => set("contractor_name", e.target.value || null)} placeholder="Enter contractor name" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>Contractor Email</label>
+              <input style={inputStyle} value={form.contractor_email || ""} onChange={(e) => set("contractor_email", e.target.value || null)} placeholder="Enter email" />
+            </div>
+            <div>
+              <label style={labelStyle}>Contractor Phone</label>
+              <input style={inputStyle} value={form.contractor_phone || ""} onChange={(e) => set("contractor_phone", e.target.value || null)} placeholder="Enter phone" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div>
+              <label style={labelStyle}>Referral Source</label>
+              <select style={selectStyle} value={REFERRAL_SOURCE_OPTIONS.includes(form.referral_source || "") ? form.referral_source || "" : form.referral_source ? "Other" : ""} onChange={(e) => { if (e.target.value === "Other") { set("referral_source", "Other"); } else { set("referral_source", e.target.value || null); } }}>
+                <option value="">Select referral source</option>
+                {REFERRAL_SOURCE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            {(form.referral_source === "Other" || (form.referral_source && !REFERRAL_SOURCE_OPTIONS.includes(form.referral_source))) && (
+              <div>
+                <label style={labelStyle}>Specify Referral Source</label>
+                <input style={inputStyle} value={form.referral_source === "Other" ? "" : form.referral_source || ""} onChange={(e) => set("referral_source", e.target.value || "Other")} placeholder="Type referral source" autoFocus />
+              </div>
+            )}
+            <div>
+              <label style={labelStyle}>Source Email</label>
+              <input style={inputStyle} value={form.source_email || ""} onChange={(e) => set("source_email", e.target.value || null)} placeholder="Enter source email" />
+            </div>
+          </div>
+
+          {/* ─── Section: Claim & Assignment ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim & Assignment</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>What type of assignment? *</label>
+              <select style={selectStyle} value={form.assignment_type || ""} onChange={(e) => set("assignment_type", e.target.value || null)}>
+                <option value="">Select assignment type</option>
+                {ASSIGNMENT_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Insurance Company *</label>
+              <input style={inputStyle} value={form.insurance_company || ""} onChange={(e) => set("insurance_company", e.target.value || null)} placeholder="Enter insurance company" />
+            </div>
+            <div>
+              <label style={labelStyle}>Policy Number *</label>
+              <input style={inputStyle} value={form.policy_number || ""} onChange={(e) => set("policy_number", e.target.value || null)} placeholder="Enter policy number" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div>
+              <label style={labelStyle}>Status of Claim *</label>
+              <select style={selectStyle} value={form.status_claim || ""} onChange={(e) => set("status_claim", e.target.value || null)}>
+                <option value="">Select claim status</option>
+                {STATUS_CLAIM_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Claim Number</label>
+              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => { set("claim_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('claim_number'); }} placeholder="Enter claim number" />
+            </div>
+            <div>
+              <label style={labelStyle}>File Number {!editId && <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(auto-generated)</span>}</label>
+              <input style={{ ...inputStyle, background: !editId ? "var(--bg-page)" : inputStyle.background, color: form.file_number ? "var(--text-primary)" : "var(--text-muted)" }} value={form.file_number || ""} readOnly={!editId} onChange={editId ? (e) => { set("file_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('file_number'); } : undefined} placeholder={!editId ? "Fills when state is entered" : "File #"} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>If Supplement Dollar Amount Paid/Notes</label>
+            <textarea style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} value={form.supplement_notes || ""} onChange={(e) => set("supplement_notes", e.target.value || null)} placeholder="Enter supplement details or notes" />
+          </div>
+
+          {/* ─── Section: Assignment ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Assignment</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div>
+              <label style={labelStyle}>Assigned User</label>
+              <input style={inputStyle} value={form.assigned_user_name || ""} onChange={(e) => set("assigned_user_name", e.target.value || null)} placeholder="User name" />
+            </div>
+            <div>
+              <label style={labelStyle}>Assigned PA</label>
+              <input style={inputStyle} value={form.assigned_pa_name || ""} onChange={(e) => set("assigned_pa_name", e.target.value || null)} placeholder="PA name" />
             </div>
             <div>
               <label style={labelStyle}>Onboard Type</label>
@@ -529,44 +959,12 @@ export default function OnboarderKPIPage() {
                 {ONBOARD_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div>
-              <label style={labelStyle}>Date of Loss</label>
-              <input type="date" style={inputStyle} value={form.date_of_loss || ""} onChange={(e) => set("date_of_loss", e.target.value || null)} />
-            </div>
           </div>
 
-          {/* Section: Referral & Assignment */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Referral & Assignment</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Referral Source</label>
-              <input style={inputStyle} value={form.referral_source || ""} onChange={(e) => set("referral_source", e.target.value || null)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Assigned User</label>
-              <input style={inputStyle} value={form.assigned_user_name || ""} onChange={(e) => set("assigned_user_name", e.target.value || null)} placeholder="User name" />
-            </div>
-            <div>
-              <label style={labelStyle}>Assigned PA</label>
-              <input style={inputStyle} value={form.assigned_pa_name || ""} onChange={(e) => set("assigned_pa_name", e.target.value || null)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Assignment Type</label>
-              <input style={inputStyle} value={form.assignment_type || ""} onChange={(e) => set("assignment_type", e.target.value || null)} />
-            </div>
-          </div>
-
-          {/* Section: Time & Notes */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Time & Notes</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Initial Hours</label>
-              <input type="number" style={inputStyle} value={form.initial_hours || ""} onChange={(e) => set("initial_hours", parseFloat(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Notes</label>
-              <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={form.notes || ""} onChange={(e) => set("notes", e.target.value || null)} placeholder="Any additional notes..." />
-            </div>
+          {/* ─── Section: Notes ─── */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Notes</p>
+          <div style={{ marginBottom: 20 }}>
+            <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={form.notes || ""} onChange={(e) => set("notes", e.target.value || null)} placeholder="Enter any additional notes..." />
           </div>
 
           {formError && (
@@ -577,12 +975,68 @@ export default function OnboarderKPIPage() {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button style={btnPrimary} onClick={handleSubmit} disabled={createMut.isPending || updateMut.isPending}>
-              {createMut.isPending || updateMut.isPending ? "Saving..." : editId ? "Update Client" : "Add Client"}
+              {createMut.isPending || updateMut.isPending ? "Saving..." : editId ? "Update Client" : "Save Entry"}
             </button>
-            {editId && (
-              <button style={btnOutline} onClick={() => { setEditId(null); setForm({ ...EMPTY_FORM }); setFormError(null); setView("pipeline"); }}>Cancel</button>
-            )}
+            <button style={btnOutline} onClick={() => { setEditId(null); setForm({ ...EMPTY_FORM }); setFormError(null); setView("pipeline"); }}>Cancel</button>
           </div>
+        </div>
+      )}
+
+      {/* ═══ TPN: Add Firm Modal ═══ */}
+      {showAddFirmModal && pendingContractor && supabase && userInfo && (
+        <AddFirmModal
+          supabase={supabase}
+          orgId={userInfo.orgId}
+          onClose={() => { setShowAddFirmModal(false); setPendingContractor(null); }}
+          onSaved={(firmId, firmName) => {
+            setShowAddFirmModal(false);
+            setNewFirmId(firmId);
+            setNewFirmName(firmName);
+            setShowAddExternalModal(true);
+          }}
+          defaultStatus="pending"
+          prefill={{
+            name: pendingContractor.company,
+            contact_name: pendingContractor.name,
+            contact_email: pendingContractor.email,
+            contact_phone: pendingContractor.phone,
+            state: pendingContractor.state?.toUpperCase(),
+          }}
+        />
+      )}
+
+      {/* ═══ TPN: Add External User Modal ═══ */}
+      {showAddExternalModal && pendingContractor && supabase && userInfo && (
+        <AddExternalUserModal
+          supabase={supabase}
+          orgId={userInfo.orgId}
+          userId={userInfo.userId}
+          onClose={() => { setShowAddExternalModal(false); setPendingContractor(null); setNewFirmId(null); setNewFirmName(null); }}
+          onSaved={() => {
+            setShowAddExternalModal(false);
+            setPendingContractor(null);
+            setTpnMessage(`${pendingContractor.name || "Contact"} added to partner network — pending admin approval.`);
+            setNewFirmId(null);
+            setNewFirmName(null);
+            setTimeout(() => setTpnMessage(null), 5000);
+          }}
+          prefill={{
+            name: pendingContractor.name,
+            email: pendingContractor.email,
+            phone: pendingContractor.phone,
+            specialty: "General Contractor",
+            company_name: pendingContractor.company,
+            firm_id: newFirmId || undefined,
+            firm_name: newFirmName || undefined,
+            states: pendingContractor.state ? [pendingContractor.state.toUpperCase()] : [],
+          }}
+        />
+      )}
+
+      {/* ═══ TPN Success Message ═══ */}
+      {tpnMessage && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1000, background: "rgba(74,222,128,0.15)", border: "1px solid #4ade80", borderRadius: 8, padding: "12px 20px", color: "#4ade80", fontSize: 13, fontWeight: 500, maxWidth: 400 }}>
+          {tpnMessage}
         </div>
       )}
 
