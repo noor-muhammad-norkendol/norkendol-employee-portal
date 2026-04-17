@@ -635,7 +635,7 @@ export default function UniversityPage() {
                     </div>
                   )}
                   <div className="p-4">
-                    <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{course.title}</h3>
+                    <h3 className="text-base font-bold mb-1" style={{ color: "var(--text-primary)" }}>{course.title}</h3>
                     {course.description && <p className="text-[11px] mb-2 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{course.description}</p>}
 
                     {/* Duration + video count */}
@@ -725,7 +725,7 @@ export default function UniversityPage() {
                     </div>
                   )}
                   <div className="p-4">
-                    <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{c.title}</h3>
+                    <h3 className="text-base font-bold mb-1" style={{ color: "var(--text-primary)" }}>{c.title}</h3>
                     {c.description && <p className="text-[11px] mb-2 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{c.description}</p>}
 
                     {/* Duration + video count */}

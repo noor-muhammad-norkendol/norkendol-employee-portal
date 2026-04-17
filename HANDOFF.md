@@ -87,6 +87,32 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 - Edit/delete entries + edit/delete/deactivate boards
 - Dashboard widget only shows active leaderboard
 
+### Session — April 17, 2026
+
+**Shared Claim Lookup (system-wide)**
+- New hook: `src/hooks/useClaimLookup.ts` — cross-table debounced search by claim #, file #, client name, or address
+- New component: `src/components/ClaimMatchBanner.tsx` — match picker UI (single or multiple results)
+- Integrated into: Onboarder KPI, Estimator KPI, Claim Health, Settlement Tracker Litigation (admin), PA Settlements, Claim Calculator
+- Added `claim_number`, `file_number`, `loss_address` columns to `onboarding_clients` table
+- Migration: `supabase/migrations/20260417_claim_lookup_fields.sql`
+
+**Claim Calculator — Claim Info section added**
+- New fields at top: claim number, file number, client name, loss address
+- Wired to shared claim lookup
+
+**Employee ID auto-generation**
+- Format: `STATE-SEQUENCE-YEAR` (e.g., `FL-317-26`)
+- Auto-generates on profile save when employee_id is blank + location has state code
+- `generateEmployeeId()` function in `src/app/dashboard/user-management/page.tsx`
+- Fixed 7 incorrect employee IDs in database, highest number is now 316
+
+**University tab improvements**
+- Course cards: larger thumbnails with `object-cover`, duration + video count, dual badges (level + category), "Start/Resume/Review Course >" action text
+- Seeded all 42 courses from old portal with correct metadata
+- Uploaded 42 AI-generated cover slide images to Supabase storage (`training-content/thumbnails/`)
+- Added 3 new training categories: Claims Adjuster, Soft Skills, Other
+- Video lesson stubs created with correct durations (videos not yet attached)
+
 ### Sidebar Changes (Session 4)
 - **TextSidebar** directory section updated: "All Staff", "By Department", "Search", "Add New User"
 
