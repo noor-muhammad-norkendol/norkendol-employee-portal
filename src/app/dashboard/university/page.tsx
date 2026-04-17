@@ -101,6 +101,25 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds <= 0) return "";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+const CAT_COLORS: Record<string, { bg: string; text: string }> = {
+  Onboarding: { bg: "#1e3a5f", text: "#60a5fa" },
+  Technical: { bg: "#2d1b4e", text: "#a78bfa" },
+  Compliance: { bg: "#3a3520", text: "#facc15" },
+  Leadership: { bg: "#3a1a2a", text: "#f472b6" },
+  Safety: { bg: "#3a2a1a", text: "#fb923c" },
+  "Claims adjuster": { bg: "#1a3a2a", text: "#4ade80" },
+  "Soft skills": { bg: "#2a2a3a", text: "#818cf8" },
+  Other: { bg: "#2a2a2a", text: "#94a3b8" },
+};
+
 /* ── Standard letter grading scale ───────────────────── */
 
 function getLetterGrade(score: number): string {
@@ -161,6 +180,7 @@ export default function UniversityPage() {
 
   // Certificates
   const [certificates, setCertificates] = useState<Record<string, { certificate_number: string; issued_at: string; final_score: number | null; final_grade: string | null }>>({});
+  const [courseSummaries, setCourseSummaries] = useState<Record<string, { lessonCount: number; videoCount: number; totalSeconds: number }>>({});
 
   /* ── data loading ────────────────────────────────────── */
 
@@ -180,6 +200,21 @@ export default function UniversityPage() {
       for (const p of progRes.data as Progress[]) map[p.course_id] = p;
       setProgressMap(map);
     }
+
+    // Fetch lesson summaries for card display (count, video count, total duration)
+    const { data: lessonRows } = await supabase
+      .from("training_lessons").select("course_id, lesson_type, duration_seconds").eq("org_id", ORG_ID);
+    if (lessonRows) {
+      const sums: Record<string, { lessonCount: number; videoCount: number; totalSeconds: number }> = {};
+      for (const r of lessonRows) {
+        if (!sums[r.course_id]) sums[r.course_id] = { lessonCount: 0, videoCount: 0, totalSeconds: 0 };
+        sums[r.course_id].lessonCount++;
+        if (r.lesson_type === "video") sums[r.course_id].videoCount++;
+        sums[r.course_id].totalSeconds += r.duration_seconds || 0;
+      }
+      setCourseSummaries(sums);
+    }
+
     setLoading(false);
   }, []);
 
@@ -585,40 +620,57 @@ export default function UniversityPage() {
                 <div key={a.id} onClick={() => openCourseViewer(course)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   {/* Cover image */}
                   {course.thumbnail_url ? (
-                    <div className="relative w-full h-44">
-                      <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-contain" />
-                      <div className="absolute top-2 right-2 flex gap-1">
+                    <div className="relative w-full h-48">
+                      <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
+                      <div className="absolute top-2 right-2">
                         <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
                       </div>
                     </div>
                   ) : (
-                    <div className="relative w-full h-44 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
+                    <div className="relative w-full h-48 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
-                      <div className="absolute top-2 right-2 flex gap-1">
+                      <div className="absolute top-2 right-2">
                         <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
                       </div>
                     </div>
                   )}
                   <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge label={course.level} colors={LEVEL_COLORS[course.level]} />
-                    </div>
-                    <h3 className="text-sm font-semibold mb-1">{course.title}</h3>
-                    <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>{getCatName(course.category_id)}</p>
+                    <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{course.title}</h3>
+                    {course.description && <p className="text-[11px] mb-2 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{course.description}</p>}
 
-                    {/* Progress bar */}
-                    <div className="h-1.5 rounded-full mb-2" style={{ background: "var(--bg-hover)" }}>
+                    {/* Duration + video count */}
+                    {courseSummaries[course.id] && (
+                      <div className="flex items-center gap-3 text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+                        {courseSummaries[course.id].totalSeconds > 0 && <span>⏱ {formatDuration(courseSummaries[course.id].totalSeconds)}</span>}
+                        {courseSummaries[course.id].videoCount > 0 && <span>⊙ {courseSummaries[course.id].videoCount} video{courseSummaries[course.id].videoCount !== 1 ? "s" : ""}</span>}
+                      </div>
+                    )}
+
+                    {/* Progress */}
+                    <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "var(--text-muted)" }}>
+                      <span>Progress</span>
+                      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{progress?.progress_percentage ?? 0}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full mb-3" style={{ background: "var(--bg-hover)" }}>
                       <div className="h-full rounded-full transition-all" style={{ width: `${progress?.progress_percentage ?? 0}%`, background: "var(--accent)" }} />
                     </div>
-                    <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--text-muted)" }}>
-                      <span>{progress?.progress_percentage ?? 0}% complete</span>
-                      {a.due_date && (
-                        <span style={{ color: new Date(a.due_date) < new Date() ? "#ef4444" : "var(--text-muted)" }}>
-                          Due {formatDate(a.due_date)}{new Date(a.due_date) < new Date() && " (Overdue)"}
-                        </span>
-                      )}
+
+                    {a.due_date && (
+                      <p className="text-[10px] mb-2" style={{ color: new Date(a.due_date) < new Date() ? "#ef4444" : "var(--text-muted)" }}>
+                        Due {formatDate(a.due_date)}{new Date(a.due_date) < new Date() && " (Overdue)"}
+                      </p>
+                    )}
+
+                    {/* Badges + action */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Badge label={course.level} colors={LEVEL_COLORS[course.level]} />
+                        <Badge label={getCatName(course.category_id)} colors={CAT_COLORS[getCatName(course.category_id)] ?? CAT_COLORS.Other} />
+                      </div>
+                      <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
+                        {a.status === "completed" ? "Review" : (progress?.progress_percentage ?? 0) > 0 ? "Resume" : "Start"} &rsaquo;
+                      </span>
                     </div>
-                    {a.assigned_by_name && <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>Assigned by {a.assigned_by_name}</p>}
                   </div>
                 </div>
               );
@@ -656,15 +708,15 @@ export default function UniversityPage() {
                 <div key={c.id} onClick={() => openCourseViewer(c)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   {/* Cover image */}
                   {c.thumbnail_url ? (
-                    <div className="relative w-full h-52">
-                      <img src={c.thumbnail_url} alt={c.title} className="w-full h-full object-contain" />
+                    <div className="relative w-full h-48">
+                      <img src={c.thumbnail_url} alt={c.title} className="w-full h-full object-cover" />
                       <div className="absolute top-2 right-2 flex gap-1">
                         {isAssigned && <span className="text-[11px] px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ background: "rgba(58, 53, 32, 0.9)", color: "#facc15" }}>Assigned</span>}
                         {progress?.status === "completed" && <span className="text-[11px] px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ background: "rgba(26, 58, 42, 0.9)", color: "#4ade80" }}>Completed</span>}
                       </div>
                     </div>
                   ) : (
-                    <div className="relative w-full h-40 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
+                    <div className="relative w-full h-48 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
                       <div className="absolute top-2 right-2 flex gap-1">
                         {isAssigned && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#3a3520", color: "#facc15" }}>Assigned</span>}
@@ -673,30 +725,47 @@ export default function UniversityPage() {
                     </div>
                   )}
                   <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge label={c.level} colors={LEVEL_COLORS[c.level]} />
-                    </div>
-                    <h3 className="text-sm font-semibold mb-1">{c.title}</h3>
+                    <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{c.title}</h3>
                     {c.description && <p className="text-[11px] mb-2 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{c.description}</p>}
-                    <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                      <span>{getCatName(c.category_id)}</span>
-                      {c.instructor_name && <span>{c.instructor_name}</span>}
-                    </div>
-                    {progress && progress.progress_percentage > 0 && progress.status !== "completed" && (
-                      <div className="mt-2">
-                        <div className="h-1.5 rounded-full" style={{ background: "var(--bg-hover)" }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${progress.progress_percentage}%`, background: "var(--accent)" }} />
-                        </div>
-                        <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{progress.progress_percentage}% complete</p>
+
+                    {/* Duration + video count */}
+                    {courseSummaries[c.id] && (
+                      <div className="flex items-center gap-3 text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+                        {courseSummaries[c.id].totalSeconds > 0 && <span>⏱ {formatDuration(courseSummaries[c.id].totalSeconds)}</span>}
+                        {courseSummaries[c.id].videoCount > 0 && <span>⊙ {courseSummaries[c.id].videoCount} video{courseSummaries[c.id].videoCount !== 1 ? "s" : ""}</span>}
                       </div>
                     )}
+
+                    {/* Progress (only when in progress) */}
+                    {progress && progress.progress_percentage > 0 && progress.status !== "completed" && (
+                      <>
+                        <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "var(--text-muted)" }}>
+                          <span>Progress</span>
+                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{progress.progress_percentage}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full mb-3" style={{ background: "var(--bg-hover)" }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${progress.progress_percentage}%`, background: "var(--accent)" }} />
+                        </div>
+                      </>
+                    )}
+
                     {certificates[c.id] && (
-                      <div className="flex items-center gap-1.5 mt-2 text-[10px]" style={{ color: "#4ade80" }}>
-                        <span>🎓</span>
+                      <div className="flex items-center gap-1.5 mb-2 text-[10px]" style={{ color: "#4ade80" }}>
                         <span>Certified</span>
                         {certificates[c.id].final_grade && <span style={{ color: GRADE_COLORS[certificates[c.id].final_grade!] ?? "#4ade80" }}>({certificates[c.id].final_grade})</span>}
                       </div>
                     )}
+
+                    {/* Badges + action */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Badge label={c.level} colors={LEVEL_COLORS[c.level]} />
+                        <Badge label={getCatName(c.category_id)} colors={CAT_COLORS[getCatName(c.category_id)] ?? CAT_COLORS.Other} />
+                      </div>
+                      <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
+                        {progress?.status === "completed" ? "Review Course" : progress && progress.progress_percentage > 0 ? "Resume Course" : "Start Course"} &rsaquo;
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
