@@ -571,6 +571,93 @@ Estimator types file number in Estimator KPI
 
 ---
 
+## Architecture: Roles, Permissions & Data Filtering
+
+### Role Hierarchy (from `users.role`)
+
+| Role | Label | Track | What They See |
+|------|-------|-------|---------------|
+| `user` | User | Internal | User sidebar items only, own data |
+| `ep_user` | External Partner | External | User sidebar items checked in permissions, firm's data only |
+| `ep_admin` | Partner Admin | External | Same as ep_user + can manage their firm's users |
+| `admin` | Admin | Internal | User + Manager sidebar items, all org data |
+| `super_admin` | Super Admin | Internal | User + Manager + Admin sidebar items, all org data |
+| `system_admin` | System Admin | Norkendol | Everything — god mode |
+
+Internal roles stack: `system_admin` > `super_admin` > `admin` > `user`. External is separate track: `ep_admin` > `ep_user`.
+
+### Permission System (`user_permissions` table)
+
+Every user has a permissions record with boolean toggles. Admins set these via User Management → edit user → Permissions tab.
+
+**Feature Toggles** (control system-wide behavior):
+- `talent_network` — card shows up in Talent Partner Network listings
+- `crm_assignable` — can be assigned to claims in CRM
+- `crm_office_staff` — full CRM access (office/admin)
+
+**User Sidebar** (what appears in the User section):
+- `dashboard`, `applications`, `teams_chat`, `calendar`, `university`, `directory`, `documents`, `ai`, `talent_partner_network`, `compliance`, `crm`
+
+**Manager Sidebar** (what appears in the Manager section — role must be admin+):
+- `staff_management`, `pending_users`, `company_updates_admin`, `action_items_admin`, `notifications_admin`, `training_admin`
+
+**Admin Sidebar** (what appears in the Admin section — role must be super_admin+):
+- `departments_admin`, `ai_agents_admin`, `app_management`, `compliance_admin`, `claim_calculator_settings`
+
+### Real-World Role Examples
+
+**Estimator** (e.g., Brandon Leighton) — `role: user`
+- Sees: Estimator KPI (own data only, no team dashboard)
+- Cannot see other estimators' data, management views, or admin features
+
+**Lead Estimator / Manager** (e.g., Nell Dalton) — `role: admin`
+- Sees: Estimator KPI (all estimator data, team dashboard, analysis, scorecards)
+- Sees: Manager sidebar items
+
+**Public Adjuster** — `role: user`
+- Sees: Claims Health Matrix, Claim Calculator, assigned claims
+- Cannot see management or admin features
+
+**External Attorney** (e.g., at ABC Law Firm) — `role: ep_user`, `firm_id: abc-law`
+- Sees: ONLY ABC Law Firm's case files in Settlement Tracker / Legal KPIs
+- Cannot see any other firm's data or internal CCS data
+
+**External Contractor** (e.g., at Moss Roofing) — `role: ep_user`, `firm_id: moss-roofing`
+- Sees: ONLY files associated with Moss Roofing
+- Cannot see internal data, other firms, or admin features
+
+**Frank / Superadmin** — `role: super_admin`
+- Sees: Everything — all User, Manager, Admin sidebar items, all data across all firms
+
+### Firm-Based Data Filtering Rule — MANDATORY
+
+Every page that displays claim, client, or case data MUST follow this rule:
+
+```
+IF user.role is ep_user or ep_admin:
+    Query WHERE firm_id = user's firm
+    OR WHERE external_contact_id = user's external_contacts record
+    Show ONLY their firm's data — nothing else
+ELSE (internal user):
+    Show ALL org data (within role-appropriate views)
+```
+
+**How firm association works:**
+- `external_contacts` table has `firm_id` (FK to `firms`) and `user_id` (FK to `users`)
+- When an external partner logs in, find their `external_contacts` record via `user_id`
+- Use that record's `firm_id` to filter all data queries
+- If `firm_id` is null, fall back to filtering by `external_contact_id` directly
+
+### What Every Page Must Do
+
+1. **Read user role from auth context** — the `useOKSupabase()` hook (or equivalent per page) provides `userInfo` with `role`, `userId`, `orgId`
+2. **Filter data for external partners** — external users must never see data outside their firm
+3. **Respect role visibility within the page** — e.g., an estimator sees their own scorecard, a manager sees all scorecards
+4. **Never expose internal data to external partners** — no internal metrics, no employee info, no other firms' data, no admin features
+5. **External partners NEVER see Manager or Admin sidebar sections** — enforced by `IconSidebar.tsx` role gating
+
+---
+
 ## Key Rules
 
 - **BINGO** required before writing any code
