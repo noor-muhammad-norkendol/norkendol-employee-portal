@@ -16,7 +16,6 @@ import {
 } from "@/hooks/onboarder-kpi/useOnboarderKPIs";
 import { useOKSupabase } from "@/hooks/onboarder-kpi/useSupabase";
 import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
-import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import AddFirmModal from "@/components/tpn/AddFirmModal";
 import AddExternalUserModal from "@/components/tpn/AddExternalUserModal";
 import {
@@ -24,64 +23,17 @@ import {
   CreateClientInput,
   OnboardingStatus,
   STATUS_LABELS,
-  PERIL_OPTIONS,
-  ONBOARD_TYPE_OPTIONS,
-  CONTRACT_STATUS_OPTIONS,
-  ALLOWED_TRANSITIONS,
-  STAGE_TARGET_HOURS,
-  ASSIGNMENT_TYPE_OPTIONS,
-  STATUS_CLAIM_OPTIONS,
-  REFERRAL_SOURCE_OPTIONS,
 } from "@/types/onboarder-kpi";
 
-/* ───── style constants (portal pattern) ───── */
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", borderRadius: 10, padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", border: "1px solid var(--border-color)",
-  color: "var(--text-primary)", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, width: "100%", outline: "none",
-};
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 500, color: "var(--text-secondary)",
-  display: "block", marginBottom: 4,
-};
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6,
-  padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-};
-const btnOutline: React.CSSProperties = {
-  background: "transparent", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 6,
-  padding: "6px 12px", fontSize: 12, cursor: "pointer",
-};
-const thStyle: React.CSSProperties = {
-  padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)",
-  textAlign: "left", borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap",
-};
-const tdStyle: React.CSSProperties = {
-  padding: "8px 12px", fontSize: 13, color: "var(--text-primary)",
-  borderBottom: "1px solid var(--border-color)",
-};
+import PipelineHeader from "./components/PipelineHeader";
+import WorkboardTable from "./components/WorkboardTable";
+import type { PanelAction } from "./components/WorkboardTable";
+import AddClientForm from "./components/AddClientForm";
+import PerformanceView from "./components/PerformanceView";
+import ClientDetailPanel from "./components/ClientDetailPanel";
+import UrgencyBanner from "./components/UrgencyBanner";
 
-const HOUR_MS = 3_600_000;
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  new: { bg: "rgba(96,165,250,0.15)", color: "#60a5fa" },
-  step_2: { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
-  step_3: { bg: "rgba(251,146,60,0.15)", color: "#fb923c" },
-  final_step: { bg: "rgba(239,68,68,0.15)", color: "#ef4444" },
-  on_hold: { bg: "rgba(148,163,184,0.15)", color: "#94a3b8" },
-  completed: { bg: "rgba(74,222,128,0.15)", color: "#4ade80" },
-  erroneous: { bg: "rgba(239,68,68,0.1)", color: "#f87171" },
-  revised: { bg: "rgba(45,212,191,0.15)", color: "#2dd4bf" },
-  abandoned: { bg: "rgba(148,163,184,0.1)", color: "#64748b" },
-};
-
-// Map sidebar items to status filters
+/* ───── constants ───── */
 const SIDEBAR_TO_STATUS: Record<string, OnboardingStatus | null> = {
   "New Clients": "new",
   "24hr Follow-Up": "step_2",
@@ -91,54 +43,19 @@ const SIDEBAR_TO_STATUS: Record<string, OnboardingStatus | null> = {
   "Completed": "completed",
 };
 
-function timeInStage(client: OnboardingClient): { hours: number; label: string; overdue: boolean } {
-  const hours = (Date.now() - new Date(client.status_entered_at).getTime()) / HOUR_MS;
-  const target = STAGE_TARGET_HOURS[client.status as keyof typeof STAGE_TARGET_HOURS];
-  const overdue = target ? hours > target : false;
-  if (hours < 1) return { hours, label: `${Math.round(hours * 60)}m`, overdue };
-  if (hours < 24) return { hours, label: `${Math.round(hours)}h`, overdue };
-  return { hours, label: `${(hours / 24).toFixed(1)}d`, overdue };
-}
-
 const EMPTY_FORM: CreateClientInput = {
-  claim_number: null,
-  file_number: null,
-  loss_address: null,
-  client_name: "",
-  client_first_name: null,
-  client_last_name: null,
-  additional_policyholder_first: null,
-  additional_policyholder_last: null,
-  additional_policyholder_email: null,
-  additional_policyholder_phone: null,
-  referral_source: null,
-  state: null,
-  peril: null,
-  onboard_type: null,
-  email: null,
-  phone: null,
-  loss_street: null,
-  loss_line2: null,
-  loss_city: null,
-  loss_state: null,
-  loss_zip: null,
-  loss_description: null,
-  contractor_company: null,
-  contractor_name: null,
-  contractor_email: null,
-  contractor_phone: null,
-  source_email: null,
-  assigned_user_id: null,
-  assigned_user_name: null,
-  assigned_pa_name: null,
-  assignment_type: null,
-  date_of_loss: null,
-  insurance_company: null,
-  policy_number: null,
-  status_claim: null,
-  supplement_notes: null,
-  initial_hours: 0,
-  notes: null,
+  claim_number: null, file_number: null, loss_address: null,
+  client_name: "", client_first_name: null, client_last_name: null,
+  additional_policyholder_first: null, additional_policyholder_last: null,
+  additional_policyholder_email: null, additional_policyholder_phone: null,
+  referral_source: null, state: null, peril: null, onboard_type: null,
+  email: null, phone: null,
+  loss_street: null, loss_line2: null, loss_city: null, loss_state: null, loss_zip: null, loss_description: null,
+  contractor_company: null, contractor_name: null, contractor_email: null, contractor_phone: null,
+  source_email: null, assigned_user_id: null, assigned_user_name: null, assigned_pa_name: null,
+  assignment_type: null, date_of_loss: null,
+  insurance_company: null, policy_number: null, status_claim: null, supplement_notes: null,
+  initial_hours: 0, notes: null,
 };
 
 type ViewMode = "pipeline" | "add" | "performance";
@@ -161,12 +78,27 @@ export default function OnboarderKPIPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
+  // Slide-out detail panel
+  const [panelClient, setPanelClient] = useState<OnboardingClient | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelAction, setPanelAction] = useState<PanelAction>(null);
+
+  function openPanel(client: OnboardingClient, action: PanelAction) {
+    setPanelClient(client);
+    setPanelAction(action);
+    setPanelOpen(true);
+  }
+  function closePanel() {
+    setPanelOpen(false);
+    setTimeout(() => { setPanelClient(null); setPanelAction(null); }, 250); // wait for animation
+  }
+
   // Auto-generate file number when state is set (new clients only)
-  const fileNumGenRef = useRef<string | null>(null); // tracks which state we already generated for
+  const fileNumGenRef = useRef<string | null>(null);
   useEffect(() => {
     const stateCode = (form.state || form.loss_state || "").toUpperCase().trim();
     if (!stateCode || stateCode.length !== 2 || editId || !supabase || !userInfo) return;
-    if (form.file_number && fileNumGenRef.current === stateCode) return; // already generated for this state
+    if (form.file_number && fileNumGenRef.current === stateCode) return;
     let cancelled = false;
     (async () => {
       try {
@@ -201,7 +133,7 @@ export default function OnboarderKPIPage() {
   const [aiParsing, setAiParsing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Contractor → TPN flow (uses shared Add Firm + Add External User modals)
+  // Contractor → TPN flow
   interface ContractorData { name: string; company: string; email: string; phone: string; state: string }
   const [pendingContractor, setPendingContractor] = useState<ContractorData | null>(null);
   const [showAddFirmModal, setShowAddFirmModal] = useState(false);
@@ -218,8 +150,6 @@ export default function OnboarderKPIPage() {
     if (!supabase || !userInfo) return;
     const { company, email, phone } = contractorData;
     if (!phone && !email && !company) return;
-
-    // 1. Search by phone (most reliable key)
     if (phone) {
       const digits = stripPhone(phone);
       const { data: allContacts } = await supabase
@@ -229,7 +159,6 @@ export default function OnboarderKPIPage() {
       if (allContacts) {
         const phoneMatch = allContacts.find((c) => stripPhone(c.phone || "") === digits);
         if (phoneMatch) {
-          // Person exists — check if missing info to update
           const missingEmail = !phoneMatch.email && email;
           const missingPhone = !phoneMatch.phone && phone;
           if (missingEmail || missingPhone) {
@@ -240,22 +169,18 @@ export default function OnboarderKPIPage() {
             setTpnMessage(`Updated ${phoneMatch.name}'s contact info in the partner network.`);
             setTimeout(() => setTpnMessage(null), 5000);
           }
-          return; // person found, done
+          return;
         }
       }
     }
-
-    // 2. Search by email
     if (email) {
       const { data: emailMatches } = await supabase
         .from("external_contacts")
         .select("id, name")
         .eq("org_id", userInfo.orgId)
         .ilike("email", email);
-      if (emailMatches && emailMatches.length > 0) return; // person found
+      if (emailMatches && emailMatches.length > 0) return;
     }
-
-    // 3. No person found — check if firm/company exists
     setPendingContractor(contractorData);
     if (company) {
       const { data: firmMatches } = await supabase
@@ -265,15 +190,12 @@ export default function OnboarderKPIPage() {
         .ilike("name", company)
         .limit(1);
       if (firmMatches && firmMatches.length > 0) {
-        // Firm exists, just need to add the person
         setNewFirmId(firmMatches[0].id);
         setNewFirmName(firmMatches[0].name);
         setShowAddExternalModal(true);
         return;
       }
     }
-
-    // 4. Nothing found — start with Add Firm, then Add External User
     setShowAddFirmModal(true);
   }
 
@@ -342,7 +264,7 @@ export default function OnboarderKPIPage() {
     }
   }
 
-  // Shared claim lookup — search by whichever field has the most input
+  // Shared claim lookup
   const [lookupField, setLookupField] = useState<LookupField>('client_name');
   const lookupTerm = lookupField === 'claim_number' ? (form.claim_number || '')
     : lookupField === 'file_number' ? (form.file_number || '')
@@ -400,7 +322,7 @@ export default function OnboarderKPIPage() {
       kpiWritten.current = true;
       writeKPIs.mutate(teamKPIs);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allClients.length]);
 
   // Filtered clients for current pipeline view
@@ -429,7 +351,6 @@ export default function OnboarderKPIPage() {
     const year = new Date().getFullYear();
     const prefix = `${st}-`;
     const suffix = `-${year}`;
-    // Find the highest existing file number for this state+year
     const { data } = await supabase
       .from("onboarding_clients")
       .select("file_number")
@@ -447,15 +368,12 @@ export default function OnboarderKPIPage() {
 
   async function handleSubmit() {
     setFormError(null);
-    // Auto-compute client_name from first/last
     const computedName = [form.client_first_name, form.client_last_name].filter(Boolean).join(" ").trim();
     if (!computedName) {
       setFormError("Policyholder Name is required.");
       return;
     }
-    // Auto-compute loss_address from components
     const computedAddress = [form.loss_street, form.loss_line2, form.loss_city, form.loss_state, form.loss_zip].filter(Boolean).join(", ").trim();
-    // Auto-generate file number for new clients
     let fileNumber = form.file_number;
     if (!editId && !fileNumber) {
       try {
@@ -471,7 +389,6 @@ export default function OnboarderKPIPage() {
       loss_address: computedAddress || form.loss_address,
       file_number: fileNumber,
     };
-    // Capture contractor data before form clears
     const contractorData: ContractorData = {
       name: form.contractor_name || "",
       company: form.contractor_company || "",
@@ -492,7 +409,6 @@ export default function OnboarderKPIPage() {
       setForm({ ...EMPTY_FORM });
       setView("pipeline");
       setStatusFilter("new");
-      // After successful save, check if contractor should be added to TPN
       if (isNewClient && hasContractorInfo) {
         checkContractorInTPN(contractorData);
       }
@@ -538,11 +454,10 @@ export default function OnboarderKPIPage() {
         from_status: client.status,
         to_status: newStatus,
       });
-      // Log activity for the status change
       await logActivity.mutateAsync({
         client_id: client.id,
         activity_type: "status_change",
-        subject: `Status changed: ${STATUS_LABELS[client.status]} → ${STATUS_LABELS[newStatus]}`,
+        subject: `Status changed: ${STATUS_LABELS[client.status]} \u2192 ${STATUS_LABELS[newStatus]}`,
       });
     } catch {
       // Mutations handle their own errors via react-query
@@ -554,432 +469,60 @@ export default function OnboarderKPIPage() {
   }
 
   return (
-    <div style={{ padding: "24px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ padding: "24px 24px" }}>
       {/* Header + Stats */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Onboarder KPI</h1>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            {allClients.length} client{allClients.length !== 1 ? "s" : ""} total
-            {myMetrics ? ` · ${myMetrics.completionRate}% completion rate` : ""}
-          </p>
-        </div>
-
-        {/* Pipeline summary badges */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {(["new", "step_2", "step_3", "final_step", "on_hold", "completed"] as OnboardingStatus[]).map((s) => {
-            const sc = STATUS_COLORS[s];
-            const count = pipelineCounts[s] || 0;
-            const active = statusFilter === s && view === "pipeline";
-            return (
-              <button
-                key={s}
-                onClick={() => { setView("pipeline"); setStatusFilter(s); setExpandedClient(null); }}
-                style={{
-                  background: active ? sc.color : sc.bg,
-                  color: active ? "#fff" : sc.color,
-                  border: "none", borderRadius: 6, padding: "4px 10px",
-                  fontSize: 11, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                {STATUS_LABELS[s]} ({count})
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <PipelineHeader
+        totalClients={allClients.length}
+        completionRate={myMetrics?.completionRate ?? null}
+        pipelineCounts={pipelineCounts}
+        statusFilter={statusFilter}
+        view={view}
+        onSelectStatus={(s) => { setView("pipeline"); setStatusFilter(s); setExpandedClient(null); }}
+      />
 
       {/* ═══ PIPELINE VIEW ═══ */}
       {view === "pipeline" && (
-        <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-              {STATUS_LABELS[statusFilter]}
-              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)", marginLeft: 8 }}>
-                {filteredClients.length} client{filteredClients.length !== 1 ? "s" : ""}
-              </span>
-            </h2>
-          </div>
-
-          {filteredClients.length === 0 ? (
-            <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 40 }}>
-              No clients in {STATUS_LABELS[statusFilter]}. Click Add Client to get started.
-            </p>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Client</th>
-                    <th style={thStyle}>Referral</th>
-                    <th style={thStyle}>State</th>
-                    <th style={thStyle}>Peril</th>
-                    <th style={thStyle}>Type</th>
-                    <th style={thStyle}>Time in Stage</th>
-                    <th style={thStyle}>Contract</th>
-                    <th style={thStyle}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredClients.map((client) => {
-                    const tis = timeInStage(client);
-                    const sc = STATUS_COLORS[client.status] || STATUS_COLORS.new;
-                    const transitions = ALLOWED_TRANSITIONS[client.status] || [];
-                    const isExpanded = expandedClient === client.id;
-
-                    return (
-                      <React.Fragment key={client.id}>
-                        <tr>
-                          <td style={tdStyle}>
-                            <div>
-                              <span style={{ fontWeight: 600 }}>{client.client_name}</span>
-                              {client.phone && (
-                                <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>{client.phone}</span>
-                              )}
-                            </div>
-                          </td>
-                          <td style={tdStyle}>{client.referral_source || "—"}</td>
-                          <td style={tdStyle}>{client.state || "—"}</td>
-                          <td style={tdStyle}>{client.peril || "—"}</td>
-                          <td style={tdStyle}>{client.onboard_type || "—"}</td>
-                          <td style={{
-                            ...tdStyle,
-                            fontWeight: 600,
-                            color: tis.overdue ? "#ef4444" : "var(--text-primary)",
-                          }}>
-                            {tis.label}
-                            {tis.overdue && (
-                              <span style={{ fontSize: 10, marginLeft: 4, color: "#ef4444" }}>OVERDUE</span>
-                            )}
-                          </td>
-                          <td style={tdStyle}>
-                            <span style={{
-                              display: "inline-block", padding: "2px 8px", borderRadius: 4,
-                              fontSize: 11, fontWeight: 600,
-                              background: client.contract_status === "signed" ? "rgba(74,222,128,0.15)" : "rgba(148,163,184,0.1)",
-                              color: client.contract_status === "signed" ? "#4ade80" : "var(--text-muted)",
-                            }}>
-                              {client.contract_status || "not_sent"}
-                            </span>
-                          </td>
-                          <td style={tdStyle}>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              <button
-                                style={{ ...btnOutline, fontSize: 11, padding: "3px 8px" }}
-                                onClick={() => setExpandedClient(isExpanded ? null : client.id)}
-                              >
-                                {isExpanded ? "Close" : "Move"}
-                              </button>
-                              <button
-                                style={{ ...btnOutline, fontSize: 11, padding: "3px 8px" }}
-                                onClick={() => startEdit(client)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                style={{ ...btnOutline, fontSize: 11, padding: "3px 8px", color: "#ef4444", borderColor: "#ef4444" }}
-                                onClick={() => { if (confirm("Delete this client?")) deleteMut.mutate(client.id); }}
-                              >
-                                x
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {/* Expanded row: status transition buttons */}
-                        {isExpanded && transitions.length > 0 && (
-                          <tr>
-                            <td colSpan={8} style={{ padding: "8px 12px", background: "var(--bg-page)", borderBottom: "1px solid var(--border-color)" }}>
-                              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 4 }}>Move to:</span>
-                                {transitions.map((t) => {
-                                  const tc = STATUS_COLORS[t] || STATUS_COLORS.new;
-                                  return (
-                                    <button
-                                      key={t}
-                                      onClick={() => { moveStatus(client, t); setExpandedClient(null); }}
-                                      style={{
-                                        background: tc.bg, color: tc.color, border: "none",
-                                        borderRadius: 4, padding: "4px 10px", fontSize: 11,
-                                        fontWeight: 600, cursor: "pointer",
-                                      }}
-                                    >
-                                      {STATUS_LABELS[t]}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <>
+        <UrgencyBanner allClients={allClients} onClickClient={(c) => openPanel(c, null)} />
+        <WorkboardTable
+          statusFilter={statusFilter}
+          filteredClients={filteredClients}
+          expandedClient={expandedClient}
+          onToggleExpand={setExpandedClient}
+          onEdit={startEdit}
+          onDelete={(id) => deleteMut.mutate(id)}
+          onMoveStatus={(client, status) => { moveStatus(client, status); setExpandedClient(null); }}
+          onOpenPanel={openPanel}
+        />
+        </>
       )}
 
       {/* ═══ ADD / EDIT CLIENT ═══ */}
       {view === "add" && (
-        <div style={cardStyle}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-                {editId ? "Edit Client" : "New Client"}
-              </h2>
-              <button
-                style={{ ...btnOutline, display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent)", borderColor: "var(--accent)" }}
-                onClick={() => setShowAIAssist(true)}
-              >
-                <span style={{ fontSize: 16 }}>&#x1F916;</span> AI Assist
-              </button>
-            </div>
-            {userInfo && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
-                {userInfo.fullName}
-              </span>
-            )}
-          </div>
-
-          {/* AI Assist Modal */}
-          {showAIAssist && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
-              onClick={(e) => { if (e.target === e.currentTarget) setShowAIAssist(false); }}>
-              <div style={{ background: "var(--bg-surface)", borderRadius: 12, padding: 24, width: "100%", maxWidth: 600, border: "1px solid var(--border-color)", maxHeight: "80vh", overflow: "auto" }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>AI Assist — Paste Onboarding Email</h3>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
-                  Paste the onboarding form submission email below and click Extract. The AI will pull out all the client data and fill the form.
-                </p>
-                <textarea
-                  style={{ ...inputStyle, minHeight: 220, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
-                  value={aiEmailText}
-                  onChange={(e) => setAiEmailText(e.target.value)}
-                  placeholder="Paste the full onboarding email here..."
-                  autoFocus
-                />
-                {aiError && (
-                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "8px 12px", marginTop: 8, color: "#ef4444", fontSize: 12 }}>
-                    {aiError}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
-                  <button style={btnOutline} onClick={() => { setShowAIAssist(false); setAiEmailText(""); setAiError(null); }}>Cancel</button>
-                  <button
-                    style={{ ...btnPrimary, opacity: !aiEmailText.trim() || aiParsing ? 0.5 : 1 }}
-                    onClick={handleAIParse}
-                    disabled={!aiEmailText.trim() || aiParsing}
-                  >
-                    {aiParsing ? "Extracting..." : "Extract & Fill Form"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Section: Policyholder ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Policyholder</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Policyholder Name * — First</label>
-              <input style={inputStyle} value={form.client_first_name || ""} onChange={(e) => { set("client_first_name", e.target.value || null); const full = [e.target.value, form.client_last_name].filter(Boolean).join(" "); set("client_name", full); if (full.length >= 3 && !form.claim_number && !form.file_number) setLookupField('client_name'); }} placeholder="First" />
-            </div>
-            <div>
-              <label style={labelStyle}>Last</label>
-              <input style={inputStyle} value={form.client_last_name || ""} onChange={(e) => { set("client_last_name", e.target.value || null); const full = [form.client_first_name, e.target.value].filter(Boolean).join(" "); set("client_name", full); }} placeholder="Last" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Additional Policyholder Name — First</label>
-              <input style={inputStyle} value={form.additional_policyholder_first || ""} onChange={(e) => set("additional_policyholder_first", e.target.value || null)} placeholder="First" />
-            </div>
-            <div>
-              <label style={labelStyle}>Last</label>
-              <input style={inputStyle} value={form.additional_policyholder_last || ""} onChange={(e) => set("additional_policyholder_last", e.target.value || null)} placeholder="Last" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Policyholder Email *</label>
-              <input style={inputStyle} value={form.email || ""} onChange={(e) => set("email", e.target.value || null)} placeholder="Enter email" />
-            </div>
-            <div>
-              <label style={labelStyle}>Additional Policyholder Email</label>
-              <input style={inputStyle} value={form.additional_policyholder_email || ""} onChange={(e) => set("additional_policyholder_email", e.target.value || null)} placeholder="Enter email" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Policyholder Phone *</label>
-              <input style={inputStyle} value={form.phone || ""} onChange={(e) => set("phone", e.target.value || null)} placeholder="Enter phone" />
-            </div>
-            <div>
-              <label style={labelStyle}>Additional Policyholder Phone</label>
-              <input style={inputStyle} value={form.additional_policyholder_phone || ""} onChange={(e) => set("additional_policyholder_phone", e.target.value || null)} placeholder="Enter phone" />
-            </div>
-          </div>
-
-          {/* ─── Section: Loss Info ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Loss Info</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>What State is Loss Located? *</label>
-              <input style={inputStyle} value={form.state || ""} onChange={(e) => set("state", e.target.value || null)} placeholder="2-letter state code" maxLength={2} />
-            </div>
-            <div>
-              <label style={labelStyle}>Date of Loss *</label>
-              <input type="date" style={inputStyle} value={form.date_of_loss || ""} onChange={(e) => set("date_of_loss", e.target.value || null)} />
-            </div>
-            <div>
-              <label style={labelStyle}>Cause of Loss *</label>
-              <select style={selectStyle} value={form.peril || ""} onChange={(e) => set("peril", e.target.value || null)}>
-                <option value="">Select cause</option>
-                {PERIL_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          </div>
-          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, marginTop: 8 }}>Address of Loss *</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 4 }}>
-            <input style={inputStyle} value={form.loss_street || ""} onChange={(e) => set("loss_street", e.target.value || null)} placeholder="Street" />
-            <input style={inputStyle} value={form.loss_line2 || ""} onChange={(e) => set("loss_line2", e.target.value || null)} placeholder="Address Line 2" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <input style={inputStyle} value={form.loss_city || ""} onChange={(e) => set("loss_city", e.target.value || null)} placeholder="City" />
-            <input style={inputStyle} value={form.loss_state || ""} onChange={(e) => set("loss_state", e.target.value || null)} placeholder="State" maxLength={2} />
-            <input style={inputStyle} value={form.loss_zip || ""} onChange={(e) => set("loss_zip", e.target.value || null)} placeholder="ZIP" />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Loss/Damage Description *</label>
-            <textarea style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} value={form.loss_description || ""} onChange={(e) => set("loss_description", e.target.value || null)} placeholder="Describe the loss or damage" maxLength={205} />
-          </div>
-
-          {/* Claim lookup banner (triggers from claim#, file#, or client name) */}
-          <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleClaimAccept} onDismiss={clearLookup} />
-
-          {/* ─── Section: Parties ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Parties</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Contractor Company Name</label>
-              <input style={inputStyle} value={form.contractor_company || ""} onChange={(e) => set("contractor_company", e.target.value || null)} placeholder="Enter company name" />
-            </div>
-            <div>
-              <label style={labelStyle}>Contractor Name</label>
-              <input style={inputStyle} value={form.contractor_name || ""} onChange={(e) => set("contractor_name", e.target.value || null)} placeholder="Enter contractor name" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Contractor Email</label>
-              <input style={inputStyle} value={form.contractor_email || ""} onChange={(e) => set("contractor_email", e.target.value || null)} placeholder="Enter email" />
-            </div>
-            <div>
-              <label style={labelStyle}>Contractor Phone</label>
-              <input style={inputStyle} value={form.contractor_phone || ""} onChange={(e) => set("contractor_phone", e.target.value || null)} placeholder="Enter phone" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Referral Source</label>
-              <select style={selectStyle} value={REFERRAL_SOURCE_OPTIONS.includes(form.referral_source || "") ? form.referral_source || "" : form.referral_source ? "Other" : ""} onChange={(e) => { if (e.target.value === "Other") { set("referral_source", "Other"); } else { set("referral_source", e.target.value || null); } }}>
-                <option value="">Select referral source</option>
-                {REFERRAL_SOURCE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            {(form.referral_source === "Other" || (form.referral_source && !REFERRAL_SOURCE_OPTIONS.includes(form.referral_source))) && (
-              <div>
-                <label style={labelStyle}>Specify Referral Source</label>
-                <input style={inputStyle} value={form.referral_source === "Other" ? "" : form.referral_source || ""} onChange={(e) => set("referral_source", e.target.value || "Other")} placeholder="Type referral source" autoFocus />
-              </div>
-            )}
-            <div>
-              <label style={labelStyle}>Source Email</label>
-              <input style={inputStyle} value={form.source_email || ""} onChange={(e) => set("source_email", e.target.value || null)} placeholder="Enter source email" />
-            </div>
-          </div>
-
-          {/* ─── Section: Claim & Assignment ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim & Assignment</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>What type of assignment? *</label>
-              <select style={selectStyle} value={form.assignment_type || ""} onChange={(e) => set("assignment_type", e.target.value || null)}>
-                <option value="">Select assignment type</option>
-                {ASSIGNMENT_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Insurance Company *</label>
-              <input style={inputStyle} value={form.insurance_company || ""} onChange={(e) => set("insurance_company", e.target.value || null)} placeholder="Enter insurance company" />
-            </div>
-            <div>
-              <label style={labelStyle}>Policy Number *</label>
-              <input style={inputStyle} value={form.policy_number || ""} onChange={(e) => set("policy_number", e.target.value || null)} placeholder="Enter policy number" />
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 8 }}>
-            <div>
-              <label style={labelStyle}>Status of Claim *</label>
-              <select style={selectStyle} value={form.status_claim || ""} onChange={(e) => set("status_claim", e.target.value || null)}>
-                <option value="">Select claim status</option>
-                {STATUS_CLAIM_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Claim Number</label>
-              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => { set("claim_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('claim_number'); }} placeholder="Enter claim number" />
-            </div>
-            <div>
-              <label style={labelStyle}>File Number {!editId && <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(auto-generated)</span>}</label>
-              <input style={{ ...inputStyle, background: !editId ? "var(--bg-page)" : inputStyle.background, color: form.file_number ? "var(--text-primary)" : "var(--text-muted)" }} value={form.file_number || ""} readOnly={!editId} onChange={editId ? (e) => { set("file_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('file_number'); } : undefined} placeholder={!editId ? "Fills when state is entered" : "File #"} />
-            </div>
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>If Supplement Dollar Amount Paid/Notes</label>
-            <textarea style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} value={form.supplement_notes || ""} onChange={(e) => set("supplement_notes", e.target.value || null)} placeholder="Enter supplement details or notes" />
-          </div>
-
-          {/* ─── Section: Assignment ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Assignment</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={labelStyle}>Assigned User</label>
-              <input style={inputStyle} value={form.assigned_user_name || ""} onChange={(e) => set("assigned_user_name", e.target.value || null)} placeholder="User name" />
-            </div>
-            <div>
-              <label style={labelStyle}>Assigned PA</label>
-              <input style={inputStyle} value={form.assigned_pa_name || ""} onChange={(e) => set("assigned_pa_name", e.target.value || null)} placeholder="PA name" />
-            </div>
-            <div>
-              <label style={labelStyle}>Onboard Type</label>
-              <select style={selectStyle} value={form.onboard_type || ""} onChange={(e) => set("onboard_type", e.target.value || null)}>
-                <option value="">Select...</option>
-                {ONBOARD_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* ─── Section: Notes ─── */}
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Notes</p>
-          <div style={{ marginBottom: 20 }}>
-            <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={form.notes || ""} onChange={(e) => set("notes", e.target.value || null)} placeholder="Enter any additional notes..." />
-          </div>
-
-          {formError && (
-            <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: "#ef4444", fontSize: 13 }}>
-              {formError}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={btnPrimary} onClick={handleSubmit} disabled={createMut.isPending || updateMut.isPending}>
-              {createMut.isPending || updateMut.isPending ? "Saving..." : editId ? "Update Client" : "Save Entry"}
-            </button>
-            <button style={btnOutline} onClick={() => { setEditId(null); setForm({ ...EMPTY_FORM }); setFormError(null); setView("pipeline"); }}>Cancel</button>
-          </div>
-        </div>
+        <AddClientForm
+          form={form}
+          editId={editId}
+          formError={formError}
+          saving={createMut.isPending || updateMut.isPending}
+          userName={userInfo?.fullName || null}
+          showAIAssist={showAIAssist}
+          aiEmailText={aiEmailText}
+          aiParsing={aiParsing}
+          aiError={aiError}
+          onSetShowAIAssist={setShowAIAssist}
+          onSetAiEmailText={setAiEmailText}
+          onAIParse={handleAIParse}
+          onSetAiError={setAiError}
+          claimMatches={claimMatches}
+          claimSearching={claimSearching}
+          lookupField={lookupField}
+          onSetLookupField={setLookupField}
+          onClaimAccept={handleClaimAccept}
+          onClearLookup={clearLookup}
+          onSet={set}
+          onSubmit={handleSubmit}
+          onCancel={() => { setEditId(null); setForm({ ...EMPTY_FORM }); setFormError(null); setView("pipeline"); }}
+        />
       )}
 
       {/* ═══ TPN: Add Firm Modal ═══ */}
@@ -1042,86 +585,18 @@ export default function OnboarderKPIPage() {
 
       {/* ═══ PERFORMANCE VIEW ═══ */}
       {view === "performance" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Personal stats */}
-          {myMetrics && (
-            <div style={cardStyle}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>My Performance</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
-                {[
-                  { label: "Completion Rate", value: `${myMetrics.completionRate}%` },
-                  { label: "Avg Time to Complete", value: `${myMetrics.avgTimeToCompletionHours}h` },
-                  { label: "Overdue Rate", value: `${myMetrics.overdueRate}%`, warn: myMetrics.overdueRate > 20 },
-                  { label: "Conversion Rate", value: `${myMetrics.conversionRate}%` },
-                  { label: "Entries/Day", value: String(myMetrics.entriesPerDay) },
-                ].map((stat) => (
-                  <div key={stat.label} style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: stat.warn ? "#ef4444" : "var(--accent)" }}>{stat.value}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Team rankings */}
-          <div style={cardStyle}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>Team Rankings</h2>
-            {teamKPIs.onboarderRankings.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 20 }}>No data yet.</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>#</th>
-                      <th style={thStyle}>Onboarder</th>
-                      <th style={thStyle}>Entries</th>
-                      <th style={thStyle}>Completed</th>
-                      <th style={thStyle}>Completion %</th>
-                      <th style={thStyle}>Avg Time (h)</th>
-                      <th style={thStyle}>Overdue %</th>
-                      <th style={thStyle}>Conversion %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamKPIs.onboarderRankings.map((r) => (
-                      <tr key={r.onboarderId}>
-                        <td style={tdStyle}>{r.rank}</td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{r.onboarderName}</td>
-                        <td style={tdStyle}>{r.totalEntries}</td>
-                        <td style={tdStyle}>{r.completed}</td>
-                        <td style={tdStyle}>{r.completionRate}%</td>
-                        <td style={tdStyle}>{r.avgTimeToCompletionHours}</td>
-                        <td style={{ ...tdStyle, color: r.overdueRate > 20 ? "#ef4444" : "var(--text-primary)" }}>{r.overdueRate}%</td>
-                        <td style={tdStyle}>{r.conversionRate}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Team summary */}
-          <div style={cardStyle}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>Team Summary</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {[
-                { label: "Avg Completion Rate", value: `${teamKPIs.avgCompletionRate}%` },
-                { label: "Avg Time to Complete", value: `${teamKPIs.avgTimeToCompletion}h` },
-                { label: "Avg Overdue Rate", value: `${teamKPIs.avgOverdueRate}%` },
-                { label: "Avg Conversion Rate", value: `${teamKPIs.avgConversionRate}%` },
-              ].map((stat) => (
-                <div key={stat.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent)" }}>{stat.value}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <PerformanceView myMetrics={myMetrics} teamKPIs={teamKPIs} />
       )}
+
+      {/* ═══ CLIENT DETAIL PANEL ═══ */}
+      <ClientDetailPanel
+        client={panelClient}
+        open={panelOpen}
+        onClose={closePanel}
+        onEdit={(c) => { closePanel(); startEdit(c); }}
+        onDelete={(id) => { deleteMut.mutate(id); closePanel(); }}
+        initialAction={panelAction}
+      />
     </div>
   );
 }
