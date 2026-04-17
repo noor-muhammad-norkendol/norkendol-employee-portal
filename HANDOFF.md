@@ -87,7 +87,42 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 - Edit/delete entries + edit/delete/deactivate boards
 - Dashboard widget only shows active leaderboard
 
-### Session — April 17, 2026
+### Session — April 17, 2026 (afternoon)
+
+**AI Assist — Email Parsing for Onboarder KPI**
+- "AI Assist" button on Add Client form — paste onboarding email, AI extracts all fields
+- API route: `src/app/api/onboarder/parse-email/route.ts` — uses centralized `callAI()` with feature key `onboarder_email_parser`
+- AI template seeded in `ai_context_templates` table — extracts 30+ fields from form submission emails
+- Works with the standard "Auto Contract Submission" email format from the CCS website
+
+**Expanded Intake Form (matches old system)**
+- Policyholder: first/last name split, additional policyholder (name, email, phone)
+- Loss Info: state, date of loss, cause of loss, split address (street, line2, city, state, zip), loss description
+- Parties: contractor company, name, email, phone, referral source (Contractor/Other dropdown with editable text), source email
+- Claim & Assignment: assignment type dropdown, insurance company, policy number, status of claim dropdown, claim number, file number, supplement notes
+- Assignment: assigned user (auto-filled with logged-in user), assigned PA, onboard type
+- `client_name` and `loss_address` auto-computed from split fields on save
+- Cancel button always visible, AI Assist always accessible
+- 19 new columns on `onboarding_clients` table (migration: `20260417_onboarder_expanded_intake_fields`)
+
+**Auto-Generated File Numbers**
+- Format: `TX-00001-2026` (state + 5-digit sequence + year)
+- Auto-generates when state field is filled — shows on form immediately as read-only
+- Queries DB for highest existing number per state+year, increments
+- Field labeled "(auto-generated)" with "Fills when state is entered" placeholder
+
+**Contractor → Talent Partner Network Flow**
+- After saving a new client with contractor info, system checks TPN by phone number, then email
+- If contractor not found and company not found → opens Add Firm modal (pending status), then Add External User modal
+- If contractor not found but company exists → opens Add External User modal linked to existing firm
+- If contractor found but missing info → silently updates their record (email/phone)
+- Shared modal components: `src/components/tpn/AddFirmModal.tsx`, `src/components/tpn/AddExternalUserModal.tsx`
+- These are reusable from anywhere in the portal — same forms as TPN admin
+- Firms from onboarder flow created as `pending` (admin approval in User Management → Pending Approvals)
+- External contacts created as `pending` — same approval flow
+- Success toast confirms what happened
+
+### Session — April 17, 2026 (morning)
 
 **Shared Claim Lookup (system-wide)**
 - New hook: `src/hooks/useClaimLookup.ts` — cross-table debounced search by claim #, file #, client name, or address
@@ -433,6 +468,106 @@ Examples: `FL-001-18` (Frank Dalton, founder), `FL-266-21` (Bill Prendergast), `
 - `ADMIN001` (Talha Masood), `ADMIN002` (Noor Muhammad) — dev/admin accounts, exempt from format
 - External partners (`ep_user` role) — typically don't get employee IDs
 - Pending users from `/apply` — get employee ID assigned when admin edits their profile
+
+---
+
+## Architecture: Hub-and-Spoke System — READ THIS FIRST
+
+This portal is NOT a collection of separate apps that happen to share a login page. It is ONE integrated system where every section is a spoke connected to common hubs. When you work on any feature, you must think about what other parts of the system it touches. If you build something in isolation, you built it wrong.
+
+### The Nervous System Analogy
+
+Think of the portal like a body's nervous system. A signal (a new claim, a new contractor, a status change) travels through the system and triggers responses in multiple places. When an onboarder enters a new client, that's not just an onboarding event — it potentially creates a file number used everywhere, adds a contractor to the partner network, and feeds data that estimating, settlement, and claim health will all reference later.
+
+### The Hubs (shared data + shared components)
+
+**1. Claim Data Hub**
+- Master key: `file_number` (internal, format: `TX-00001-2026`)
+- Secondary key: `claim_number` (external, carrier-assigned)
+- Shared lookup: `useClaimLookup` hook + `ClaimMatchBanner` component
+- Tables that hold claim data: `onboarding_clients`, `estimates`, `litigation_files`, `claim_health_records`
+- Rule: ANY page that touches claim/client data must use the shared claim lookup
+
+**2. People Hub (Talent Partner Network)**
+- Internal staff: `users` table (employees, admins)
+- External partners: `external_contacts` table (contractors, attorneys, appraisers, engineers)
+- Firms: `firms` table (companies that external contacts belong to)
+- Shared modals: `src/components/tpn/AddFirmModal.tsx`, `src/components/tpn/AddExternalUserModal.tsx`
+- Approval flow: external contacts and firms created outside TPN admin land as `pending` → admin approves in User Management → Pending Approvals
+- Rule: When a page encounters a person or company not in the system, it should offer to add them using the shared TPN modals — not build its own mini-form
+
+**3. AI Hub**
+- Centralized: `src/lib/ai.ts` → `callAI()` function
+- Templates: `ai_context_templates` table (locked prompts per feature)
+- Settings: `org_settings` table (provider, model, API key per org)
+- Logging: `ai_usage_log` table (every call tracked)
+- Rule: ALL AI features use `callAI()` with a feature key — never call Anthropic/OpenAI directly
+
+**4. Approval Hub**
+- `PendingApprovalsPanel` component (`src/components/PendingApprovalsPanel.tsx`)
+- Lives in User Management → Pending Approvals tab
+- Three sub-sections: Internal Users, External Contacts, Firms
+- Any page that creates users, contacts, or firms with `pending` status feeds into this single approval queue
+
+### The Spokes (feature pages)
+
+Each spoke connects to multiple hubs:
+
+| Spoke | Claim Hub | People Hub | AI Hub | Approval Hub |
+|-------|-----------|------------|--------|--------------|
+| **Onboarder KPI** | Creates claims (file #, claim #), shared lookup | Adds contractors → TPN via shared modals | AI email parsing | New firms/contacts → pending approval |
+| **Estimator KPI** | References claims via shared lookup | References adjusters | — | — |
+| **Settlement Tracker** | References claims, litigation files | TPN pickers for attorneys, appraisers | — | — |
+| **Claim Health** | References claims via shared lookup | — | — | — |
+| **Claim Calculator** | References claims via shared lookup | — | — | — |
+| **TPN Admin** | — | Full CRUD for contacts, firms, hierarchy | — | Creates pending contacts/firms |
+| **User Management** | — | Full CRUD for staff, external partners | — | Approval queue for all pending items |
+| **Training University** | — | Assigns courses to staff | AI course generation | — |
+| **Executive Intelligence** | — | Org hierarchy, feature assignments | AI interviews | — |
+
+### Cross-Page Data Flow Examples
+
+**Example 1: New claim from onboarding email**
+```
+Onboarding email pasted into AI Assist
+  → AI parses 30+ fields, fills the intake form
+  → Onboarder reviews, hits Save
+  → File number auto-generated (TX-00001-2026)
+  → Contractor detected → system checks TPN by phone/email
+  → Not found → Add Firm modal (pending) → Add External User modal (pending)
+  → Admin approves in User Management → Pending Approvals
+  → Claim now searchable from Estimator KPI, Settlement Tracker, Claim Health, Claim Calculator
+  → Contractor now available in TPN pickers throughout the system
+```
+
+**Example 2: Existing claim referenced in estimating**
+```
+Estimator types file number in Estimator KPI
+  → Shared claim lookup finds the onboarding record
+  → Banner: "Found TX-00001-2026 — Ngoc-Quynh Phan, Hail, Spring TX. Use this data?"
+  → Estimator clicks Accept → form pre-fills with all known data
+  → No duplicate data entry, no conflicting info across sections
+```
+
+### Rules for Future Development
+
+1. **Never build in isolation.** Before writing a feature, ask: "What other parts of the system does this touch?" If the answer is "none," you're probably missing something.
+
+2. **Use shared components.** If a modal, form, or lookup already exists as a shared component, use it. Don't rebuild it inside your page. Current shared components:
+   - `src/hooks/useClaimLookup.ts` — claim/client search
+   - `src/components/ClaimMatchBanner.tsx` — match picker UI
+   - `src/components/tpn/AddFirmModal.tsx` — add firm from anywhere
+   - `src/components/tpn/AddExternalUserModal.tsx` — add external contact from anywhere
+   - `src/components/PendingApprovalsPanel.tsx` — unified approval queue
+   - `src/lib/ai.ts` → `callAI()` — all AI features
+
+3. **Pending status flows to one place.** Any record created as `pending` (users, contacts, firms) should be reviewable in User Management → Pending Approvals. Don't create separate approval UIs per page.
+
+4. **File number is the master key.** Every section that touches claims must store and reference `file_number`. This is what ties everything together.
+
+5. **Phone and email are identity keys.** When checking if a person exists in the system, search by phone number first (digits only, exact match), then email (case-insensitive). Names are unreliable — people use nicknames, abbreviations, different spellings.
+
+6. **Read HANDOFF.md before every coding session.** This document is the single source of truth for how the system works. If something isn't documented here, it should be.
 
 ---
 
