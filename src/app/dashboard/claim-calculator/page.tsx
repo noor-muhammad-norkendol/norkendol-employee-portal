@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 
 
 /* ───── style constants ───── */
@@ -93,6 +96,38 @@ interface ReleaseTypeOption {
    MAIN COMPONENT
    =================================================================== */
 export default function ClaimCalculatorPage() {
+  /* ── supabase + claim info ── */
+  const supabase = useMemo(() => createClient(), []);
+  const [orgId, setOrgId] = useState<string>();
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('users').select('org_id').eq('id', user.id).single()
+        .then(({ data }) => { if (data) setOrgId(data.org_id); });
+    });
+  }, [supabase]);
+
+  const [claimNumber, setClaimNumber] = useState("");
+  const [fileNumber, setFileNumber] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [lossAddress, setLossAddress] = useState("");
+
+  const [ccLookupField, setCcLookupField] = useState<LookupField>('claim_number');
+  const ccLookupTerm = ccLookupField === 'claim_number' ? claimNumber
+    : ccLookupField === 'file_number' ? fileNumber
+    : ccLookupField === 'client_name' ? clientName
+    : lossAddress;
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId, searchTerm: ccLookupTerm, searchField: ccLookupField,
+  });
+
+  function handleCcClaimAccept(match: ClaimLookupMatch) {
+    if (match.claim_number) setClaimNumber(match.claim_number);
+    if (match.file_number) setFileNumber(match.file_number);
+    if (match.client_name) setClientName(match.client_name);
+    if (match.loss_address) setLossAddress(match.loss_address);
+  }
+
   /* ── open sections ── */
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     coverages: true, deductions: false, priorPayments: false,
@@ -370,6 +405,32 @@ export default function ClaimCalculatorPage() {
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 24 }}>
           Claim Breakdown Calculator
         </h1>
+
+        {/* ── 0. Claim Info ── */}
+        <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim Info</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Claim Number</label>
+              <input style={inputStyle} value={claimNumber} onChange={(e) => { setClaimNumber(e.target.value); if (e.target.value.length >= 3) setCcLookupField('claim_number'); }} placeholder="Claim #" />
+            </div>
+            <div>
+              <label style={labelStyle}>File Number</label>
+              <input style={inputStyle} value={fileNumber} onChange={(e) => { setFileNumber(e.target.value); if (e.target.value.length >= 3) setCcLookupField('file_number'); }} placeholder="File #" />
+            </div>
+            <div>
+              <label style={labelStyle}>Client Name</label>
+              <input style={inputStyle} value={clientName} onChange={(e) => { setClientName(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber) setCcLookupField('client_name'); }} placeholder="Client name" />
+            </div>
+            <div>
+              <label style={labelStyle}>Loss Address</label>
+              <input style={inputStyle} value={lossAddress} onChange={(e) => { setLossAddress(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber) setCcLookupField('address'); }} placeholder="123 Main St" />
+            </div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleCcClaimAccept} onDismiss={clearLookup} />
+          </div>
+        </div>
 
         {/* ── 1. Release Type ── */}
         <div style={{ ...cardStyle, marginBottom: 16 }}>
