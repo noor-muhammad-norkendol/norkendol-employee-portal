@@ -11,6 +11,8 @@ import { useSettlements, useSettlementByFileId, useCreateSettlement, useUpdateSe
 import { useAttorneyScorecard, computeReferralMetrics } from "@/hooks/settlement-tracker";
 import { useStateRequirements } from "@/hooks/settlement-tracker";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import {
   LitigationFile,
   CreateLitigationFileInput,
@@ -850,6 +852,27 @@ function LitigationFileModal({
   const [newContractorName, setNewContractorName] = useState("");
   const [newContractorCompany, setNewContractorCompany] = useState("");
 
+  // Shared claim lookup
+  const [stLookupField, setStLookupField] = useState<LookupField>('file_number');
+  const stLookupTerm = stLookupField === 'file_number' ? form.file_number
+    : stLookupField === 'client_name' ? form.client_name
+    : stLookupField === 'address' ? (form.loss_address || '') : '';
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId: userInfo?.orgId, searchTerm: stLookupTerm, searchField: stLookupField, enabled: !initialData,
+  });
+
+  function handleStClaimAccept(match: ClaimLookupMatch) {
+    setForm((prev) => ({
+      ...prev,
+      client_name: match.client_name || prev.client_name,
+      referral_source: match.referral_source || prev.referral_source,
+      peril: match.peril || prev.peril,
+      state: match.state || prev.state,
+      policy_number: match.policy_number || prev.policy_number,
+      loss_address: match.loss_address || prev.loss_address,
+    }));
+  }
+
   // Fetch TPN data (org-scoped)
   useEffect(() => {
     if (!userInfo) return;
@@ -969,11 +992,14 @@ function LitigationFileModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label style={labelStyle}>File Number *</label>
-              <input style={inputStyle} value={form.file_number} onChange={(e) => update("file_number", e.target.value)} required />
+              <input style={inputStyle} value={form.file_number} onChange={(e) => { update("file_number", e.target.value); if (e.target.value.length >= 3) setStLookupField('file_number'); }} required />
             </div>
             <div>
               <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={form.client_name} onChange={(e) => update("client_name", e.target.value)} required />
+              <input style={inputStyle} value={form.client_name} onChange={(e) => { update("client_name", e.target.value); if (e.target.value.length >= 3 && !form.file_number) setStLookupField('client_name'); }} required />
+            </div>
+            <div className="md:col-span-2">
+              <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleStClaimAccept} onDismiss={clearLookup} />
             </div>
             <div>
               <label style={labelStyle}>Attorney Onboarded Date *</label>

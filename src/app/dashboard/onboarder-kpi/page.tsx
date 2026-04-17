@@ -15,6 +15,8 @@ import {
   calculateOnboarderMetrics,
 } from "@/hooks/onboarder-kpi/useOnboarderKPIs";
 import { useOKSupabase } from "@/hooks/onboarder-kpi/useSupabase";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import {
   OnboardingClient,
   CreateClientInput,
@@ -94,6 +96,9 @@ function timeInStage(client: OnboardingClient): { hours: number; label: string; 
 }
 
 const EMPTY_FORM: CreateClientInput = {
+  claim_number: null,
+  file_number: null,
+  loss_address: null,
   client_name: "",
   referral_source: null,
   state: null,
@@ -113,7 +118,7 @@ const EMPTY_FORM: CreateClientInput = {
 type ViewMode = "pipeline" | "add" | "performance";
 
 export default function OnboarderKPIPage() {
-  const { userInfo } = useOKSupabase();
+  const { supabase, userInfo } = useOKSupabase();
   const { data: allClients = [], isLoading } = useOnboardingClients();
   const createMut = useCreateOnboardingClient();
   const updateMut = useUpdateOnboardingClient();
@@ -129,6 +134,32 @@ export default function OnboarderKPIPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+
+  // Shared claim lookup — search by whichever field has the most input
+  const [lookupField, setLookupField] = useState<LookupField>('client_name');
+  const lookupTerm = lookupField === 'claim_number' ? (form.claim_number || '')
+    : lookupField === 'file_number' ? (form.file_number || '')
+    : lookupField === 'address' ? (form.loss_address || '')
+    : form.client_name;
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId: userInfo?.orgId, searchTerm: lookupTerm, searchField: lookupField, enabled: !editId,
+  });
+
+  function handleClaimAccept(match: ClaimLookupMatch) {
+    setForm((prev) => ({
+      ...prev,
+      claim_number: match.claim_number || prev.claim_number,
+      file_number: match.file_number || prev.file_number,
+      loss_address: match.loss_address || prev.loss_address,
+      client_name: match.client_name || prev.client_name,
+      state: match.state || prev.state,
+      peril: (match.peril as typeof prev.peril) || prev.peril,
+      date_of_loss: match.loss_date || prev.date_of_loss,
+      referral_source: match.referral_source || prev.referral_source,
+      email: match.email || prev.email,
+      phone: match.phone || prev.phone,
+    }));
+  }
 
   // Sidebar menu actions
   useEffect(() => {
@@ -440,12 +471,32 @@ export default function OnboarderKPIPage() {
             )}
           </div>
 
+          {/* Section: Claim / File Info */}
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim / File Info</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
+            <div>
+              <label style={labelStyle}>Claim Number</label>
+              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => { set("claim_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('claim_number'); }} placeholder="Claim #" />
+            </div>
+            <div>
+              <label style={labelStyle}>File Number</label>
+              <input style={inputStyle} value={form.file_number || ""} onChange={(e) => { set("file_number", e.target.value || null); if (e.target.value.length >= 3) setLookupField('file_number'); }} placeholder="File #" />
+            </div>
+            <div>
+              <label style={labelStyle}>Loss Address</label>
+              <input style={inputStyle} value={form.loss_address || ""} onChange={(e) => { set("loss_address", e.target.value || null); if (e.target.value.length >= 3) setLookupField('address'); }} placeholder="123 Main St" />
+            </div>
+          </div>
+
+          {/* Claim lookup banner */}
+          <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleClaimAccept} onDismiss={clearLookup} />
+
           {/* Section: Client Info */}
           <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Client Info</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
             <div>
               <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={form.client_name} onChange={(e) => set("client_name", e.target.value)} placeholder="Enter client name" />
+              <input style={inputStyle} value={form.client_name} onChange={(e) => { set("client_name", e.target.value); if (e.target.value.length >= 3 && !form.claim_number && !form.file_number) setLookupField('client_name'); }} placeholder="Enter client name" />
             </div>
             <div>
               <label style={labelStyle}>Email</label>

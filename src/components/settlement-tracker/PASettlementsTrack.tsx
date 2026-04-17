@@ -13,6 +13,8 @@ import {
 } from "@/hooks/settlement-tracker";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
 import { useLitigationFiles } from "@/hooks/settlement-tracker";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import {
   PASettlementWithFile,
   CreatePASettlementInput,
@@ -443,6 +445,7 @@ function PADataGrid({
    ================================================================ */
 
 function PACreateModal({ onClose }: { onClose: () => void }) {
+  const { supabase, userInfo } = useSTSupabase();
   const createMut = useCreatePASettlement();
   const { data: litFiles = [] } = useLitigationFiles();
 
@@ -465,6 +468,26 @@ function PACreateModal({ onClose }: { onClose: () => void }) {
     const v = raw === "" ? undefined : parseFloat(raw);
     set(field, v);
   };
+
+  // Shared claim lookup — search by carrier or referral_source
+  const [paLookupField, setPaLookupField] = useState<LookupField>('client_name');
+  const paLookupTerm = paLookupField === 'client_name' ? (form.carrier || '') : '';
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId: userInfo?.orgId, searchTerm: form.referral_source || '', searchField: 'client_name',
+    enabled: (form.referral_source?.length ?? 0) >= 3,
+  });
+
+  function handlePaClaimAccept(match: ClaimLookupMatch) {
+    setForm((prev) => ({
+      ...prev,
+      referral_source: match.referral_source || prev.referral_source || undefined,
+      referral_rep: match.referral_representative || prev.referral_rep || undefined,
+      carrier: match.carrier || prev.carrier || undefined,
+      carrier_adjuster: match.carrier_adjuster || prev.carrier_adjuster || undefined,
+      peril: (match.peril as typeof prev.peril) || prev.peril,
+      date_of_loss: match.loss_date || prev.date_of_loss || undefined,
+    }));
+  }
 
   // Auto-calcs
   const depreciation = useMemo(() => {
@@ -623,6 +646,7 @@ function PACreateModal({ onClose }: { onClose: () => void }) {
           >
             The Parties
           </h3>
+          <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handlePaClaimAccept} onDismiss={clearLookup} />
           <div
             className="grid grid-cols-2 gap-3 mb-5"
             style={{ gridTemplateColumns: "1fr 1fr" }}

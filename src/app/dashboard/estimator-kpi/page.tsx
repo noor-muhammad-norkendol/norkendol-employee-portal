@@ -4,6 +4,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useEstimates, useCreateEstimate, useUpdateEstimate, useDeleteEstimate, useSearchEstimatesByFileNumber } from "@/hooks/estimator-kpi/useEstimates";
 import { useEstimatorKPIs, useWriteEstimatorKPISnapshots, calculateEstimatorMetrics, calculateOverallScore } from "@/hooks/estimator-kpi/useEstimatorKPIs";
 import { useEKSupabase } from "@/hooks/estimator-kpi/useSupabase";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import {
   Estimate, CreateEstimateInput, EstimateStatus,
   STATUS_OPTIONS, PERIL_OPTIONS, SEVERITY_OPTIONS, PROPERTY_TYPE_OPTIONS,
@@ -88,7 +90,7 @@ const STAT_LABELS: Record<StatMetric, string> = {
 };
 
 export default function EstimatorKPIPage() {
-  const { userInfo } = useEKSupabase();
+  const { supabase, userInfo } = useEKSupabase();
   const { data: estimates = [], isLoading } = useEstimates();
   const createMut = useCreateEstimate();
   const updateMut = useUpdateEstimate();
@@ -107,6 +109,38 @@ export default function EstimatorKPIPage() {
   const [historyFrom, setHistoryFrom] = useState("");
   const [historyTo, setHistoryTo] = useState("");
   const { results: fileMatches } = useSearchEstimatesByFileNumber(editId ? "" : form.file_number);
+
+  // Shared claim lookup — fires when NO revision match found
+  const [ekLookupField, setEkLookupField] = useState<LookupField>('file_number');
+  const ekLookupTerm = ekLookupField === 'file_number' ? form.file_number
+    : ekLookupField === 'claim_number' ? (form.claim_number || '')
+    : form.client_name;
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId: userInfo?.orgId, searchTerm: ekLookupTerm, searchField: ekLookupField,
+    enabled: !editId && fileMatches.length === 0,
+  });
+
+  function handleEkClaimAccept(match: ClaimLookupMatch) {
+    setForm((prev) => ({
+      ...prev,
+      claim_number: match.claim_number || prev.claim_number,
+      file_number: match.file_number || prev.file_number,
+      policy_number: match.policy_number || prev.policy_number,
+      client_name: match.client_name || prev.client_name,
+      property_type: (match.property_type as typeof prev.property_type) || prev.property_type,
+      loss_state: match.state || prev.loss_state,
+      loss_date: match.loss_date || prev.loss_date,
+      referral_source: match.referral_source || prev.referral_source,
+      referral_representative: match.referral_representative || prev.referral_representative,
+      carrier: match.carrier || prev.carrier,
+      carrier_adjuster: match.carrier_adjuster || prev.carrier_adjuster,
+      contractor_company: match.contractor_company || prev.contractor_company,
+      contractor_rep: match.contractor_rep || prev.contractor_rep,
+      contractor_rep_email: match.contractor_rep_email || prev.contractor_rep_email,
+      contractor_rep_phone: match.contractor_rep_phone || prev.contractor_rep_phone,
+      peril: (match.peril as typeof prev.peril) || prev.peril,
+    }));
+  }
 
   // Sidebar menu actions
   useEffect(() => {
@@ -425,7 +459,7 @@ export default function EstimatorKPIPage() {
             </div>
             <div>
               <label style={labelStyle}>Claim Number</label>
-              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => set("claim_number", e.target.value || null)} />
+              <input style={inputStyle} value={form.claim_number || ""} onChange={(e) => { set("claim_number", e.target.value || null); if (e.target.value.length >= 3) setEkLookupField('claim_number'); }} />
             </div>
             <div>
               <label style={labelStyle}>Policy Number</label>
@@ -442,6 +476,11 @@ export default function EstimatorKPIPage() {
               </span>
               <button onClick={() => setLinkedParent(null)} style={{ background: "none", border: "none", color: "#60a5fa", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>Dismiss</button>
             </div>
+          )}
+
+          {/* Shared claim lookup banner (only when no revision match) */}
+          {!linkedParent && !editId && (
+            <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleEkClaimAccept} onDismiss={clearLookup} />
           )}
 
           {/* Section 2: Client Info */}

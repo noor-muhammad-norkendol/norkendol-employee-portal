@@ -3,6 +3,9 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useClaimHealthRecords, useCreateClaimHealth, useUpdateClaimHealth, useDeleteClaimHealth } from "@/hooks/claim-health/useClaimHealthRecords";
 import { calculateClaimMetrics, useClaimHealthKPIs, useWriteKPISnapshots } from "@/hooks/claim-health/useClaimHealthKPIs";
+import { useCHSupabase } from "@/hooks/claim-health/useSupabase";
+import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
+import ClaimMatchBanner from "@/components/ClaimMatchBanner";
 import { CreateClaimHealthInput, ClaimHealthRecord, STATUS_AT_INTAKE_OPTIONS, ROOF_MATERIAL_OPTIONS } from "@/types/claim-health";
 
 /* ───── style constants (portal pattern) ───── */
@@ -56,6 +59,7 @@ function pct(n: number | null | undefined): string {
 }
 
 export default function ClaimHealthPage() {
+  const { supabase, userInfo } = useCHSupabase();
   const { data: records = [], isLoading } = useClaimHealthRecords();
   const createMut = useCreateClaimHealth();
   const updateMut = useUpdateClaimHealth();
@@ -67,6 +71,23 @@ export default function ClaimHealthPage() {
   const [form, setForm] = useState<CreateClaimHealthInput>({ ...EMPTY_FORM });
   const [editId, setEditId] = useState<string | null>(null);
   const [printRecord, setPrintRecord] = useState<ClaimHealthRecord | null>(null);
+
+  // Shared claim lookup
+  const [chLookupField, setChLookupField] = useState<LookupField>('claim_number');
+  const chLookupTerm = chLookupField === 'claim_number' ? form.claim_id : form.client_name;
+  const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
+    supabase, orgId: userInfo?.orgId, searchTerm: chLookupTerm, searchField: chLookupField, enabled: !editId,
+  });
+
+  function handleChClaimAccept(match: ClaimLookupMatch) {
+    setForm((prev) => ({
+      ...prev,
+      claim_id: match.claim_number || prev.claim_id,
+      client_name: match.client_name || prev.client_name,
+      referral_source: match.referral_source || prev.referral_source,
+      referral_representative: match.referral_representative || prev.referral_representative,
+    }));
+  }
 
   // Write KPI snapshots when records change (debounced — once per page load / mutation)
   const kpiWritten = useRef(false);
@@ -215,16 +236,19 @@ export default function ClaimHealthPage() {
             </h2>
 
             {/* Row 1: ID + Client */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>Claim ID</label>
-                <input style={inputStyle} value={form.claim_id} onChange={(e) => set("claim_id", e.target.value)} placeholder="CL-2026-0001" />
+                <input style={inputStyle} value={form.claim_id} onChange={(e) => { set("claim_id", e.target.value); if (e.target.value.length >= 3) setChLookupField('claim_number'); }} placeholder="CL-2026-0001" />
               </div>
               <div>
                 <label style={labelStyle}>Client Name</label>
-                <input style={inputStyle} value={form.client_name} onChange={(e) => set("client_name", e.target.value)} />
+                <input style={inputStyle} value={form.client_name} onChange={(e) => { set("client_name", e.target.value); if (e.target.value.length >= 3 && !form.claim_id) setChLookupField('client_name'); }} />
               </div>
             </div>
+
+            {/* Claim lookup banner */}
+            <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleChClaimAccept} onDismiss={clearLookup} />
 
             {/* Row 2: Referral */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>

@@ -84,6 +84,9 @@ export interface OnboardingClient {
   org_id: string;
   created_by_id: string;
   created_by_name: string;
+  claim_number?: string | null;
+  file_number?: string | null;
+  loss_address?: string | null;
   client_name: string;
   referral_source?: string | null;
   state?: string | null;
@@ -113,6 +116,9 @@ export interface OnboardingClient {
 }
 
 export interface CreateClientInput {
+  claim_number?: string | null;
+  file_number?: string | null;
+  loss_address?: string | null;
   client_name: string;
   referral_source?: string | null;
   state?: string | null;
