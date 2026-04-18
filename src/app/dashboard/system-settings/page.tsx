@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import UIComponentGlossary from "./UIComponentGlossary";
 import AppearanceTab from "./AppearanceTab";
+import AIDesigner from "./AIDesigner";
 
-const TABS = ["AI Configuration", "UI Components", "Appearance"] as const;
+const TABS = ["AI Configuration", "AI Designer", "UI Components", "Appearance"] as const;
 type Tab = (typeof TABS)[number];
 
 interface AISettings {
@@ -144,6 +145,9 @@ export default function SystemSettingsPage() {
           </button>
         ))}
       </div>
+
+      {/* AI Designer tab */}
+      {activeTab === "AI Designer" && <AIDesigner />}
 
       {/* UI Components tab */}
       {activeTab === "UI Components" && <UIComponentGlossary />}
