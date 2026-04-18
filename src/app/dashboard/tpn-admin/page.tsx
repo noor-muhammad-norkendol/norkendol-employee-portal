@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+// XLSX imported dynamically in handleFileUpload to avoid 7MB bundle bloat
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -572,8 +572,9 @@ export default function TPNAdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+      const XLSX = await import("xlsx");
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });

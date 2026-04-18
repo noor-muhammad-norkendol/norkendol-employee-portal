@@ -36,13 +36,18 @@ export async function middleware(request: NextRequest) {
 
   // Logged in — check if user is approved (active status)
   if (user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("status")
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.status !== "active") {
+    // If the DB query failed, let the user through rather than locking them out
+    if (profileError || !profile) {
+      return response;
+    }
+
+    if (profile.status !== "active") {
       // Pending/rejected/inactive user — send to a holding page
       const url = request.nextUrl.clone();
       url.pathname = "/pending";

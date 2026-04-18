@@ -57,6 +57,7 @@ function OnboardingTemplatesAdmin() {
   const [supabase] = useState(() => createClient());
   const [templates, setTemplates] = useState<Record<string, Template>>({});
   const [dirty, setDirty] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -160,7 +161,8 @@ function OnboardingTemplatesAdmin() {
       // Reload to get IDs
       await loadTemplates();
     } catch (err) {
-      console.error("Save failed:", err);
+      setSaveError("Save failed. Please try again.");
+      setTimeout(() => setSaveError(null), 5000);
     } finally {
       setSaving(false);
     }
@@ -177,6 +179,7 @@ function OnboardingTemplatesAdmin() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {saved && <span style={{ fontSize: 12, color: "#4ade80", fontWeight: 600 }}>Saved!</span>}
+          {saveError && <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>{saveError}</span>}
           <button
             onClick={handleSave}
             disabled={!dirty || saving}
