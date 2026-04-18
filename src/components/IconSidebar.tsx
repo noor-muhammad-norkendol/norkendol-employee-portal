@@ -247,6 +247,42 @@ function SortableNavItem({
   );
 }
 
+function SidebarLogo({ expanded }: { expanded: boolean }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    function loadBranding() {
+      setLogoUrl(localStorage.getItem("portal-logo"));
+      setCompanyName(localStorage.getItem("portal-company-name"));
+    }
+    loadBranding();
+    window.addEventListener("portal-branding-changed", loadBranding);
+    return () => window.removeEventListener("portal-branding-changed", loadBranding);
+  }, []);
+
+  const initial = companyName ? companyName.charAt(0).toUpperCase() : "N";
+  const label = companyName || "Portal";
+
+  return (
+    <div className={`flex items-center mb-4 ${expanded ? "px-3 gap-2" : "justify-center"}`}>
+      {logoUrl ? (
+        <img src={logoUrl} alt={label} className="w-8 h-8 rounded-md shrink-0" style={{ objectFit: "contain" }} />
+      ) : (
+        <div
+          className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
+          style={{ background: "var(--accent)", color: "#fff" }}
+        >
+          {initial}
+        </div>
+      )}
+      {expanded && (
+        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{label}</span>
+      )}
+    </div>
+  );
+}
+
 export default function IconSidebar({
   expanded,
   onToggleExpand,
@@ -385,18 +421,8 @@ export default function IconSidebar({
         </svg>
       </button>
 
-      {/* Logo */}
-      <div className={`flex items-center mb-4 ${expanded ? "px-3 gap-2" : "justify-center"}`}>
-        <div
-          className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
-          style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-        >
-          N
-        </div>
-        {expanded && (
-          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Portal</span>
-        )}
-      </div>
+      {/* Logo — reads custom branding from localStorage */}
+      <SidebarLogo expanded={expanded} />
 
       {/* Scrollable nav area */}
       <div style={{ overflowY: "auto", overflowX: "hidden", flex: 1 }}>
