@@ -826,6 +826,8 @@ New feature: lets each tenant customize the portal's look and feel during onboar
 - `src/app/api/design-analyzer/route.ts`
 - `src/lib/formatters.ts`
 - `src/lib/styles.ts`
+- `src/lib/theme.ts` — shared theme utilities (CustomColors type, apply/clear functions)
+- `src/lib/api-auth.ts` — shared API route auth helper (authenticateAdmin)
 - `src/hooks/useSupabase.ts`
 - `SIMPLIFY-20260418.md`
 
