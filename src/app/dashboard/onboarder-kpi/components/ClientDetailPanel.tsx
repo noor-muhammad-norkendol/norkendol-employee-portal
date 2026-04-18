@@ -118,7 +118,7 @@ export default function ClientDetailPanel({ client, open, onClose, onEdit, onDel
           <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
             <span style={{
               display: "inline-block", padding: "2px 10px", borderRadius: 4,
-              fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color,
+              fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.text,
             }}>
               {STATUS_LABELS[client.status]}
             </span>

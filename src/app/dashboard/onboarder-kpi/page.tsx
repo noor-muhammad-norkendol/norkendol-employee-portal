@@ -100,29 +100,11 @@ export default function OnboarderKPIPage() {
     if (!stateCode || stateCode.length !== 2 || editId || !supabase || !userInfo) return;
     if (form.file_number && fileNumGenRef.current === stateCode) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const year = new Date().getFullYear();
-        const prefix = `${stateCode}-`;
-        const suffix = `-${year}`;
-        const { data } = await supabase
-          .from("onboarding_clients")
-          .select("file_number")
-          .eq("org_id", userInfo.orgId)
-          .like("file_number", `${prefix}%${suffix}`)
-          .order("file_number", { ascending: false })
-          .limit(1);
-        if (cancelled) return;
-        let nextSeq = 1;
-        if (data && data.length > 0 && data[0].file_number) {
-          const match = data[0].file_number.match(/-(\d+)-/);
-          if (match) nextSeq = parseInt(match[1], 10) + 1;
-        }
-        const fileNum = `${prefix}${String(nextSeq).padStart(5, "0")}${suffix}`;
-        fileNumGenRef.current = stateCode;
-        setForm((prev) => ({ ...prev, file_number: fileNum }));
-      } catch { /* silent */ }
-    })();
+    generateFileNumber(stateCode).then((fileNum) => {
+      if (cancelled) return;
+      fileNumGenRef.current = stateCode;
+      setForm((prev) => ({ ...prev, file_number: fileNum }));
+    }).catch(() => { /* silent */ });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.state, form.loss_state, editId, supabase, userInfo?.orgId]);
@@ -152,12 +134,15 @@ export default function OnboarderKPIPage() {
     if (!phone && !email && !company) return;
     if (phone) {
       const digits = stripPhone(phone);
-      const { data: allContacts } = await supabase
+      const last7 = digits.slice(-7);
+      const { data: phoneContacts } = await supabase
         .from("external_contacts")
         .select("id, name, company_name, email, phone")
-        .eq("org_id", userInfo.orgId);
-      if (allContacts) {
-        const phoneMatch = allContacts.find((c) => stripPhone(c.phone || "") === digits);
+        .eq("org_id", userInfo.orgId)
+        .not("phone", "is", null)
+        .ilike("phone", `%${last7}%`);
+      if (phoneContacts) {
+        const phoneMatch = phoneContacts.find((c) => stripPhone(c.phone || "") === digits);
         if (phoneMatch) {
           const missingEmail = !phoneMatch.email && email;
           const missingPhone = !phoneMatch.phone && phone;

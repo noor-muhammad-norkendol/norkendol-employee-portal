@@ -11,39 +11,7 @@ import {
   STATUS_OPTIONS, PERIL_OPTIONS, SEVERITY_OPTIONS, PROPERTY_TYPE_OPTIONS,
   ALLOWED_TRANSITIONS,
 } from "@/types/estimator-kpi";
-
-/* ───── style constants (portal pattern) ───── */
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", borderRadius: 10, padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", border: "1px solid var(--border-color)",
-  color: "var(--text-primary)", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, width: "100%", outline: "none",
-};
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 500, color: "var(--text-secondary)",
-  display: "block", marginBottom: 4,
-};
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6,
-  padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-};
-const btnOutline: React.CSSProperties = {
-  background: "transparent", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 6,
-  padding: "6px 12px", fontSize: 12, cursor: "pointer",
-};
-const thStyle: React.CSSProperties = {
-  padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)",
-  textAlign: "left", borderBottom: "1px solid var(--border-color)", whiteSpace: "nowrap",
-};
-const tdStyle: React.CSSProperties = {
-  padding: "8px 12px", fontSize: 13, color: "var(--text-primary)",
-  borderBottom: "1px solid var(--border-color)",
-};
+import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline, thStyle, tdStyle } from "@/lib/styles";
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -56,17 +24,17 @@ function hrs(minutes: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  "assigned": { bg: "rgba(148,163,184,0.15)", color: "#94a3b8" },
-  "in-progress": { bg: "rgba(96,165,250,0.15)", color: "#60a5fa" },
-  "blocked": { bg: "rgba(239,68,68,0.15)", color: "#ef4444" },
-  "review": { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
-  "sent-to-carrier": { bg: "rgba(167,139,250,0.15)", color: "#a78bfa" },
-  "revision-requested": { bg: "rgba(251,146,60,0.15)", color: "#fb923c" },
-  "revised": { bg: "rgba(45,212,191,0.15)", color: "#2dd4bf" },
-  "settled": { bg: "rgba(74,222,128,0.15)", color: "#4ade80" },
-  "closed": { bg: "rgba(148,163,184,0.15)", color: "#94a3b8" },
-  "unable-to-start": { bg: "rgba(239,68,68,0.1)", color: "#f87171" },
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  "assigned": { bg: "rgba(148,163,184,0.15)", text: "#94a3b8" },
+  "in-progress": { bg: "rgba(96,165,250,0.15)", text: "#60a5fa" },
+  "blocked": { bg: "rgba(239,68,68,0.15)", text: "#ef4444" },
+  "review": { bg: "rgba(251,191,36,0.15)", text: "#fbbf24" },
+  "sent-to-carrier": { bg: "rgba(167,139,250,0.15)", text: "#a78bfa" },
+  "revision-requested": { bg: "rgba(251,146,60,0.15)", text: "#fb923c" },
+  "revised": { bg: "rgba(45,212,191,0.15)", text: "#2dd4bf" },
+  "settled": { bg: "rgba(74,222,128,0.15)", text: "#4ade80" },
+  "closed": { bg: "rgba(148,163,184,0.15)", text: "#94a3b8" },
+  "unable-to-start": { bg: "rgba(239,68,68,0.1)", text: "#f87171" },
 };
 
 // Statuses where estimate value field becomes visible
@@ -411,7 +379,7 @@ export default function EstimatorKPIPage() {
                           <td style={tdStyle}>
                             <span style={{
                               display: "inline-block", padding: "2px 8px", borderRadius: 4,
-                              fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color,
+                              fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.text,
                             }}>
                               {e.status}
                             </span>

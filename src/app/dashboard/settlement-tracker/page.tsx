@@ -6,6 +6,7 @@ import AppraisalTrack from "@/components/settlement-tracker/AppraisalTrack";
 import PASettlementsTrack from "@/components/settlement-tracker/PASettlementsTrack";
 import { useLitigationFiles } from "@/hooks/settlement-tracker";
 import { useLegalActions, useCreateLegalAction, useUpdateLegalAction, useBulkLitigationFileRollups } from "@/hooks/settlement-tracker";
+import { formatDate, truncate, formatCurrency } from "@/lib/formatters";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
 import {
   LitigationFile,
@@ -26,14 +27,9 @@ import {
   deriveStatusFromSteps,
 } from "@/hooks/settlement-tracker/usePhaseStatusAutoSync";
 
-/* ── styles ───────────────────────────────────────────── */
+import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline, overlayStyle } from "@/lib/styles";
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  borderRadius: 10,
-  padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
+/* ── styles (local overrides) ───────────────────────── */
 
 const thStyle: React.CSSProperties = {
   padding: "10px 14px",
@@ -51,61 +47,6 @@ const tdStyle: React.CSSProperties = {
   fontSize: 13,
   color: "var(--text-primary)",
   borderBottom: "1px solid var(--border-color)",
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 16px",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const btnOutline: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 6,
-  padding: "6px 12px",
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border-color)",
-  color: "var(--text-primary)",
-  borderRadius: 8,
-  padding: "8px 12px",
-  fontSize: 13,
-  width: "100%",
-  outline: "none",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--text-secondary)",
-  display: "block",
-  marginBottom: 4,
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  cursor: "pointer",
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 50,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(0,0,0,0.6)",
 };
 
 const modalStyle: React.CSSProperties = {
@@ -162,15 +103,6 @@ function getTrafficLightColor(nextActionDate?: string | null): string {
   return "#4ade80";
 }
 
-function formatDate(dateString?: string | null) {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString();
-}
-
-function truncate(text?: string | null, max = 40) {
-  if (!text) return "—";
-  return text.length > max ? text.substring(0, max) + "..." : text;
-}
 
 function StatusBadge({ label, color }: { label: string; color: string }) {
   const bgMap: Record<string, string> = {
@@ -207,16 +139,6 @@ function TrackIcon({ path, size = 32 }: { path: string; size?: number }) {
   );
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-function formatCurrency(amount: number | null | undefined) {
-  if (amount == null) return "—";
-  return currencyFormatter.format(amount);
-}
 
 /* ================================================================
    MAIN PAGE — USER VIEW

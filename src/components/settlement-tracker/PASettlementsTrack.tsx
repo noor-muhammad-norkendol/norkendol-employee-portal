@@ -11,6 +11,7 @@ import {
   useUnarchivePASettlement,
   useDeletePASettlement,
 } from "@/hooks/settlement-tracker";
+import { formatDate, truncate, formatCurrency, formatCurrencyDecimal } from "@/lib/formatters";
 import { useSTSupabase } from "@/hooks/settlement-tracker";
 import { useLitigationFiles } from "@/hooks/settlement-tracker";
 import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
@@ -29,15 +30,9 @@ import {
   PAYMENT_TYPE_OPTIONS,
   PaymentType,
 } from "@/types/settlement-tracker/pa-settlement";
+import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline, overlayStyle } from "@/lib/styles";
 
-/* ── styles (shared with other tracks) ─────────────────── */
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  borderRadius: 10,
-  padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
+/* ── styles (local overrides) ─────────────────── */
 
 const thStyle: React.CSSProperties = {
   padding: "10px 14px",
@@ -55,58 +50,6 @@ const tdStyle: React.CSSProperties = {
   fontSize: 13,
   color: "var(--text-primary)",
   borderBottom: "1px solid var(--border-color)",
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 16px",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const btnOutline: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border-color)",
-  borderRadius: 6,
-  padding: "6px 12px",
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border-color)",
-  color: "var(--text-primary)",
-  borderRadius: 8,
-  padding: "8px 12px",
-  fontSize: 13,
-  width: "100%",
-  outline: "none",
-};
-
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--text-secondary)",
-  display: "block",
-  marginBottom: 4,
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 50,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(0,0,0,0.6)",
 };
 
 const modalStyle: React.CSSProperties = {
@@ -131,33 +74,6 @@ const readOnlyInputStyle: React.CSSProperties = {
 
 const ADMIN_ROLES = ["admin", "super_admin", "system_admin"];
 
-function formatDate(d?: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString();
-}
-
-function truncate(t?: string | null, max = 40) {
-  if (!t) return "—";
-  return t.length > max ? t.substring(0, max) + "..." : t;
-}
-
-function formatCurrency(v: number | null | undefined) {
-  if (v == null) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(v);
-}
-
-function formatCurrencyDecimal(v: number | null | undefined) {
-  if (v == null) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(v);
-}
 
 function StatusBadge({ label, color }: { label: string; color: string }) {
   const bgMap: Record<string, string> = {

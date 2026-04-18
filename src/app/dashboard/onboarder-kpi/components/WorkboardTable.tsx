@@ -229,7 +229,7 @@ export default function WorkboardTable({
                                       key={t}
                                       onClick={() => { onMoveStatus(client, t); }}
                                       style={{
-                                        background: tc.bg, color: tc.color, border: "none",
+                                        background: tc.bg, color: tc.text, border: "none",
                                         borderRadius: 4, padding: "4px 10px", fontSize: 11,
                                         fontWeight: 600, cursor: "pointer",
                                       }}

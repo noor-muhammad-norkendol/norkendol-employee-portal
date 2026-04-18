@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
+import { formatDate, formatCurrency } from "@/lib/formatters";
 import Link from "next/link";
 
 /* ── types ─────────────────────────────────────────────── */
@@ -99,24 +100,10 @@ function StatusBadge({ status }: { status: ComplianceStatus }) {
   );
 }
 
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
-}
 
-function formatCurrency(amount: number | null) {
-  if (amount == null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
-}
+import { cardStyle } from "@/lib/styles";
 
-/* ── shared styles ────────────────────────────────────── */
-
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  borderRadius: 10,
-  padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
+/* ── shared styles (local overrides) ─────────────────── */
 
 const thStyle: React.CSSProperties = {
   padding: "10px 14px",

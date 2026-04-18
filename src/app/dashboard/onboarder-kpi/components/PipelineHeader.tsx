@@ -40,8 +40,8 @@ export default function PipelineHeader({
               key={s}
               onClick={() => onSelectStatus(s)}
               style={{
-                background: active ? sc.color : sc.bg,
-                color: active ? "#fff" : sc.color,
+                background: active ? sc.text : sc.bg,
+                color: active ? "#fff" : sc.text,
                 border: "none", borderRadius: 6, padding: "4px 10px",
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}

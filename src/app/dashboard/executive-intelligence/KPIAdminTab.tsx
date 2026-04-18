@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import { TEMPLATE_STAGES as STAGES, TEMPLATE_CONTACTS as CONTACTS } from "@/types/onboarder-kpi";
+import { cardStyle, inputStyle } from "@/lib/styles";
 
 /* ── Types ── */
 interface Template {
@@ -13,32 +15,8 @@ interface Template {
   text_message: string;
 }
 
-const STAGES = [
-  { key: "new", label: "Initial Contact" },
-  { key: "step_2", label: "24hr Follow-Up" },
-  { key: "step_3", label: "48hr Follow-Up" },
-  { key: "final_step", label: "72hr Escalation" },
-  { key: "on_hold", label: "On Hold" },
-  { key: "completed", label: "Completed" },
-];
-
-const CONTACTS = [
-  { key: "insured", label: "Insured" },
-  { key: "contractor", label: "Contractor" },
-  { key: "pa", label: "Public Adjuster" },
-];
-
-/* ── Styles ── */
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", borderRadius: 10, padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", border: "1px solid var(--border-color)",
-  color: "var(--text-primary)", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, width: "100%", outline: "none",
-};
-const labelStyle: React.CSSProperties = {
+/* ── Styles (KPI Admin specific) ── */
+const templateLabelStyle: React.CSSProperties = {
   fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block",
   marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5,
 };
@@ -91,12 +69,12 @@ function OnboardingTemplatesAdmin() {
   // Load templates from DB
   const loadTemplates = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { console.log("KPI Admin: no auth user"); return; }
+    if (!user) { return; }
     const { data: userData } = await supabase.from("users").select("org_id, full_name").eq("id", user.id).single();
-    if (!userData) { console.log("KPI Admin: no user data"); return; }
+    if (!userData) { return; }
     setOrgId(userData.org_id);
     setUserName(userData.full_name || "");
-    console.log("KPI Admin: loading templates for org", userData.org_id);
+
 
     const { data, error } = await supabase
       .from("onboarding_email_templates")
@@ -261,14 +239,14 @@ function OnboardingTemplatesAdmin() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
                           {/* Email section */}
                           <div>
-                            <label style={labelStyle}>Email Subject</label>
+                            <label style={templateLabelStyle}>Email Subject</label>
                             <input
                               style={inputStyle}
                               value={t.email_subject}
                               onChange={(e) => updateTemplate(stage.key, contact.key, "email_subject", e.target.value)}
                               placeholder={`Subject line for ${contact.label.toLowerCase()} at ${stage.label}...`}
                             />
-                            <label style={{ ...labelStyle, marginTop: 8 }}>Email Body</label>
+                            <label style={{ ...templateLabelStyle, marginTop: 8 }}>Email Body</label>
                             <textarea
                               style={{ ...inputStyle, minHeight: 100, resize: "vertical" }}
                               value={t.email_body}
@@ -279,7 +257,7 @@ function OnboardingTemplatesAdmin() {
 
                           {/* Text section */}
                           <div>
-                            <label style={labelStyle}>Text Message</label>
+                            <label style={templateLabelStyle}>Text Message</label>
                             <textarea
                               style={{ ...inputStyle, minHeight: 140, resize: "vertical" }}
                               value={t.text_message}

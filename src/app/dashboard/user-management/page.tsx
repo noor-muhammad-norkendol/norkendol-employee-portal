@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/formatters";
 import PendingApprovalsPanel from "@/components/PendingApprovalsPanel";
 
 /* ── types ─────────────────────────────────────────────── */
@@ -179,13 +180,6 @@ function Badge({ label, colors }: { label: string; colors: { bg: string; text: s
   );
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function initials(name: string) {
   return name

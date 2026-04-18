@@ -74,6 +74,22 @@ export const CALL_RESULT_OPTIONS: CallResult[] = [
   'answered', 'no_answer', 'voicemail', 'busy',
 ];
 
+// Stages that have email/text templates (subset of all statuses)
+export const TEMPLATE_STAGES: { key: string; label: string }[] = [
+  { key: "new", label: "Initial Contact" },
+  { key: "step_2", label: "24hr Follow-Up" },
+  { key: "step_3", label: "48hr Follow-Up" },
+  { key: "final_step", label: "72hr Escalation" },
+  { key: "on_hold", label: "On Hold" },
+  { key: "completed", label: "Completed" },
+];
+
+export const TEMPLATE_CONTACTS: { key: string; label: string }[] = [
+  { key: "insured", label: "Insured" },
+  { key: "contractor", label: "Contractor" },
+  { key: "pa", label: "Public Adjuster" },
+];
+
 // Allowed status transitions
 export const ALLOWED_TRANSITIONS: Record<OnboardingStatus, OnboardingStatus[]> = {
   'new': ['step_2', 'on_hold', 'completed', 'erroneous'],

@@ -4,32 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
 import ClaimMatchBanner from "@/components/ClaimMatchBanner";
-
-
-/* ───── style constants ───── */
-const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", borderRadius: 10, padding: "18px 22px",
-  border: "1px solid var(--border-color)",
-};
-const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)", border: "1px solid var(--border-color)",
-  color: "var(--text-primary)", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, width: "100%", outline: "none",
-};
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 500, color: "var(--text-secondary)",
-  display: "block", marginBottom: 4,
-};
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6,
-  padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-};
-const btnOutline: React.CSSProperties = {
-  background: "transparent", color: "var(--text-primary)",
-  border: "1px solid var(--border-color)", borderRadius: 6,
-  padding: "6px 12px", fontSize: 12, cursor: "pointer",
-};
+import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline } from "@/lib/styles";
 const blueBar: React.CSSProperties = {
   background: "#1e3a5f", color: "#60a5fa", borderRadius: 8,
   padding: "14px 20px", fontSize: 18, fontWeight: 700, marginBottom: 16,

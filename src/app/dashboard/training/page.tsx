@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/formatters";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -122,9 +123,6 @@ function Badge({ label, colors }: { label: string; colors: { bg: string; text: s
   );
 }
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
-}
 
 /* ── main page ─────────────────────────────────────────── */
 

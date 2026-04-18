@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/formatters";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -34,12 +35,6 @@ function initials(name: string) {
     .slice(0, 2);
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-  });
-}
 
 /* ── icons (inline SVG to avoid deps) ──────────────────── */
 
