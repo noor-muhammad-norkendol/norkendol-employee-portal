@@ -3,6 +3,47 @@
 import React, { useState } from "react";
 import { cardStyle } from "@/lib/styles";
 
+/* ── Interactive demo components (hooks require real components) ── */
+
+function SwitchDemo() {
+  const [on, setOn] = useState(true);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div onClick={() => setOn(!on)} style={{
+        width: 40, height: 22, borderRadius: 11, cursor: "pointer", padding: 2, transition: "background 0.2s",
+        background: on ? "var(--accent)" : "var(--bg-hover)",
+      }}>
+        <div style={{
+          width: 18, height: 18, borderRadius: 9, background: "#fff", transition: "transform 0.2s",
+          transform: on ? "translateX(18px)" : "translateX(0)",
+        }} />
+      </div>
+      <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Enable notifications</span>
+    </div>
+  );
+}
+
+function AccordionDemo() {
+  const [open, setOpen] = useState(0);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {["Claim Details", "Contact Info", "Documents"].map((label, i) => (
+        <div key={label}>
+          <div onClick={() => setOpen(open === i ? -1 : i)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+            {label}
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{open === i ? "▼" : "▶"}</span>
+          </div>
+          {open === i && (
+            <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-secondary)" }}>
+              Content for {label.toLowerCase()} goes here.
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Category definitions ──────────────────────────────── */
 
 interface ComponentExample {
@@ -290,23 +331,7 @@ const CATEGORIES: Category[] = [
         name: "Switch / Toggle",
         synonyms: "toggle switch, on/off",
         description: "Sliding switch for binary on/off choices. Feels more modern than a checkbox for settings.",
-        render: () => {
-          const [on, setOn] = useState(true);
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div onClick={() => setOn(!on)} style={{
-                width: 40, height: 22, borderRadius: 11, cursor: "pointer", padding: 2, transition: "background 0.2s",
-                background: on ? "var(--accent)" : "var(--bg-hover)",
-              }}>
-                <div style={{
-                  width: 18, height: 18, borderRadius: 9, background: "#fff", transition: "transform 0.2s",
-                  transform: on ? "translateX(18px)" : "translateX(0)",
-                }} />
-              </div>
-              <span style={{ fontSize: 12, color: "var(--text-primary)" }}>Enable notifications</span>
-            </div>
-          );
-        },
+        render: () => <SwitchDemo />,
       },
       {
         name: "Select / Dropdown",
@@ -476,26 +501,7 @@ const CATEGORIES: Category[] = [
         name: "Accordion",
         synonyms: "expander, collapsible section, disclosure",
         description: "Sections that expand and collapse when clicked. Good for showing lots of information without overwhelming the user.",
-        render: () => {
-          const [open, setOpen] = useState(0);
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {["Claim Details", "Contact Info", "Documents"].map((label, i) => (
-                <div key={label}>
-                  <div onClick={() => setOpen(open === i ? -1 : i)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {label}
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{open === i ? "▼" : "▶"}</span>
-                  </div>
-                  {open === i && (
-                    <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-secondary)" }}>
-                      Content for {label.toLowerCase()} goes here.
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        },
+        render: () => <AccordionDemo />,
       },
       {
         name: "Modal / Dialog",
