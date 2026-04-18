@@ -49,14 +49,6 @@ export default function ActionComposer({ client, action, onDone }: Props) {
   const [callTarget, setCallTarget] = useState<ContactTarget>("insured");
   const [callResult, setCallResult] = useState<"answered" | "voicemail" | "no_answer" | "busy">("answered");
 
-  function cycleRecipient(target: string) {
-    setRecipients((prev) => {
-      const current = prev[target];
-      const next: RecipientMode = current === null ? "to" : current === "to" ? "cc" : null;
-      return { ...prev, [target]: next };
-    });
-  }
-
   function handleOpenEmail() {
     const toEmails: string[] = [];
     const ccEmails: string[] = [];

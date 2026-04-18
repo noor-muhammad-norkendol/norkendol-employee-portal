@@ -9,7 +9,6 @@ import {
   STAGE_TARGET_HOURS,
 } from "@/types/onboarder-kpi";
 import { cardStyle, btnOutline, thStyle, tdStyle, STATUS_COLORS, HOUR_MS } from "./styles";
-import { buildEmailMailto, buildTextMailto } from "./mailtoHelpers";
 
 function timeInStage(client: OnboardingClient): { hours: number; label: string; overdue: boolean } {
   const hours = (Date.now() - new Date(client.status_entered_at).getTime()) / HOUR_MS;

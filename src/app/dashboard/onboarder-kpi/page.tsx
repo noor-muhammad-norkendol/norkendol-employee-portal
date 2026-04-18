@@ -442,23 +442,25 @@ export default function OnboarderKPIPage() {
 
   async function moveStatus(client: OnboardingClient, newStatus: OnboardingStatus) {
     try {
-      await updateMut.mutateAsync({
-        id: client.id,
-        status: newStatus,
-        status_entered_at: new Date().toISOString(),
-        ...(newStatus === "completed" ? { completed_at: new Date().toISOString() } : {}),
-        ...(newStatus === "abandoned" ? { abandoned_at: new Date().toISOString() } : {}),
-      });
-      await logStatusChange.mutateAsync({
-        client_id: client.id,
-        from_status: client.status,
-        to_status: newStatus,
-      });
-      await logActivity.mutateAsync({
-        client_id: client.id,
-        activity_type: "status_change",
-        subject: `Status changed: ${STATUS_LABELS[client.status]} \u2192 ${STATUS_LABELS[newStatus]}`,
-      });
+      await Promise.all([
+        updateMut.mutateAsync({
+          id: client.id,
+          status: newStatus,
+          status_entered_at: new Date().toISOString(),
+          ...(newStatus === "completed" ? { completed_at: new Date().toISOString() } : {}),
+          ...(newStatus === "abandoned" ? { abandoned_at: new Date().toISOString() } : {}),
+        }),
+        logStatusChange.mutateAsync({
+          client_id: client.id,
+          from_status: client.status,
+          to_status: newStatus,
+        }),
+        logActivity.mutateAsync({
+          client_id: client.id,
+          activity_type: "status_change",
+          subject: `Status changed: ${STATUS_LABELS[client.status]} \u2192 ${STATUS_LABELS[newStatus]}`,
+        }),
+      ]);
     } catch {
       // Mutations handle their own errors via react-query
     }

@@ -25,17 +25,24 @@ export default function UserAutocomplete({ value, onSelect, onChange, placeholde
   const { supabase, userInfo } = useOKSupabase();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(value || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Sync external value changes
   useEffect(() => { setSearch(value || ""); }, [value]);
 
+  // Debounce search to avoid firing a query on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const stateFilter = requireLicenseInState?.toUpperCase().trim() || null;
 
   const { data: results = [] } = useQuery({
-    queryKey: ["user-autocomplete", search, stateFilter],
+    queryKey: ["user-autocomplete", debouncedSearch, stateFilter],
     queryFn: async (): Promise<UserResult[]> => {
-      if (!userInfo || search.length < 2) return [];
+      if (!userInfo || debouncedSearch.length < 2) return [];
 
       if (stateFilter) {
         // Join users → licenses: only show users licensed in this state
@@ -46,7 +53,7 @@ export default function UserAutocomplete({ value, onSelect, onChange, placeholde
           .eq("state", stateFilter)
           .eq("status", "approved")
           .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString().split("T")[0]}`)
-          .ilike("users.full_name", `%${search}%`)
+          .ilike("users.full_name", `%${debouncedSearch}%`)
           .limit(10);
 
         if (!data) return [];
@@ -69,12 +76,12 @@ export default function UserAutocomplete({ value, onSelect, onChange, placeholde
         .select("id, full_name, email, position")
         .eq("org_id", userInfo.orgId)
         .eq("status", "active")
-        .ilike("full_name", `%${search}%`)
+        .ilike("full_name", `%${debouncedSearch}%`)
         .order("full_name")
         .limit(8);
       return (data || []) as UserResult[];
     },
-    enabled: !!userInfo && search.length >= 2,
+    enabled: !!userInfo && debouncedSearch.length >= 2,
     staleTime: 30_000,
   });
 

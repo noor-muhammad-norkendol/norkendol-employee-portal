@@ -76,7 +76,7 @@ export default function KPIAdminTab() {
 /* ════════════════════════════════════════════════════════════ */
 
 function OnboardingTemplatesAdmin() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [templates, setTemplates] = useState<Record<string, Template>>({});
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -154,33 +154,27 @@ function OnboardingTemplatesAdmin() {
     if (!orgId) return;
     setSaving(true);
     try {
-      for (const t of Object.values(templates)) {
-        // Only save if there's actual content
-        const hasContent = t.email_subject || t.email_body || t.text_message;
-        if (!hasContent && !t.id) continue;
+      // Batch all templates into a single upsert
+      const rows = Object.values(templates)
+        .filter((t) => t.id || t.email_subject || t.email_body || t.text_message)
+        .map((t) => ({
+          ...(t.id ? { id: t.id } : {}),
+          org_id: orgId,
+          stage: t.stage,
+          contact_target: t.contact_target,
+          channel: "email",
+          email_subject: t.email_subject,
+          email_body: t.email_body,
+          text_message: t.text_message,
+          updated_by: userName,
+          updated_at: new Date().toISOString(),
+        }));
 
-        if (t.id) {
-          // Update existing
-          await supabase.from("onboarding_email_templates").update({
-            email_subject: t.email_subject,
-            email_body: t.email_body,
-            text_message: t.text_message,
-            updated_by: userName,
-            updated_at: new Date().toISOString(),
-          }).eq("id", t.id);
-        } else if (hasContent) {
-          // Insert new
-          await supabase.from("onboarding_email_templates").insert({
-            org_id: orgId,
-            stage: t.stage,
-            contact_target: t.contact_target,
-            channel: "email",
-            email_subject: t.email_subject,
-            email_body: t.email_body,
-            text_message: t.text_message,
-            updated_by: userName,
-          });
-        }
+      if (rows.length > 0) {
+        const { error: upsertError } = await supabase
+          .from("onboarding_email_templates")
+          .upsert(rows, { onConflict: "org_id,stage,contact_target,channel" });
+        if (upsertError) throw upsertError;
       }
       setDirty(false);
       setSaved(true);
