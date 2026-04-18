@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 
 const NOTIFICATION_TYPES = [
@@ -10,6 +10,145 @@ const NOTIFICATION_TYPES = [
   { key: "company_updates", label: "Company Updates", desc: "Announcements and news from your organization" },
   { key: "system", label: "System Alerts", desc: "Account changes, security alerts, and system notices" },
 ];
+
+/* eslint-disable @next/next/no-img-element */
+function ProfilePhotoSection({ supabase }: { supabase: ReturnType<typeof createClient> }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("users")
+        .select("full_name, profile_picture_url")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        setUserName(data.full_name || "");
+        setPhotoUrl(data.profile_picture_url || null);
+      }
+    });
+  }, [supabase]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500_000) {
+      setMsg("Photo must be under 500KB.");
+      setTimeout(() => setMsg(""), 3000);
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("users")
+        .update({ profile_picture_url: dataUrl, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+      if (error) {
+        setMsg("Failed to save photo.");
+      } else {
+        setPhotoUrl(dataUrl);
+        setMsg("Photo saved!");
+      }
+      setUploading(false);
+      setTimeout(() => setMsg(""), 3000);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemove = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from("users")
+      .update({ profile_picture_url: null, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    setPhotoUrl(null);
+    if (fileRef.current) fileRef.current.value = "";
+    setMsg("Photo removed.");
+    setTimeout(() => setMsg(""), 3000);
+  };
+
+  const initials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "?";
+
+  return (
+    <div className="rounded-xl p-5 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+      <h2 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Profile Photo</h2>
+      <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+        This photo appears in the top bar, directory, and anywhere your name is shown.
+      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        {/* Current photo or initials */}
+        <div
+          style={{
+            width: 72, height: 72, borderRadius: "50%", overflow: "hidden",
+            border: "2px solid var(--border-color)", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            background: "var(--bg-hover)", cursor: "pointer",
+            flexShrink: 0,
+          }}
+          onClick={() => fileRef.current?.click()}
+        >
+          {photoUrl ? (
+            <img src={photoUrl} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ fontSize: 24, fontWeight: 700, color: "var(--text-muted)" }}>{initials}</span>
+          )}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleUpload}
+          style={{ display: "none" }}
+        />
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              style={{
+                background: "var(--accent)", color: "#fff", border: "none", borderRadius: 6,
+                padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              {uploading ? "Uploading..." : photoUrl ? "Change Photo" : "Upload Photo"}
+            </button>
+            {photoUrl && (
+              <button
+                onClick={handleRemove}
+                style={{
+                  background: "transparent", color: "var(--text-secondary)",
+                  border: "1px solid var(--border-color)", borderRadius: 6,
+                  padding: "6px 14px", fontSize: 12, cursor: "pointer",
+                }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: 10, color: "var(--text-muted)" }}>JPG, PNG, or WebP. Max 500KB.</p>
+          {msg && (
+            <p style={{ fontSize: 11, color: msg.includes("Failed") ? "#ef4444" : "#4ade80", marginTop: 4 }}>{msg}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function MySettingsPage() {
   const [supabase] = useState(() => createClient());
@@ -84,7 +223,10 @@ export default function MySettingsPage() {
   return (
     <div className="p-6 max-w-2xl">
       <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--text-primary)" }}>My Settings</h1>
-      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Manage your notification preferences</p>
+      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Manage your profile and notification preferences</p>
+
+      {/* ── Profile Photo ────────────────────── */}
+      <ProfilePhotoSection supabase={supabase} />
 
       {/* ── Email Notifications ────────────────────── */}
       <div className="rounded-xl p-5 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>

@@ -8,6 +8,7 @@ export default function TopBar() {
   const [dateTime, setDateTime] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [supabase] = useState(() => createClient());
@@ -36,7 +37,7 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         setUserEmail(user.email ?? "");
         setUserName(
@@ -44,6 +45,16 @@ export default function TopBar() {
             user.email?.split("@")[0] ??
             ""
         );
+        // Fetch profile picture from users table
+        const { data: profile } = await supabase
+          .from("users")
+          .select("full_name, profile_picture_url")
+          .eq("id", user.id)
+          .single();
+        if (profile) {
+          if (profile.full_name) setUserName(profile.full_name);
+          if (profile.profile_picture_url) setUserPhoto(profile.profile_picture_url);
+        }
       }
     });
   }, []);
@@ -82,12 +93,16 @@ export default function TopBar() {
           onClick={() => setMenuOpen(!menuOpen)}
           className="flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
         >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
-            style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
-          >
-            {initials}
-          </div>
+          {userPhoto ? (
+            <img src={userPhoto} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+              style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
+            >
+              {initials}
+            </div>
+          )}
           <div className="leading-tight text-left">
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
               {userName || userEmail || "Loading..."}
