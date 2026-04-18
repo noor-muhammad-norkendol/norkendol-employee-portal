@@ -740,6 +740,97 @@ ELSE (internal user):
 4. **Never expose internal data to external partners** — no internal metrics, no employee info, no other firms' data, no admin features
 5. **External partners NEVER see Manager or Admin sidebar sections** — enforced by `IconSidebar.tsx` role gating
 
+### Session — April 18, 2026 — Portal-Wide Code Review + UI Customization System
+
+**Part 1: Full Codebase Simplify Review (3 passes)**
+
+Ran `/simplify` across the entire portal — 3 review passes with parallel agents.
+
+- **Shared useSupabase hook** — consolidated 4 identical hooks into `src/hooks/useSupabase.ts`. Old names (`useOKSupabase`, `useEKSupabase`, `useCHSupabase`, `useSTSupabase`) re-export as deprecated aliases.
+- **Shared formatters** — `formatDate` (13 files), `formatCurrency` (6), `timeAgo` (3), `truncate` (3) → `src/lib/formatters.ts`
+- **Shared styles** — `cardStyle`, `inputStyle`, `labelStyle`, `btnPrimary`, etc. (17+ files) → `src/lib/styles.ts`
+- **STATUS_COLORS consistency** — standardized on `{ bg, text }` across onboarder-kpi + estimator-kpi (was `{ bg, color }`)
+- **KPIAdminTab** — STAGES/CONTACTS now imported from `src/types/onboarder-kpi.ts` (`TEMPLATE_STAGES`, `TEMPLATE_CONTACTS`)
+- **checkContractorInTPN** — server-side phone filtering instead of loading all contacts
+- **Duplicate file number generation** — useEffect now calls shared `generateFileNumber()`
+- **console.log cleanup** — all removed
+- **createClient() per-render** — fixed in 20 files (wrapped in `useState(() => createClient())`)
+- **3 stale-auth bugs** — module-scope `createClient()` in ai-agents, my-settings, system-settings moved inside components
+- **XLSX dynamic import** — 7.2MB library now loaded only when admin clicks Import
+- **KPIAdminTab save error** — now shows red error message instead of failing silently
+- **Middleware resilience** — active users no longer locked out when Supabase DB query fails
+
+**Net result:** 592 lines of duplicate code removed in pass 1. See `SIMPLIFY-20260418.md` for full details and rollback instructions.
+
+**Safety tag:** `pre-ui-customization` on commit `a56cfe4` — revert point before any UI customization work.
+
+**Commits:** `4367bfa`, `1bc5795`, `fc96051`, `03fd514`, `a56cfe4`
+
+---
+
+**Part 2: Portal UI Customization System**
+
+New feature: lets each tenant customize the portal's look and feel during onboarding. Reduces switching costs when companies move from other systems.
+
+**New tabs in System Settings:**
+
+1. **AI Designer** (`AIDesigner.tsx`)
+   - Upload screenshot of old/current system
+   - AI (Claude vision) analyzes colors, layout, component styles
+   - Shows detected palette + layout badges + summary
+   - "Apply Colors & Customize Components" applies detected colors instantly
+   - 5-step guided walkthrough with visual previews:
+     - Status Indicators (badge / circle / progress bar)
+     - Data Visualization (big numbers / bars / donuts)
+     - Menu Style (hamburger / kebab / meatball / bento)
+     - Form Controls (checkbox / toggle switch)
+     - Loading Indicator (spinner / skeleton / progress bar)
+   - AI pre-selects based on screenshot, admin overrides
+   - **Cancel & Revert** button at every step — snapshots state before changes
+   - API route: `src/app/api/design-analyzer/route.ts`
+
+2. **UI Components** (`UIComponentGlossary.tsx`)
+   - Visual catalog of 24 portal UI components across 5 categories
+   - Navigation, Data Display, Form Controls, Feedback & Status, Layout
+   - Each card: name, synonyms, description, live interactive preview
+   - Plain English — no developer jargon
+
+3. **Appearance** (`AppearanceTab.tsx`)
+   - Dark/light mode toggle with visual preview cards
+   - 8 color pickers: Accent, Sidebar, Top Bar, Page Background, Cards, Primary Text, Secondary Text, Borders
+   - Colors apply instantly via CSS variables as you pick
+   - Live mini-portal preview updates in real time
+   - Reset to Defaults button
+   - Logo upload (PNG/JPG/SVG/WebP, max 500KB)
+   - Company name input
+   - Replaces "N" badge and "Portal" text in sidebar
+   - Company logo shown in dashboard welcome header
+
+**Profile Photo Upload** (My Settings)
+- New section at top of My Settings page
+- Upload headshot (JPG/PNG/WebP, max 500KB)
+- Replaces initials (e.g., "FD") in TopBar with actual photo
+- Stored in localStorage with DB backup attempt
+
+**Technical details:**
+- Theme via `data-theme` attribute on `<html>` + CSS variables in `globals.css`
+- Custom colors via inline CSS variable overrides on `document.documentElement`
+- Inline script in `layout.tsx` loads theme + colors before paint (no flash)
+- All customization stored in localStorage (will move to per-org DB later)
+- Custom events (`portal-branding-changed`, `portal-photo-changed`) for instant cross-component updates
+
+**New Files:**
+- `src/app/dashboard/system-settings/AIDesigner.tsx`
+- `src/app/dashboard/system-settings/UIComponentGlossary.tsx`
+- `src/app/dashboard/system-settings/AppearanceTab.tsx`
+- `src/app/api/design-analyzer/route.ts`
+- `src/lib/formatters.ts`
+- `src/lib/styles.ts`
+- `src/hooks/useSupabase.ts`
+- `SIMPLIFY-20260418.md`
+
+**Commits:** `357c726` through `5a44443` — all pushed to staging
+
 ---
 
 ## Key Rules
