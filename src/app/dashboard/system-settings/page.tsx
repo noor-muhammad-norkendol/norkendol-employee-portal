@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import UIComponentGlossary from "./UIComponentGlossary";
+import AppearanceTab from "./AppearanceTab";
 
 const TABS = ["AI Configuration", "UI Components", "Appearance"] as const;
 type Tab = (typeof TABS)[number];
@@ -148,11 +149,7 @@ export default function SystemSettingsPage() {
       {activeTab === "UI Components" && <UIComponentGlossary />}
 
       {/* Appearance tab */}
-      {activeTab === "Appearance" && (
-        <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-          <p>Color pickers, logo upload, and branding controls coming soon.</p>
-        </div>
-      )}
+      {activeTab === "Appearance" && <AppearanceTab />}
 
       {/* AI Configuration tab */}
       {activeTab === "AI Configuration" && (
