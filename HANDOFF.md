@@ -146,6 +146,23 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 
 **Commit:** `02968d4` — pushed to staging
 
+**KPI Admin Tab + Onboarding Email/Text Templates**
+- New "KPI Admin" tab in Executive Intelligence (next to KPI Dashboard)
+- Onboarding sub-tab with collapsible stage cards
+- 6 stages × 3 contacts = 18 template slots (email subject, email body, text message)
+- Placeholder variables: `{client_name}`, `{file_number}`, `{contractor_name}`, `{pa_name}`, `{state}`, `{peril}`, `{assigned_user}`, `{client_email}`, `{client_phone}`, `{loss_address}`
+- All 18 templates seeded in DB with real escalating content
+- Templates stored in `onboarding_email_templates` table (new, migration applied)
+- Sub-tab structure ready for future KPI admin areas (Estimating, Litigation, etc.)
+- Fill count badges per stage card (e.g., "3/3 templates")
+- Save All Changes button with dirty state tracking
+- **Known issue:** Templates not loading in the UI despite being in DB — needs debugging (console logs added, check browser F12)
+- **Commits:** `65af3ee`, `055db00` — pushed to staging
+
+**ActionComposer Color Update**
+- To button = green, CC button = blue, Open Email button = green
+- Much cleaner visual distinction between To and CC
+
 **Playwright MCP Fix (applied but needs restart)**
 - Changed from `--headless` to `--user-data-dir` for persistent browser sessions
 - Config updated in `.claude.json` (both project scopes)
