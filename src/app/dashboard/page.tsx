@@ -241,7 +241,7 @@ function DashboardLogo() {
   return (
     <img
       src={logoUrl} alt="Company Logo"
-      style={{ maxHeight: 48, maxWidth: 180, objectFit: "contain", opacity: 0.85 }}
+      style={{ maxHeight: 72, maxWidth: 280, objectFit: "contain", opacity: 0.9 }}
     />
   );
 }
