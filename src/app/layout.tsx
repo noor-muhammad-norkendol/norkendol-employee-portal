@@ -36,6 +36,18 @@ export default function RootLayout({
               if (t === 'light' || t === 'dark') {
                 document.documentElement.setAttribute('data-theme', t);
               }
+              var c = localStorage.getItem('portal-custom-colors');
+              if (c) {
+                var colors = JSON.parse(c);
+                var r = document.documentElement.style;
+                if (colors.accent) { r.setProperty('--accent', colors.accent); r.setProperty('--accent-hover', colors.accent); }
+                if (colors.sidebarBg) r.setProperty('--bg-secondary', colors.sidebarBg);
+                if (colors.pageBg) r.setProperty('--bg-primary', colors.pageBg);
+                if (colors.cardBg) r.setProperty('--bg-surface', colors.cardBg);
+                if (colors.textPrimary) r.setProperty('--text-primary', colors.textPrimary);
+                if (colors.textSecondary) r.setProperty('--text-secondary', colors.textSecondary);
+                if (colors.borderColor) r.setProperty('--border-color', colors.borderColor);
+              }
             } catch(e) {}
           })();
         ` }} />
