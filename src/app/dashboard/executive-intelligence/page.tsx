@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import KPIAdminTab from "./KPIAdminTab";
 
 /* ── Types ───────────────────────────────────────────── */
 
@@ -207,7 +208,7 @@ export default function ExecutiveIntelligencePage() {
   const supabase = createClient();
 
   const [orgId, setOrgId] = useState("");
-  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis">("hierarchy");
+  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis" | "kpi_admin">("hierarchy");
 
   // KPI data from kpi_snapshots
   const [kpiSnapshots, setKpiSnapshots] = useState<{ metric_key: string; metric_value: number; metric_unit: string; source_module: string; period_end: string }[]>([]);
@@ -1010,6 +1011,7 @@ export default function ExecutiveIntelligencePage() {
         <button style={tabStyle(activeTab === "features")} onClick={() => setActiveTab("features")}>Feature Assignments</button>
         <button style={tabStyle(activeTab === "alerts")} onClick={() => setActiveTab("alerts")}>Alert Routing</button>
         <button style={tabStyle(activeTab === "kpis")} onClick={() => setActiveTab("kpis")}>KPI Dashboard</button>
+        <button style={tabStyle(activeTab === "kpi_admin")} onClick={() => setActiveTab("kpi_admin")}>KPI Admin</button>
       </div>
 
       {/* Tab Content */}
@@ -1337,6 +1339,9 @@ export default function ExecutiveIntelligencePage() {
           </div>
         </div>
       )}
+
+      {/* ═══ KPI ADMIN TAB ═══ */}
+      {activeTab === "kpi_admin" && <KPIAdminTab />}
 
       {/* Confirm Delete Rule */}
       {confirmDeleteRule && (
