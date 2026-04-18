@@ -69,7 +69,7 @@ function Badge({ label, colors }: { label: string; colors: { bg: string; text: s
 /* ── main component ────────────────────────────────────── */
 
 export default function ComplianceAdminPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [user, setUser] = useState<{ id: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);

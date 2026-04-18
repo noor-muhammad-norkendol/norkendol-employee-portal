@@ -69,7 +69,7 @@ type FilterType = "all" | "info" | "warning" | "error" | "success";
 /* -- panel ------------------------------------------------ */
 
 export default function NotificationsPanel() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");

@@ -148,7 +148,7 @@ function buildTree(nodes: HierarchyNode[]): Map<string | null, HierarchyNode[]> 
 /* ── Main Page ───────────────────────────────────────── */
 
 export default function ExecutiveIntelligencePage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [orgId, setOrgId] = useState("");
   const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis" | "kpi_admin">("hierarchy");

@@ -257,6 +257,7 @@ export default function IconSidebar({
   userRole?: Role;
 }) {
   const pathname = usePathname();
+  const [supabase] = useState(() => createClient());
   const isExternal = externalTierOrder.includes(userRole);
   const baseSections = isExternal ? externalSections : internalSections;
   const visibleSections = baseSections.filter((s) => canAccess(userRole, s.tier));
@@ -274,7 +275,6 @@ export default function IconSidebar({
   // Load saved nav order from Supabase on mount
   useEffect(() => {
     const loadNavOrder = async () => {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
@@ -293,7 +293,6 @@ export default function IconSidebar({
   // Save nav order to Supabase
   const saveNavOrder = useCallback(async (newOrder: Record<string, string[]>) => {
     if (!userId) return;
-    const supabase = createClient();
     await supabase
       .from("users")
       .update({ nav_order: newOrder })

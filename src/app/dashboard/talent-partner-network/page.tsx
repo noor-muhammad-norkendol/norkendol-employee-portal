@@ -237,7 +237,7 @@ const US_STATES = [
 /* ── main page ─────────────────────────────────────────── */
 
 export default function TalentPartnerNetworkPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("overview");

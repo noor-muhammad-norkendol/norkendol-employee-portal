@@ -51,7 +51,7 @@ function formatValue(val: number) {
 /* -- panel ------------------------------------------------ */
 
 export default function LeaderboardPanel() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [configs, setConfigs] = useState<LeaderboardConfig[]>([]);
   const [entries, setEntries] = useState<Record<string, LeaderboardEntry[]>>({});
   const [loading, setLoading] = useState(true);

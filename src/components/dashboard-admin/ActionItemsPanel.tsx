@@ -84,7 +84,7 @@ type FilterPriority = "all" | "low" | "medium" | "high" | "urgent";
 /* -- panel ------------------------------------------------ */
 
 export default function ActionItemsPanel() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [items, setItems] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");

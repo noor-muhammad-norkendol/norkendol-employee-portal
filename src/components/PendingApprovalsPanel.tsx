@@ -68,7 +68,7 @@ const STATUS_COLORS: Record<StatusFilter, { bg: string; text: string }> = {
 };
 
 export default function PendingApprovalsPanel() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const ORG_ID = "00000000-0000-0000-0000-000000000001";
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");

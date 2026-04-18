@@ -127,7 +127,7 @@ function Badge({ label, colors }: { label: string; colors: { bg: string; text: s
 /* ── main page ─────────────────────────────────────────── */
 
 export default function TrainingPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [tab, setTab] = useState<"courses" | "categories" | "assignments" | "certifications" | "analytics">("courses");
 
   // Shared data

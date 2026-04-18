@@ -286,7 +286,7 @@ function StateDropdown({
 /* ── main page ─────────────────────────────────────────── */
 
 export default function TPNAdminPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("external");

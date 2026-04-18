@@ -154,7 +154,7 @@ function getYouTubeId(url: string): string | null {
 /* ── main page ─────────────────────────────────────────── */
 
 export default function UniversityPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(true);
 

@@ -201,7 +201,7 @@ export default function UserManagementPage() {
 }
 
 function UserManagementInner() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

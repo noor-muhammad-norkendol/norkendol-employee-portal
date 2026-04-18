@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 
-const supabase = createClient();
-
 const NOTIFICATION_TYPES = [
   { key: "action_items", label: "Action Items", desc: "When you're assigned an action item or one is updated" },
   { key: "training", label: "Training & University", desc: "Course assignments, completions, and reminders" },
@@ -14,6 +12,7 @@ const NOTIFICATION_TYPES = [
 ];
 
 export default function MySettingsPage() {
+  const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");

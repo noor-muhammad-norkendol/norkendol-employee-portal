@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 
-const supabase = createClient();
-
 const TABS = ["AI Configuration"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -28,6 +26,7 @@ const OPENAI_MODELS = [
 ];
 
 export default function SystemSettingsPage() {
+  const [supabase] = useState(() => createClient());
   const [activeTab, setActiveTab] = useState<Tab>("AI Configuration");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

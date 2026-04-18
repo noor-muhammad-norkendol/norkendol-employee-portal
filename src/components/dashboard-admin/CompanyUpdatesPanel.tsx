@@ -75,7 +75,7 @@ function Badge({ label, colors }: { label: string; colors: { bg: string; text: s
 /* -- panel ------------------------------------------------ */
 
 export default function CompanyUpdatesPanel() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [updates, setUpdates] = useState<CompanyUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);

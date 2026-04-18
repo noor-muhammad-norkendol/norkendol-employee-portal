@@ -127,7 +127,7 @@ const tdStyle: React.CSSProperties = {
    ================================================================ */
 
 export default function CompliancePage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"my" | "org" | "state">("my");
@@ -206,7 +206,7 @@ export default function CompliancePage() {
    ================================================================ */
 
 function MyComplianceView({ user }: { user: UserProfile }) {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
   const [bonds, setBonds] = useState<BondRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -625,7 +625,7 @@ function DocumentControls({
    ================================================================ */
 
 function OrgComplianceView() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
   const [bonds, setBonds] = useState<BondRow[]>([]);

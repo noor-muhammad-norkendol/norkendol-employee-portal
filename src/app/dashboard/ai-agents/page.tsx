@@ -3,8 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 
-const supabase = createClient();
-
 interface Template {
   id: string;
   feature_key: string;
@@ -41,6 +39,7 @@ interface UsageSummary {
 const EMPTY_FORM = { feature_key: "", name: "", description: "", system_prompt: "" };
 
 export default function AIAgentsPage() {
+  const [supabase] = useState(() => createClient());
   const [tab, setTab] = useState<"active" | "configure" | "logs">("active");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [logs, setLogs] = useState<UsageLog[]>([]);

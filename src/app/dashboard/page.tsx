@@ -228,7 +228,7 @@ function savePanelOrder(userId: string, order: string[]) {
 /* ── main dashboard ────────────────────────────────────── */
 
 export default function DashboardPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
   const [updates, setUpdates] = useState<CompanyUpdate[]>([]);

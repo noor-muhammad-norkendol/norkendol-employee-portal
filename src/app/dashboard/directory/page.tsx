@@ -65,7 +65,7 @@ function IconList({ active }: { active: boolean }) {
 /* ── main page ─────────────────────────────────────────── */
 
 export default function DirectoryPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
