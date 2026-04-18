@@ -87,6 +87,70 @@ Portal has dual sidebars, auth middleware, role-gated accordion navigation with 
 - Edit/delete entries + edit/delete/deactivate boards
 - Dashboard widget only shows active leaderboard
 
+### Session — April 17, 2026 (evening) — Workboard Enhancement
+
+**Full-Width Workboard + Action Icons**
+- Removed maxWidth:1200 constraint — table fills available space
+- Per-row action icons (colored): Text (blue), Email (amber), Call (purple), Complete (green), Notes (orange)
+- "..." expander button for Move/Edit/Delete (moved out of main row)
+- Complete icon one-click advances to next natural stage
+
+**Slide-Out Client Detail Panel (1050px)**
+- Click client name or any action icon → panel slides from right
+- Sections: Header (name, file#, status, Edit/Delete), Contact Info (with PA email/phone from users table), Stage Action Checklists, Quick Note, Activity History, Saved Notes
+- Contact info pulls PA data from employee directory via `usePALookup` hook
+
+**ActionComposer — Email/Text/Call Recipient Picker**
+- Click Email/Text icon → panel opens with recipient picker at top
+- Each contact (Insured, Contractor, PA) shown with To/CC toggle buttons
+- Insured defaults to "To", others off — click to toggle To/CC/Off
+- "Open Email" builds mailto with correct To/CC and opens email client
+- Call action: pick who you're calling + call result (Answered/Voicemail/No Answer/Busy)
+
+**Stage Action Checklists**
+- 3 contact targets per stage: Insured, Contractor, PA
+- Each has 3 actions: Text, Email, Call — circle when incomplete, checkmark when done
+- Call requires outcome selection
+- New DB table: `onboarding_stage_actions` (migration applied)
+- New hooks: `useStageActions`, `useCompleteStageAction`
+
+**Urgency Banner**
+- Collapsible red banner above table when any clients are overdue
+- Shows count + expandable list with time-in-stage per client
+- Click a client → opens their detail panel
+
+**PA Lookup (Hub-and-Spoke)**
+- `usePALookup` hook: looks up assigned PA by name in `users` table
+- Fuzzy matching: tries exact match, then first+last name fallback (handles middle names)
+- Pulls email (`work_email` or `email`) and `primary_phone` from employee directory
+- PA contact info displayed in panel and available in ActionComposer
+
+**UserAutocomplete — Smart Employee Picker**
+- Replaced plain text inputs for Assigned User and Assigned PA
+- Searchable dropdown: type 2+ chars → shows matching employees
+- **Assigned PA is license-gated**: only shows adjusters with approved, non-expired licenses in the loss state
+- Queries `licenses` table joined with `users` — filters by state + status + expiry
+- Shows "No licensed adjusters found for X in [STATE]" when no match
+- Label shows "(licensed in TX)" so user knows filtering is active
+
+**Component Extraction (page.tsx refactor)**
+- Split 1127-line page.tsx into 8 components + styles file
+- Components: PipelineHeader, WorkboardTable, AddClientForm, PerformanceView, ClientDetailPanel, StageActionChecklist, ActionComposer, UserAutocomplete
+- page.tsx is now a thin orchestrator (~350 lines)
+
+**New Files:**
+- `src/app/dashboard/onboarder-kpi/components/` — 10 files (styles, 8 components, mailtoHelpers)
+- `src/hooks/onboarder-kpi/useStageActions.ts`
+- `src/hooks/onboarder-kpi/usePALookup.ts`
+- `supabase/migrations/20260417_onboarding_stage_actions.sql`
+
+**Commit:** `02968d4` — pushed to staging
+
+**Playwright MCP Fix (applied but needs restart)**
+- Changed from `--headless` to `--user-data-dir` for persistent browser sessions
+- Config updated in `.claude.json` (both project scopes)
+- After restart: browser opens visibly, login persists across sessions
+
 ### Session — April 17, 2026 (afternoon)
 
 **AI Assist — Email Parsing for Onboarder KPI**

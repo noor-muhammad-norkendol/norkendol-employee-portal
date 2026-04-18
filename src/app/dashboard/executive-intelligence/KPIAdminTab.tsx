@@ -91,16 +91,19 @@ function OnboardingTemplatesAdmin() {
   // Load templates from DB
   const loadTemplates = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { console.log("KPI Admin: no auth user"); return; }
     const { data: userData } = await supabase.from("users").select("org_id, full_name").eq("id", user.id).single();
-    if (!userData) return;
+    if (!userData) { console.log("KPI Admin: no user data"); return; }
     setOrgId(userData.org_id);
     setUserName(userData.full_name || "");
+    console.log("KPI Admin: loading templates for org", userData.org_id);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("onboarding_email_templates")
       .select("*")
       .eq("org_id", userData.org_id);
+
+    if (error) console.error("Template load error:", error);
 
     const map: Record<string, Template> = {};
     // Initialize all slots with defaults
@@ -117,8 +120,8 @@ function OnboardingTemplatesAdmin() {
       }
     }
     // Overlay DB data
-    if (data) {
-      for (const row of data) {
+    if (data && data.length > 0) {
+      for (const row of data as Record<string, string>[]) {
         const key = tKey(row.stage, row.contact_target);
         if (map[key]) {
           map[key] = {

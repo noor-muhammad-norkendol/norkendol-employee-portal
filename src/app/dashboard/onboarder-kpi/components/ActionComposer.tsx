@@ -96,7 +96,8 @@ export default function ActionComposer({ client, action, onDone }: Props) {
     onDone();
   }
 
-  const actionColor = action === "email" ? "#fbbf24" : action === "text" ? "#60a5fa" : "#a78bfa";
+  const actionColor = action === "email" ? "#4ade80" : action === "text" ? "#60a5fa" : "#a78bfa";
+  const ccColor = "#60a5fa";
   const actionIcon = action === "email" ? "\u2709\uFE0F" : action === "text" ? "\uD83D\uDCAC" : "\uD83D\uDCDE";
   const actionLabel = action === "email" ? "Email" : action === "text" ? "Text" : "Call";
 
@@ -150,9 +151,9 @@ export default function ActionComposer({ client, action, onDone }: Props) {
                       onClick={() => setRecipients((prev) => ({ ...prev, [c.target]: prev[c.target] === "cc" ? null : "cc" }))}
                       style={{
                         padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600,
-                        border: mode === "cc" ? "1px solid var(--accent)" : "1px solid var(--border-color)",
-                        background: mode === "cc" ? "rgba(74,222,128,0.15)" : "transparent",
-                        color: mode === "cc" ? "var(--accent)" : "var(--text-muted)",
+                        border: mode === "cc" ? `1px solid ${ccColor}` : "1px solid var(--border-color)",
+                        background: mode === "cc" ? `${ccColor}20` : "transparent",
+                        color: mode === "cc" ? ccColor : "var(--text-muted)",
                         cursor: "pointer",
                       }}
                     >
