@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { cardStyle } from "@/lib/styles";
-
-type ThemeMode = "dark" | "light";
+import { CustomColors, DARK_DEFAULTS, LIGHT_DEFAULTS, applyCustomColors, clearCustomColors, applyThemeMode, ThemeMode } from "@/lib/theme";
 
 /* ── Logo & Company Name Section ───────────────────── */
 
@@ -160,39 +159,6 @@ function LogoBrandingSection() {
   );
 }
 
-interface CustomColors {
-  accent: string;
-  sidebarBg: string;
-  topbarBg: string;
-  pageBg: string;
-  cardBg: string;
-  textPrimary: string;
-  textSecondary: string;
-  borderColor: string;
-}
-
-const DARK_DEFAULTS: CustomColors = {
-  accent: "#3ecf8e",
-  sidebarBg: "#242424",
-  topbarBg: "#242424",
-  pageBg: "#1c1c1c",
-  cardBg: "#2a2a2a",
-  textPrimary: "#ededed",
-  textSecondary: "#888888",
-  borderColor: "#333333",
-};
-
-const LIGHT_DEFAULTS: CustomColors = {
-  accent: "#16a34a",
-  sidebarBg: "#ffffff",
-  topbarBg: "#ffffff",
-  pageBg: "#f5f5f5",
-  cardBg: "#ffffff",
-  textPrimary: "#1a1a1a",
-  textSecondary: "#555555",
-  borderColor: "#d4d4d4",
-};
-
 const COLOR_FIELDS: { key: keyof CustomColors; label: string; description: string }[] = [
   { key: "accent", label: "Accent Color", description: "Buttons, active tabs, highlights, and the logo badge" },
   { key: "sidebarBg", label: "Sidebar", description: "Background of the left icon sidebar" },
@@ -203,32 +169,6 @@ const COLOR_FIELDS: { key: keyof CustomColors; label: string; description: strin
   { key: "textSecondary", label: "Secondary Text", description: "Descriptions, labels, and muted text" },
   { key: "borderColor", label: "Borders", description: "Card borders, dividers, and input outlines" },
 ];
-
-function applyTheme(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("portal-theme", theme);
-}
-
-function applyCustomColors(colors: CustomColors) {
-  const root = document.documentElement;
-  root.style.setProperty("--accent", colors.accent);
-  root.style.setProperty("--accent-hover", colors.accent);
-  root.style.setProperty("--bg-secondary", colors.sidebarBg);
-  root.style.setProperty("--bg-primary", colors.pageBg);
-  root.style.setProperty("--bg-surface", colors.cardBg);
-  root.style.setProperty("--text-primary", colors.textPrimary);
-  root.style.setProperty("--text-secondary", colors.textSecondary);
-  root.style.setProperty("--border-color", colors.borderColor);
-  // Top bar uses --bg-secondary, sidebar uses --bg-secondary — both covered
-  localStorage.setItem("portal-custom-colors", JSON.stringify(colors));
-}
-
-function clearCustomColors() {
-  const root = document.documentElement;
-  const props = ["--accent", "--accent-hover", "--bg-secondary", "--bg-primary", "--bg-surface", "--text-primary", "--text-secondary", "--border-color"];
-  props.forEach((p) => root.style.removeProperty(p));
-  localStorage.removeItem("portal-custom-colors");
-}
 
 export default function AppearanceTab() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
@@ -248,13 +188,13 @@ export default function AppearanceTab() {
         setColors(parsed);
         setHasCustomColors(true);
         applyCustomColors(parsed);
-      } catch { /* ignore */ }
+      } catch { localStorage.removeItem("portal-custom-colors"); }
     }
   }, []);
 
   const handleThemeChange = (t: ThemeMode) => {
     setTheme(t);
-    applyTheme(t);
+    applyThemeMode(t);
     clearCustomColors();
     const defaults = t === "light" ? LIGHT_DEFAULTS : DARK_DEFAULTS;
     setColors(defaults);
@@ -273,7 +213,7 @@ export default function AppearanceTab() {
     const defaults = theme === "light" ? LIGHT_DEFAULTS : DARK_DEFAULTS;
     setColors(defaults);
     setHasCustomColors(false);
-    applyTheme(theme);
+    applyThemeMode(theme);
   };
 
   return (

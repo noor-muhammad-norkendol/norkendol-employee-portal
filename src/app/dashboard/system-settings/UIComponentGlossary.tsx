@@ -435,7 +435,6 @@ const CATEGORIES: Category[] = [
               borderRadius: 12, animation: "spin 0.8s linear infinite",
             }} />
             <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Loading claims...</span>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         ),
       },
@@ -448,7 +447,6 @@ const CATEGORIES: Category[] = [
             <div style={{ height: 12, width: "70%", background: "var(--bg-hover)", borderRadius: 4, animation: "pulse 1.5s ease-in-out infinite" }} />
             <div style={{ height: 12, width: "90%", background: "var(--bg-hover)", borderRadius: 4, animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.2s" }} />
             <div style={{ height: 12, width: "50%", background: "var(--bg-hover)", borderRadius: 4, animation: "pulse 1.5s ease-in-out infinite", animationDelay: "0.4s" }} />
-            <style>{`@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }`}</style>
           </div>
         ),
       },

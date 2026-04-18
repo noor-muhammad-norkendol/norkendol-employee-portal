@@ -3,20 +3,10 @@
 import React, { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import { cardStyle } from "@/lib/styles";
-
-interface AnalysisColors {
-  accent: string;
-  sidebarBg: string;
-  topbarBg: string;
-  pageBg: string;
-  cardBg: string;
-  textPrimary: string;
-  textSecondary: string;
-  borderColor: string;
-}
+import { CustomColors, applyCustomColors, clearCustomColors, applyThemeMode } from "@/lib/theme";
 
 interface AnalysisResult {
-  colors: AnalysisColors;
+  colors: CustomColors;
   layout: {
     navStyle: string;
     density: string;
@@ -173,7 +163,6 @@ const WALKTHROUGH: WalkthroughItem[] = [
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 20, height: 20, border: "3px solid var(--bg-hover)", borderTopColor: "var(--accent)", borderRadius: 10, animation: "spin 0.8s linear infinite" }} />
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Loading...</span>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         ),
       },
@@ -184,7 +173,6 @@ const WALKTHROUGH: WalkthroughItem[] = [
             {[70, 90, 50].map((w, i) => (
               <div key={i} style={{ height: 10, width: `${w}%`, background: "var(--bg-hover)", borderRadius: 4, animation: "pulse 1.5s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
             ))}
-            <style>{`@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }`}</style>
           </div>
         ),
       },
@@ -213,51 +201,35 @@ export default function AIDesigner() {
   const [error, setError] = useState<string | null>(null);
   const [walkthroughIndex, setWalkthroughIndex] = useState(0);
   const [selections, setSelections] = useState<Record<string, string>>({});
-  const [savedState, setSavedState] = useState<{ theme: string | null; colors: string | null } | null>(null);
+  const savedStateRef = useRef<{ theme: string | null; colors: string | null } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Snapshot current state before making changes
   const snapshotCurrentState = () => {
-    setSavedState({
+    savedStateRef.current = {
       theme: localStorage.getItem("portal-theme"),
       colors: localStorage.getItem("portal-custom-colors"),
-    });
+    };
   };
 
   const handleRevert = () => {
-    // Restore saved state
-    const root = document.documentElement;
-    const props = ["--accent", "--accent-hover", "--bg-secondary", "--bg-primary", "--bg-surface", "--text-primary", "--text-secondary", "--border-color"];
-    props.forEach((p) => root.style.removeProperty(p));
-
-    if (savedState) {
-      if (savedState.theme) {
-        localStorage.setItem("portal-theme", savedState.theme);
-        root.setAttribute("data-theme", savedState.theme);
+    clearCustomColors();
+    const saved = savedStateRef.current;
+    if (saved) {
+      if (saved.theme) {
+        applyThemeMode(saved.theme as "dark" | "light");
       } else {
         localStorage.removeItem("portal-theme");
-        root.removeAttribute("data-theme");
+        document.documentElement.setAttribute("data-theme", "dark");
       }
-      if (savedState.colors) {
-        localStorage.setItem("portal-custom-colors", savedState.colors);
-        const colors = JSON.parse(savedState.colors);
-        root.style.setProperty("--accent", colors.accent);
-        root.style.setProperty("--accent-hover", colors.accent);
-        root.style.setProperty("--bg-secondary", colors.sidebarBg);
-        root.style.setProperty("--bg-primary", colors.pageBg);
-        root.style.setProperty("--bg-surface", colors.cardBg);
-        root.style.setProperty("--text-primary", colors.textPrimary);
-        root.style.setProperty("--text-secondary", colors.textSecondary);
-        root.style.setProperty("--border-color", colors.borderColor);
-      } else {
-        localStorage.removeItem("portal-custom-colors");
+      if (saved.colors) {
+        try {
+          applyCustomColors(JSON.parse(saved.colors));
+        } catch { /* corrupted — already cleared */ }
       }
     } else {
-      localStorage.removeItem("portal-custom-colors");
       localStorage.removeItem("portal-theme");
-      root.setAttribute("data-theme", "dark");
+      document.documentElement.setAttribute("data-theme", "dark");
     }
-
     handleStartOver();
   };
 
@@ -315,24 +287,9 @@ export default function AIDesigner() {
 
   const applyColors = () => {
     if (!analysis?.colors) return;
-    const c = analysis.colors;
-    // Save to localStorage (same format as AppearanceTab)
-    localStorage.setItem("portal-custom-colors", JSON.stringify(c));
-    // Apply to CSS variables
-    const root = document.documentElement;
-    root.style.setProperty("--accent", c.accent);
-    root.style.setProperty("--accent-hover", c.accent);
-    root.style.setProperty("--bg-secondary", c.sidebarBg);
-    root.style.setProperty("--bg-primary", c.pageBg);
-    root.style.setProperty("--bg-surface", c.cardBg);
-    root.style.setProperty("--text-primary", c.textPrimary);
-    root.style.setProperty("--text-secondary", c.textSecondary);
-    root.style.setProperty("--border-color", c.borderColor);
-    // Set theme mode
+    applyCustomColors(analysis.colors);
     if (analysis.layout?.themeMode) {
-      const mode = analysis.layout.themeMode === "light" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", mode);
-      localStorage.setItem("portal-theme", mode);
+      applyThemeMode(analysis.layout.themeMode === "light" ? "light" : "dark");
     }
   };
 

@@ -1,27 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { decryptApiKey } from "@/lib/ai";
+import { authenticateAdmin, supabaseAdmin } from "@/lib/api-auth";
 import Anthropic from "@anthropic-ai/sdk";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function authenticateAdmin(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7);
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) return null;
-  const { data: row } = await supabaseAdmin
-    .from("users")
-    .select("role, org_id")
-    .eq("id", user.id)
-    .single();
-  if (!row || !["super_admin", "system_admin"].includes(row.role)) return null;
-  return { userId: user.id, orgId: row.org_id as string };
-}
 
 const SYSTEM_PROMPT = `You are a UI/UX design analyzer. The user will upload a screenshot of a software application (CRM, management system, portal, etc.).
 
