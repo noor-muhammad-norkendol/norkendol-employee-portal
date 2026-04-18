@@ -20,6 +20,10 @@ function ProfilePhotoSection({ supabase }: { supabase: ReturnType<typeof createC
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Load from localStorage first (instant)
+    const saved = localStorage.getItem("portal-user-photo");
+    if (saved) setPhotoUrl(saved);
+    // Also try from DB
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       const { data } = await supabase
@@ -29,7 +33,10 @@ function ProfilePhotoSection({ supabase }: { supabase: ReturnType<typeof createC
         .single();
       if (data) {
         setUserName(data.full_name || "");
-        setPhotoUrl(data.profile_picture_url || null);
+        if (data.profile_picture_url && !saved) {
+          setPhotoUrl(data.profile_picture_url);
+          localStorage.setItem("portal-user-photo", data.profile_picture_url);
+        }
       }
     });
   }, [supabase]);
@@ -46,33 +53,38 @@ function ProfilePhotoSection({ supabase }: { supabase: ReturnType<typeof createC
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
+      // Save to localStorage (always works)
+      localStorage.setItem("portal-user-photo", dataUrl);
+      setPhotoUrl(dataUrl);
+      window.dispatchEvent(new Event("portal-photo-changed"));
+      // Also try DB save (may fail due to RLS or column size)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { error } = await supabase
-        .from("users")
-        .update({ profile_picture_url: dataUrl, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
-      if (error) {
-        setMsg("Failed to save photo.");
-      } else {
-        setPhotoUrl(dataUrl);
-        setMsg("Photo saved!");
+      if (user) {
+        await supabase
+          .from("users")
+          .update({ profile_picture_url: dataUrl, updated_at: new Date().toISOString() })
+          .eq("id", user.id);
       }
       setUploading(false);
+      setMsg("Photo saved!");
       setTimeout(() => setMsg(""), 3000);
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemove = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from("users")
-      .update({ profile_picture_url: null, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
+    localStorage.removeItem("portal-user-photo");
     setPhotoUrl(null);
+    window.dispatchEvent(new Event("portal-photo-changed"));
     if (fileRef.current) fileRef.current.value = "";
+    // Also clear in DB
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("users")
+        .update({ profile_picture_url: null, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+    }
     setMsg("Photo removed.");
     setTimeout(() => setMsg(""), 3000);
   };

@@ -36,6 +36,16 @@ export default function TopBar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for photo changes from My Settings
+  useEffect(() => {
+    function loadPhoto() {
+      setUserPhoto(localStorage.getItem("portal-user-photo"));
+    }
+    loadPhoto();
+    window.addEventListener("portal-photo-changed", loadPhoto);
+    return () => window.removeEventListener("portal-photo-changed", loadPhoto);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
@@ -45,7 +55,6 @@ export default function TopBar() {
             user.email?.split("@")[0] ??
             ""
         );
-        // Fetch profile picture from users table
         const { data: profile } = await supabase
           .from("users")
           .select("full_name, profile_picture_url")
@@ -53,7 +62,11 @@ export default function TopBar() {
           .single();
         if (profile) {
           if (profile.full_name) setUserName(profile.full_name);
-          if (profile.profile_picture_url) setUserPhoto(profile.profile_picture_url);
+          // DB photo is fallback if localStorage is empty
+          if (profile.profile_picture_url && !localStorage.getItem("portal-user-photo")) {
+            setUserPhoto(profile.profile_picture_url);
+            localStorage.setItem("portal-user-photo", profile.profile_picture_url);
+          }
         }
       }
     });
