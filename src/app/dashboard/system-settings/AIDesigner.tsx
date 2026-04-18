@@ -213,7 +213,53 @@ export default function AIDesigner() {
   const [error, setError] = useState<string | null>(null);
   const [walkthroughIndex, setWalkthroughIndex] = useState(0);
   const [selections, setSelections] = useState<Record<string, string>>({});
+  const [savedState, setSavedState] = useState<{ theme: string | null; colors: string | null } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Snapshot current state before making changes
+  const snapshotCurrentState = () => {
+    setSavedState({
+      theme: localStorage.getItem("portal-theme"),
+      colors: localStorage.getItem("portal-custom-colors"),
+    });
+  };
+
+  const handleRevert = () => {
+    // Restore saved state
+    const root = document.documentElement;
+    const props = ["--accent", "--accent-hover", "--bg-secondary", "--bg-primary", "--bg-surface", "--text-primary", "--text-secondary", "--border-color"];
+    props.forEach((p) => root.style.removeProperty(p));
+
+    if (savedState) {
+      if (savedState.theme) {
+        localStorage.setItem("portal-theme", savedState.theme);
+        root.setAttribute("data-theme", savedState.theme);
+      } else {
+        localStorage.removeItem("portal-theme");
+        root.removeAttribute("data-theme");
+      }
+      if (savedState.colors) {
+        localStorage.setItem("portal-custom-colors", savedState.colors);
+        const colors = JSON.parse(savedState.colors);
+        root.style.setProperty("--accent", colors.accent);
+        root.style.setProperty("--accent-hover", colors.accent);
+        root.style.setProperty("--bg-secondary", colors.sidebarBg);
+        root.style.setProperty("--bg-primary", colors.pageBg);
+        root.style.setProperty("--bg-surface", colors.cardBg);
+        root.style.setProperty("--text-primary", colors.textPrimary);
+        root.style.setProperty("--text-secondary", colors.textSecondary);
+        root.style.setProperty("--border-color", colors.borderColor);
+      } else {
+        localStorage.removeItem("portal-custom-colors");
+      }
+    } else {
+      localStorage.removeItem("portal-custom-colors");
+      localStorage.removeItem("portal-theme");
+      root.setAttribute("data-theme", "dark");
+    }
+
+    handleStartOver();
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -227,6 +273,7 @@ export default function AIDesigner() {
 
   const handleAnalyze = async () => {
     if (!imagePreview) return;
+    snapshotCurrentState();
     setStep("analyzing");
     setError(null);
 
@@ -437,11 +484,11 @@ export default function AIDesigner() {
             }}>
               Apply Colors & Customize Components →
             </button>
-            <button onClick={handleStartOver} style={{
-              background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)",
+            <button onClick={handleRevert} style={{
+              background: "transparent", color: "#ef4444", border: "1px solid #ef4444",
               borderRadius: 8, padding: "10px 20px", fontSize: 13, cursor: "pointer",
             }}>
-              Start Over
+              Cancel & Revert
             </button>
           </div>
         </div>
@@ -492,18 +539,29 @@ export default function AIDesigner() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
-                  <button
-                    onClick={() => walkthroughIndex > 0 && setWalkthroughIndex(walkthroughIndex - 1)}
-                    disabled={walkthroughIndex === 0}
-                    style={{
-                      background: "transparent", color: walkthroughIndex === 0 ? "var(--text-muted)" : "var(--text-secondary)",
-                      border: "1px solid var(--border-color)", borderRadius: 8,
-                      padding: "8px 20px", fontSize: 13, cursor: walkthroughIndex === 0 ? "default" : "pointer",
-                      opacity: walkthroughIndex === 0 ? 0.4 : 1,
-                    }}
-                  >
-                    ← Back
-                  </button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => walkthroughIndex > 0 && setWalkthroughIndex(walkthroughIndex - 1)}
+                      disabled={walkthroughIndex === 0}
+                      style={{
+                        background: "transparent", color: walkthroughIndex === 0 ? "var(--text-muted)" : "var(--text-secondary)",
+                        border: "1px solid var(--border-color)", borderRadius: 8,
+                        padding: "8px 20px", fontSize: 13, cursor: walkthroughIndex === 0 ? "default" : "pointer",
+                        opacity: walkthroughIndex === 0 ? 0.4 : 1,
+                      }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={handleRevert}
+                      style={{
+                        background: "transparent", color: "#ef4444", border: "1px solid #ef4444",
+                        borderRadius: 8, padding: "8px 16px", fontSize: 12, cursor: "pointer",
+                      }}
+                    >
+                      Cancel & Revert
+                    </button>
+                  </div>
                   <button
                     onClick={handleWalkthroughNext}
                     style={{
@@ -533,7 +591,13 @@ export default function AIDesigner() {
               background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border-color)",
               borderRadius: 8, padding: "10px 20px", fontSize: 13, cursor: "pointer",
             }}>
-              Start Over with New Screenshot
+              Try a Different Screenshot
+            </button>
+            <button onClick={handleRevert} style={{
+              background: "transparent", color: "#ef4444", border: "1px solid #ef4444",
+              borderRadius: 8, padding: "10px 20px", fontSize: 13, cursor: "pointer",
+            }}>
+              Undo Everything — Revert to Previous Look
             </button>
           </div>
         </div>
