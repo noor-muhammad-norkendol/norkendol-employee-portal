@@ -265,13 +265,21 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
   const label = companyName || "Portal";
 
   return (
-    <div className={`flex items-center mb-4 ${expanded ? "px-3 gap-2" : "justify-center"}`}>
+    <div className={`flex items-center mb-4 ${expanded ? "px-3 gap-3" : "justify-center"}`}>
       {logoUrl ? (
-        <img src={logoUrl} alt={label} className="w-8 h-8 rounded-md shrink-0" style={{ objectFit: "contain" }} />
+        <img
+          src={logoUrl} alt={label}
+          className="shrink-0 rounded-md"
+          style={{ width: expanded ? 36 : 32, height: expanded ? 36 : 32, objectFit: "contain" }}
+        />
       ) : (
         <div
-          className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
-          style={{ background: "var(--accent)", color: "#fff" }}
+          className="rounded-md flex items-center justify-center font-bold shrink-0"
+          style={{
+            width: expanded ? 36 : 32, height: expanded ? 36 : 32,
+            fontSize: expanded ? 16 : 14,
+            background: "var(--accent)", color: "#fff",
+          }}
         >
           {initial}
         </div>

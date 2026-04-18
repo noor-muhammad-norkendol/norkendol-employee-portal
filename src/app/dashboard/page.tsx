@@ -225,6 +225,27 @@ function savePanelOrder(userId: string, order: string[]) {
   }
 }
 
+/* ── company logo for welcome header ────────────────────── */
+
+function DashboardLogo() {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    function load() { setLogoUrl(localStorage.getItem("portal-logo")); }
+    load();
+    window.addEventListener("portal-branding-changed", load);
+    return () => window.removeEventListener("portal-branding-changed", load);
+  }, []);
+
+  if (!logoUrl) return null;
+  return (
+    <img
+      src={logoUrl} alt="Company Logo"
+      style={{ maxHeight: 48, maxWidth: 180, objectFit: "contain", opacity: 0.85 }}
+    />
+  );
+}
+
 /* ── main dashboard ────────────────────────────────────── */
 
 export default function DashboardPage() {
@@ -634,17 +655,20 @@ export default function DashboardPage() {
       {/* ── Welcome Header (fixed, not draggable) ──────── */}
       <div
         className="rounded-xl p-6"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}
       >
-        <h1 className="text-2xl font-semibold">Welcome back, {firstName}</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
+        <div>
+          <h1 className="text-2xl font-semibold">Welcome back, {firstName}</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+        <DashboardLogo />
       </div>
 
       {/* ── Draggable Panels ───────────────────────────── */}
