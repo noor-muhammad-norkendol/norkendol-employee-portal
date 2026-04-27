@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import ThemePicker from "@/components/ThemePicker";
 
 export default function TopBar() {
   const [dateTime, setDateTime] = useState("");
@@ -131,7 +132,7 @@ export default function TopBar() {
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-full mt-1 w-48 rounded-lg py-1 shadow-lg z-50"
+            className="absolute right-0 top-full mt-1 w-64 rounded-lg py-1 shadow-lg z-50"
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
           >
             <button
@@ -142,6 +143,8 @@ export default function TopBar() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" /></svg>
               My Settings
             </button>
+            <div style={{ borderTop: "1px solid var(--border-color)", margin: "2px 0" }} />
+            <ThemePicker />
             <div style={{ borderTop: "1px solid var(--border-color)", margin: "2px 0" }} />
             <form action="/auth/signout" method="POST">
               <button

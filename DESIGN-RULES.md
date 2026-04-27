@@ -158,14 +158,14 @@ Components never query the active theme — they read CSS variables only.
 ```typescript
 export type ThemeStyle = "modern" | "throwback";
 export type ThemeMode  = "dark" | "med" | "light";
-export type Theme = { style: ThemeStyle; mode: ThemeMode };
+export interface Theme { style: ThemeStyle; mode: ThemeMode; }
 
-export function applyTheme(t: Theme): void;       // sets data-style + data-mode + persists
-export function resolveTheme(): Theme;            // runs resolution chain, returns active
-export function setUserOverride(t: Theme | null): void;  // null = clear, inherit org default
-export function getOrgDefault(): Theme;           // reads org_default from API or fallback
+export function applyTheme(t: Theme): void;             // sets data-style + data-mode + persists + lazy fonts
+export function resolveTheme(): Theme;                  // resolution chain → active theme
 export function loadStyleFonts(s: ThemeStyle): Promise<void>;  // lazy font CSS injection
 ```
+
+Phase 2B will add `setUserOverride()` and `getOrgDefault()` when DB persistence ships.
 
 **Toggle behavior:**
 - User flips style → mode persists (Dark stays Dark, etc.)
@@ -224,24 +224,30 @@ else applyTheme({ style: "modern", mode: "med" });
 localStorage.removeItem("portal-theme");
 ```
 
-Existing 8 color pickers (`AppearanceTab.tsx` + `applyCustomColors()`) continue to layer on top of the resolved combo cell — they are user-overrides, not replacements.
+**Theme is locked to the 6 preset cells.** No per-user color customization. The previous 8-color-picker system, AI Designer screenshot analyzer, and UI Component glossary were removed — they fought the locked design and added admin overhead for a personal preference.
 
-## Settings UI — Appearance tab
+## Settings UI — where the picker lives
 
-Two segmented controls stacked above the existing 8 color pickers:
+The theme picker lives in the **TopBar user menu dropdown** (`src/components/TopBar.tsx`). Click the user avatar → dropdown shows two segmented controls:
 
 ```
-Style: [● Modern]  [Throwback]            ← Modern is brand default
-Mode:  [Dark]  [● Med]  [Light]           ← Med is recommended
-
-[Reset to org default]
-[Reset all customization]
-
-— existing 8 color pickers below —
-— existing AI Designer flow below —
+┌────────────────────────────┐
+│ Frank Dalton               │
+│ frank@coastalclaims.net    │
+├────────────────────────────┤
+│ ⚙  My Settings             │
+├────────────────────────────┤
+│ APPEARANCE                 │
+│ Style: [Modern][Throwback] │
+│ Mode:  [Dark][Med][Light]  │
+├────────────────────────────┤
+│ ⏻  Sign Out                │
+└────────────────────────────┘
 ```
 
-Live preview reflects the (style × mode × user-color-overrides) composition immediately. Color pickers operate on top of the active combo cell — they never replace tokens, only override individual ones via `applyCustomColors()`.
+`src/components/ThemePicker.tsx` is the self-contained component. Theme changes apply live (no reload) by calling `applyTheme()` from `theme.ts`.
+
+**System Settings → no Appearance tab.** That admin surface is gone. The only remaining tab there is "Company Logo" (white-label: logo upload + company name, persists to `localStorage["portal-logo"]` + `localStorage["portal-company-name"]`, dispatches `portal-branding-changed`). Plus "AI Configuration" for org AI provider/key setup.
 
 ## Sidebar architecture
 

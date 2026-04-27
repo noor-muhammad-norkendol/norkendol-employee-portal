@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
-import UIComponentGlossary from "./UIComponentGlossary";
-import AppearanceTab from "./AppearanceTab";
-import AIDesigner from "./AIDesigner";
+import CompanyLogoTab from "./CompanyLogoTab";
 
-const TABS = ["AI Configuration", "AI Designer", "UI Components", "Appearance"] as const;
+const TABS = ["AI Configuration", "Company Logo"] as const;
 type Tab = (typeof TABS)[number];
 
 interface AISettings {
@@ -125,7 +123,7 @@ export default function SystemSettingsPage() {
       {/* Tab bar */}
       <div
         className="flex gap-1 mb-6 border-b"
-        style={{ borderColor: "var(--border)" }}
+        style={{ borderColor: "var(--border-color)" }}
       >
         {TABS.map((tab) => (
           <button
@@ -138,7 +136,7 @@ export default function SystemSettingsPage() {
                   ? "var(--text-primary)"
                   : "var(--text-secondary)",
               borderBottom:
-                activeTab === tab ? "2px solid #22c55e" : "2px solid transparent",
+                activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
             }}
           >
             {tab}
@@ -146,14 +144,8 @@ export default function SystemSettingsPage() {
         ))}
       </div>
 
-      {/* AI Designer tab */}
-      {activeTab === "AI Designer" && <AIDesigner />}
-
-      {/* UI Components tab */}
-      {activeTab === "UI Components" && <UIComponentGlossary />}
-
-      {/* Appearance tab */}
-      {activeTab === "Appearance" && <AppearanceTab />}
+      {/* Company Logo tab */}
+      {activeTab === "Company Logo" && <CompanyLogoTab />}
 
       {/* AI Configuration tab */}
       {activeTab === "AI Configuration" && (
@@ -297,13 +289,10 @@ export default function SystemSettingsPage() {
                   disabled={saving || !provider}
                   className="px-4 py-2 rounded-md text-sm font-medium transition-colors"
                   style={{
-                    background:
-                      saving || !provider ? "#1a3a2a" : "#22c55e",
-                    color:
-                      saving || !provider ? "#4ade80" : "#000",
+                    background: "var(--accent)",
+                    color: "var(--cta-text)",
                     opacity: saving || !provider ? 0.5 : 1,
-                    cursor:
-                      saving || !provider ? "not-allowed" : "pointer",
+                    cursor: saving || !provider ? "not-allowed" : "pointer",
                   }}
                 >
                   {saving ? "Saving..." : "Save AI Settings"}
@@ -312,7 +301,7 @@ export default function SystemSettingsPage() {
                   <span
                     className="text-sm"
                     style={{
-                      color: saveMsg === "Settings saved" ? "#4ade80" : "#ef4444",
+                      color: saveMsg === "Settings saved" ? "var(--green)" : "var(--red)",
                     }}
                   >
                     {saveMsg}
