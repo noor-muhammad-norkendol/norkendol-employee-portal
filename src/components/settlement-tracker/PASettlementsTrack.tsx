@@ -142,70 +142,121 @@ export default function PASettlementsTrack({ onBack }: PASettlementsTrackProps) 
   const displayData = tab === "active" ? activeSettlements : archivedSettlements;
   const isLoading = tab === "active" ? activeLoading : archiveLoading;
 
+  const TAB_TOKENS: Record<PATab, string> = {
+    active: "--info",
+    historical: "--text-faint",
+    liquidity: "--violet",
+  };
+
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
+    <div className="p-8">
+      {/* Top row: back button + primary CTA */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={onBack}
+          className="text-[12px] font-bold uppercase cursor-pointer transition-all"
+          style={{
+            padding: "8px 14px",
+            background: "var(--bg)",
+            color: "var(--accent)",
+            borderWidth: "1.5px",
+            borderStyle: "solid",
+            borderColor: "var(--accent)",
+            borderRadius: 8,
+            fontFamily: "var(--font-display)",
+            letterSpacing: "0.10em",
+            textShadow: "var(--accent-text-shadow)",
+          }}
+        >
+          &larr; All Tracks
+        </button>
+        {isAdmin && (
           <button
-            onClick={onBack}
-            className="text-sm flex items-center gap-1"
+            onClick={() => setShowCreateForm(true)}
+            className="px-7 py-3.5 text-[15px] font-extrabold uppercase cursor-pointer transition-all"
             style={{
-              color: "var(--text-secondary)",
-              background: "none",
+              background: "var(--cta-bg)",
+              color: "var(--cta-text)",
+              borderRadius: 8,
+              boxShadow:
+                "0 0 22px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 50px color-mix(in srgb, var(--magenta) 28%, transparent), 0 4px 14px rgba(0,0,0,0.30)",
               border: "none",
-              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+              letterSpacing: "0.08em",
             }}
           >
-            &larr; All Tracks
+            + New Settlement
           </button>
-          <h1
-            className="text-xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            PA Settlements
-          </h1>
-        </div>
-        <div className="flex gap-2 items-center">
-          {isAdmin && (
-            <button style={btnPrimary} onClick={() => setShowCreateForm(true)}>
-              + New Settlement
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-5">
+      {/* Title */}
+      <h1
+        className="page-title text-5xl leading-none tracking-tight"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        <span
+          style={{
+            color: "var(--green)",
+            textShadow:
+              "0 0 18px color-mix(in srgb, var(--green) 70%, transparent), 0 0 40px color-mix(in srgb, var(--green) 40%, transparent)",
+            fontWeight: 800,
+          }}
+        >
+          PA
+        </span>{" "}
+        <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+          Settlements
+        </span>
+      </h1>
+
+      {/* Stats line */}
+      <p className="mt-3 text-sm flex items-center gap-3 mb-6" style={{ color: "var(--text-dim)" }}>
+        <span>
+          <strong style={{ color: "var(--info)" }}>{activeSettlements.length}</strong> active
+        </span>
+        <span style={{ color: "var(--text-faint)" }}>·</span>
+        <span>
+          <strong style={{ color: "var(--text-dim)" }}>{archivedSettlements.length}</strong> historical
+        </span>
+      </p>
+
+      {/* Filter pill row (tabs) */}
+      <div className="flex items-center gap-2 mb-5">
         {(
           [
-            {
-              key: "active" as PATab,
-              label: `Active (${activeSettlements.length})`,
-            },
-            {
-              key: "historical" as PATab,
-              label: `Historical (${archivedSettlements.length})`,
-            },
-            ...(isAdmin
-              ? [{ key: "liquidity" as PATab, label: "Liquidity" }]
-              : []),
+            { key: "active" as PATab, label: `Active (${activeSettlements.length})` },
+            { key: "historical" as PATab, label: `Historical (${archivedSettlements.length})` },
+            ...(isAdmin ? [{ key: "liquidity" as PATab, label: "Liquidity" }] : []),
           ] as { key: PATab; label: string }[]
-        ).map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-            style={{
-              background: tab === t.key ? "var(--bg-hover)" : "transparent",
-              color:
-                tab === t.key ? "var(--text-primary)" : "var(--text-muted)",
-              border: "none",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+        ).map((t) => {
+          const tokenVar = TAB_TOKENS[t.key];
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="text-[12px] font-bold uppercase cursor-pointer transition-all"
+              style={{
+                padding: "10px 18px",
+                borderRadius: 8,
+                letterSpacing: "0.10em",
+                fontFamily: "var(--font-display)",
+                background: active ? `color-mix(in srgb, var(${tokenVar}) 14%, var(--pad))` : "var(--pad)",
+                color: active ? `var(${tokenVar})` : "var(--text-dim)",
+                borderWidth: "1.5px",
+                borderStyle: "solid",
+                borderColor: active ? `var(${tokenVar})` : "var(--border)",
+                textShadow: active ? `0 0 8px color-mix(in srgb, var(${tokenVar}) 70%, transparent)` : undefined,
+                boxShadow: active
+                  ? `0 0 0 1px var(${tokenVar}) inset, 0 0 18px color-mix(in srgb, var(${tokenVar}) 50%, transparent), 0 0 36px color-mix(in srgb, var(${tokenVar}) 22%, transparent)`
+                  : "none",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}
@@ -256,98 +307,174 @@ function PADataGrid({
   isHistorical: boolean;
   onSelect: (s: PASettlementWithFile) => void;
 }) {
+  const gridThStyle: React.CSSProperties = {
+    padding: "10px 12px",
+    textAlign: "left",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "var(--text-faint)",
+    borderBottom: "1px solid var(--border)",
+    whiteSpace: "nowrap",
+    fontFamily: "var(--font-ui)",
+  };
+  const gridTdStyle: React.CSSProperties = {
+    padding: "14px 12px",
+    fontSize: 13,
+    color: "var(--text)",
+    verticalAlign: "middle",
+    borderBottom: "1px solid var(--border)",
+  };
+
+  function getInitials(name?: string | null): string {
+    if (!name) return "—";
+    const parts = name.split(" ").filter(Boolean);
+    return (parts[0]?.[0] || "").concat(parts[1]?.[0] || "").toUpperCase() || "—";
+  }
+
+  function statusToken(status?: string | null): string {
+    if (status === "Closed") return "--green";
+    if (status === "Open") return "--amber";
+    return "--text-faint";
+  }
+
   return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border-color)",
-      }}
-    >
-      <div
-        className="px-4 py-2 text-xs"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        {settlements.length} {isHistorical ? "archived" : "active"} records
+    <div className="themed-card p-5">
+      <div className="themed-card-stripe" aria-hidden />
+
+      {/* Section header */}
+      <div className="flex items-center gap-3 mb-4">
+        <h2
+          className="page-title text-xl font-semibold whitespace-nowrap"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {isHistorical ? "Historical" : "Active"}{" "}
+          <span className="themed-accent">Settlements</span>
+        </h2>
+        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)", fontSize: 13 }}>
+          · {settlements.length}
+        </span>
+        <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
       </div>
+
+      {/* Table */}
       <div style={{ overflowX: "auto" }}>
-        <table className="w-full text-sm" style={{ minWidth: 1100 }}>
+        <table className="w-full" style={{ minWidth: 1100, borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={thStyle}>State</th>
-              <th style={thStyle}>File #</th>
-              <th style={thStyle}>Client</th>
-              <th style={thStyle}>Referral Source</th>
-              <th style={thStyle}>Carrier</th>
-              <th style={thStyle}>Peril</th>
-              <th style={thStyle}>Severity</th>
-              <th style={thStyle}>Settlement $</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Notes</th>
+              <th style={gridThStyle}>State</th>
+              <th style={gridThStyle}>File #</th>
+              <th style={gridThStyle}>Client</th>
+              <th style={gridThStyle}>Referral</th>
+              <th style={gridThStyle}>Carrier</th>
+              <th style={gridThStyle}>Peril</th>
+              <th style={gridThStyle}>Severity</th>
+              <th style={gridThStyle}>Settlement $</th>
+              <th style={gridThStyle}>Status</th>
+              <th style={gridThStyle}>Notes</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={10} style={{ ...tdStyle, textAlign: "center" }}>
+                <td colSpan={10} style={{ ...gridTdStyle, textAlign: "center", padding: 32, color: "var(--text-faint)" }}>
                   Loading...
                 </td>
               </tr>
             ) : settlements.length === 0 ? (
               <tr>
-                <td colSpan={10} style={{ ...tdStyle, textAlign: "center" }}>
+                <td colSpan={10} style={{ ...gridTdStyle, textAlign: "center", padding: 32, color: "var(--text-faint)" }}>
                   No {isHistorical ? "archived" : "active"} settlements
                 </td>
               </tr>
             ) : (
-              settlements.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => onSelect(s)}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--bg-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <td style={tdStyle}>
-                    <StatusBadge
-                      label={s.litigation_file?.state || "—"}
-                      color="blue"
-                    />
-                  </td>
-                  <td
-                    style={{
-                      ...tdStyle,
-                      color: "var(--accent)",
-                      fontWeight: 600,
-                    }}
+              settlements.map((s) => {
+                const token = statusToken(s.settlement_status);
+                const clientName = s.litigation_file?.client_name || "";
+                return (
+                  <tr
+                    key={s.id}
+                    onClick={() => onSelect(s)}
+                    style={{ cursor: "pointer", transition: "background 160ms" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 6%, transparent)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    {s.litigation_file?.file_number || "—"}
-                  </td>
-                  <td style={tdStyle}>
-                    {s.litigation_file?.client_name || "—"}
-                  </td>
-                  <td style={tdStyle}>{s.referral_source || "—"}</td>
-                  <td style={tdStyle}>{s.carrier || "—"}</td>
-                  <td style={tdStyle}>{s.peril || "—"}</td>
-                  <td style={tdStyle}>{s.claim_severity || "—"}</td>
-                  <td style={{ ...tdStyle, color: "#4ade80", fontWeight: 600 }}>
-                    {formatCurrency(s.settlement_amount)}
-                  </td>
-                  <td style={tdStyle}>
-                    <StatusBadge
-                      label={s.settlement_status || "Open"}
-                      color={getSettlementStatusBadgeColor(
-                        s.settlement_status
-                      )}
-                    />
-                  </td>
-                  <td style={tdStyle}>{truncate(s.notes)}</td>
-                </tr>
-              ))
+                    <td style={gridTdStyle}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          fontFamily: "var(--font-mono)",
+                          background: "color-mix(in srgb, var(--info) 12%, transparent)",
+                          color: "var(--info)",
+                          border: "1px solid color-mix(in srgb, var(--info) 40%, transparent)",
+                        }}
+                      >
+                        {s.litigation_file?.state || "—"}
+                      </span>
+                    </td>
+                    <td style={{ ...gridTdStyle, color: "var(--accent)", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+                      {s.litigation_file?.file_number || "—"}
+                    </td>
+                    <td style={gridTdStyle}>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="shrink-0 inline-flex items-center justify-center"
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 7,
+                            background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+                            border: "1px solid var(--border-active)",
+                            color: "var(--accent)",
+                            textShadow: "var(--accent-text-shadow)",
+                            fontFamily: "var(--font-display)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {getInitials(clientName)}
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                          {clientName || "—"}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={gridTdStyle}>{s.referral_source || "—"}</td>
+                    <td style={gridTdStyle}>{s.carrier || "—"}</td>
+                    <td style={gridTdStyle}>{s.peril || "—"}</td>
+                    <td style={gridTdStyle}>{s.claim_severity || "—"}</td>
+                    <td style={{ ...gridTdStyle, color: "var(--green)", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                      {formatCurrency(s.settlement_amount)}
+                    </td>
+                    <td style={gridTdStyle}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "3px 10px",
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          fontFamily: "var(--font-ui)",
+                          background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+                          color: `var(${token})`,
+                          border: `1px solid color-mix(in srgb, var(${token}) 40%, transparent)`,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {s.settlement_status || "Open"}
+                      </span>
+                    </td>
+                    <td style={{ ...gridTdStyle, color: "var(--text-dim)" }}>{truncate(s.notes)}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

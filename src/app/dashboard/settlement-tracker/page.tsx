@@ -64,28 +64,32 @@ const modalStyle: React.CSSProperties = {
 
 const TRACKS = [
   {
-    key: "litigation",
-    title: "Litigation",
-    description: "Attorney-managed legal disputes with state-specific workflows",
-    icon: "M12 3L2 8l10 5 10-5-10-5z M4 8v7 M20 8v7 M12 13v5",
-  },
-  {
-    key: "appraisal",
-    title: "Appraisal",
-    description: "Property damage appraisal disputes and umpire proceedings",
-    icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2 M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z M9 14l2 2 4-4",
+    key: "pa-settlements",
+    title: "PA Settlements",
+    description: "Public adjuster direct settlement ledger and payment tracking",
+    icon: "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
+    token: "--green",
   },
   {
     key: "mediation",
     title: "Mediation / Arbitration",
     description: "ADR proceedings with mediator tracking and ratings",
     icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+    token: "--magenta",
   },
   {
-    key: "pa-settlements",
-    title: "PA Settlements",
-    description: "Public adjuster direct settlement ledger and payment tracking",
-    icon: "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
+    key: "appraisal",
+    title: "Appraisal",
+    description: "Property damage appraisal disputes and umpire proceedings",
+    icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2 M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z M9 14l2 2 4-4",
+    token: "--violet",
+  },
+  {
+    key: "litigation",
+    title: "Litigation",
+    description: "Attorney-managed legal disputes with state-specific workflows",
+    icon: "M12 3L2 8l10 5 10-5-10-5z M4 8v7 M20 8v7 M12 13v5",
+    token: "--accent",
   },
 ];
 
@@ -192,11 +196,19 @@ export default function SettlementTrackerPage() {
   // Landing page — track selector
   if (track === "landing") {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-          Settlement Tracker
+      <div className="p-8">
+        <h1
+          className="page-title text-5xl leading-none tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          <span style={{ color: "var(--accent)", textShadow: "var(--accent-text-shadow)", fontWeight: 800 }}>
+            Settlement
+          </span>{" "}
+          <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+            Tracker
+          </span>
         </h1>
-        <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-3 text-sm mb-8" style={{ color: "var(--text-dim)" }}>
           Multi-track dispute resolution management. Select a track to continue.
         </p>
 
@@ -205,30 +217,46 @@ export default function SettlementTrackerPage() {
             <button
               key={t.key}
               onClick={() => setTrack(t.key as Track)}
-              className="text-left transition-all"
-              style={{
-                ...cardStyle,
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-              }}
+              className="themed-card is-interactive p-8 text-left cursor-pointer"
+              style={{ background: "var(--pad)", minHeight: 220 }}
             >
+              <span
+                className="themed-card-stripe"
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: 2,
+                  background: `var(${t.token})`,
+                  boxShadow: `0 0 14px color-mix(in srgb, var(${t.token}) 60%, transparent)`,
+                }}
+              />
               <div className="flex items-start gap-4">
                 <div
-                  className="shrink-0 rounded-lg p-3"
-                  style={{ background: "var(--bg-hover)", color: "var(--accent)" }}
+                  className="shrink-0 rounded-lg p-3 inline-flex items-center justify-center"
+                  style={{
+                    background: `color-mix(in srgb, var(${t.token}) 14%, var(--pad))`,
+                    border: `1px solid color-mix(in srgb, var(${t.token}) 40%, transparent)`,
+                    color: `var(${t.token})`,
+                    filter: `drop-shadow(0 0 6px color-mix(in srgb, var(${t.token}) 50%, transparent))`,
+                  }}
                 >
                   <TrackIcon path={t.icon} />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                  <h3
+                    className="page-title text-3xl font-extrabold mb-2 leading-tight"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      color: `var(${t.token})`,
+                      textShadow: `0 0 12px color-mix(in srgb, var(${t.token}) 70%, transparent)`,
+                    }}
+                  >
                     {t.title}
                   </h3>
-                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-sm" style={{ color: "var(--text-dim)" }}>
                     {t.description}
                   </p>
                 </div>

@@ -14,6 +14,7 @@ const HIDE_TEXT_SIDEBAR_ON: Set<string> = new Set([
   "/dashboard/onboarder-kpi",
   "/dashboard/estimator-kpi",
   "/dashboard/university",
+  "/dashboard/settlement-tracker",
 ]);
 
 export default function PortalShell({ children }: { children: React.ReactNode }) {
