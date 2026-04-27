@@ -205,6 +205,20 @@ export default function EstimatorKPIPage() {
 
   const myScore = useMemo(() => myMetrics ? calculateOverallScore(myMetrics) : 0, [myMetrics]);
 
+  // Status pipeline counts (for the stat-tile bar)
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of estimates) counts[e.status] = (counts[e.status] || 0) + 1;
+    return counts;
+  }, [estimates]);
+
+  // Active status filter for the stat-tile bar
+  const [statusFilter, setStatusFilter] = useState<EstimateStatus | null>(null);
+  const tileFilteredCurrent = useMemo(
+    () => statusFilter ? filteredCurrent.filter((e) => e.status === statusFilter) : filteredCurrent,
+    [filteredCurrent, statusFilter]
+  );
+
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
 
   async function handleSubmit() {
@@ -279,30 +293,216 @@ export default function EstimatorKPIPage() {
   }
 
   return (
-    <div style={{ padding: "24px 32px", maxWidth: 1200, margin: "0 auto" }}>
-      {/* Header + Stats Card */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
+    <div style={{ padding: "24px 32px" }}>
+      {/* ── Title row ── */}
+      <div className="flex items-start justify-between flex-wrap gap-4 mb-4">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Estimator KPI</h1>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            {estimates.length} estimate{estimates.length !== 1 ? "s" : ""} total · Score: {myScore}/100
+          <h1
+            className="page-title text-5xl leading-none tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            <span
+              style={{
+                color: "var(--accent)",
+                textShadow: "var(--accent-text-shadow)",
+                fontWeight: 800,
+              }}
+            >
+              Estimator
+            </span>{" "}
+            <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+              KPI
+            </span>
+          </h1>
+          <p className="mt-3 text-sm flex items-center gap-3" style={{ color: "var(--text-dim)" }}>
+            <span>
+              <strong style={{ color: "var(--text)" }}>{estimates.length}</strong> estimate{estimates.length !== 1 ? "s" : ""}
+            </span>
+            <span style={{ color: "var(--text-faint)" }}>·</span>
+            <span>
+              Score: <strong style={{ color: "var(--green)" }}>{myScore}/100</strong>
+            </span>
+            <span style={{ color: "var(--text-faint)" }}>·</span>
+            <span>
+              <select
+                value={statMetric}
+                onChange={(e) => setStatMetric(e.target.value as StatMetric)}
+                style={{
+                  background: "transparent",
+                  color: "var(--text-dim)",
+                  border: "none",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                {(Object.keys(STAT_LABELS) as StatMetric[]).map((k) => (
+                  <option key={k} value={k} style={{ background: "var(--pad)", color: "var(--text)" }}>
+                    {STAT_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+              {": "}
+              <strong style={{ color: "var(--accent)", textShadow: "var(--accent-text-shadow)" }}>
+                {getStatValue()}
+              </strong>
+            </span>
           </p>
         </div>
 
-        {/* Personal Stats Card */}
-        <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 16, padding: "12px 18px" }}>
-          <select
-            style={{ ...selectStyle, width: "auto", fontSize: 11, padding: "4px 8px" }}
-            value={statMetric}
-            onChange={(e) => setStatMetric(e.target.value as StatMetric)}
+        {/* Action buttons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setTab("history"); setEditId(null); }}
+            className="px-7 py-3.5 text-[15px] font-bold uppercase cursor-pointer transition-all"
+            style={{
+              background: tab === "history"
+                ? "color-mix(in srgb, var(--accent) 14%, var(--bg))"
+                : "var(--bg)",
+              color: "var(--accent)",
+              borderWidth: "2px",
+              borderStyle: "solid",
+              borderColor: "var(--accent)",
+              borderRadius: "8px",
+              fontFamily: "var(--font-display)",
+              letterSpacing: "0.10em",
+              textShadow: "var(--accent-text-shadow)",
+              boxShadow: "0 0 16px color-mix(in srgb, var(--accent) 30%, transparent)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 14%, var(--bg))";
+              e.currentTarget.style.boxShadow = "0 0 24px color-mix(in srgb, var(--accent) 50%, transparent)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = tab === "history"
+                ? "color-mix(in srgb, var(--accent) 14%, var(--bg))"
+                : "var(--bg)";
+              e.currentTarget.style.boxShadow = "0 0 16px color-mix(in srgb, var(--accent) 30%, transparent)";
+            }}
           >
-            {(Object.keys(STAT_LABELS) as StatMetric[]).map((k) => (
-              <option key={k} value={k}>{STAT_LABELS[k]}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: 22, fontWeight: 700, color: "var(--accent)" }}>{getStatValue()}</span>
+            History
+          </button>
+          <button
+            onClick={() => { setTab("add"); setEditId(null); setForm({ ...EMPTY_FORM }); }}
+            className="px-7 py-3.5 text-[15px] font-extrabold uppercase cursor-pointer transition-all"
+            style={{
+              background: "var(--cta-bg)",
+              color: "var(--cta-text)",
+              borderRadius: "8px",
+              boxShadow: "0 0 22px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 50px color-mix(in srgb, var(--magenta) 28%, transparent), 0 4px 14px rgba(0,0,0,0.30)",
+              border: "none",
+              fontFamily: "var(--font-display)",
+              letterSpacing: "0.08em",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.filter = "brightness(1.08)";
+              e.currentTarget.style.boxShadow = "0 0 32px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 70px color-mix(in srgb, var(--magenta) 40%, transparent), 0 4px 16px rgba(0,0,0,0.30)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = "none";
+              e.currentTarget.style.boxShadow = "0 0 22px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 50px color-mix(in srgb, var(--magenta) 28%, transparent), 0 4px 14px rgba(0,0,0,0.30)";
+            }}
+          >
+            + Add Entry
+          </button>
         </div>
       </div>
+
+      {/* ── Stat tiles bar ── */}
+      {(() => {
+        const STAT_TILES: { key: EstimateStatus; label: string; token: string }[] = [
+          { key: "assigned", label: "Assigned", token: "--text-dim" },
+          { key: "in-progress", label: "In Progress", token: "--info" },
+          { key: "blocked", label: "Blocked", token: "--red" },
+          { key: "review", label: "Review", token: "--amber" },
+          { key: "sent-to-carrier", label: "Sent to Carrier", token: "--violet" },
+          { key: "settled", label: "Settled", token: "--green" },
+        ];
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {STAT_TILES.map((t) => {
+              const count = statusCounts[t.key] || 0;
+              const active = statusFilter === t.key && tab === "current";
+              const tokenVar = `var(${t.token})`;
+              const activeShadow = `0 0 0 1px ${tokenVar} inset, 0 0 24px color-mix(in srgb, ${tokenVar} 55%, transparent), 0 0 48px color-mix(in srgb, ${tokenVar} 22%, transparent)`;
+              const hoverShadow = `0 0 18px color-mix(in srgb, ${tokenVar} 45%, transparent), 0 0 36px color-mix(in srgb, ${tokenVar} 18%, transparent)`;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => {
+                    setTab("current");
+                    setStatusFilter(active ? null : t.key);
+                  }}
+                  className="relative overflow-hidden p-4 text-left flex flex-col gap-2 cursor-pointer transition-all"
+                  style={{
+                    background: active
+                      ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`
+                      : "var(--pad)",
+                    borderWidth: "1.5px",
+                    borderStyle: "solid",
+                    borderColor: active ? tokenVar : "var(--border)",
+                    borderRadius: "var(--radius-card)",
+                    boxShadow: active ? activeShadow : "var(--card-shadow)",
+                    transitionProperty: "background, border-color, box-shadow, transform",
+                    transitionDuration: "var(--transition-base)",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (active) return;
+                    e.currentTarget.style.borderColor = tokenVar;
+                    e.currentTarget.style.boxShadow = hoverShadow;
+                    e.currentTarget.style.background = `color-mix(in srgb, ${tokenVar} 6%, var(--pad))`;
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (active) return;
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.boxShadow = "var(--card-shadow)";
+                    e.currentTarget.style.background = "var(--pad)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="absolute left-0 right-0 top-0 h-[2px] pointer-events-none"
+                    style={{
+                      background: active ? tokenVar : "var(--card-stripe-bg)",
+                      boxShadow: active
+                        ? `0 0 14px ${tokenVar}, 0 0 32px color-mix(in srgb, ${tokenVar} 55%, transparent)`
+                        : "var(--card-stripe-shadow)",
+                    }}
+                  />
+                  <span
+                    className="text-3xl font-extrabold leading-none"
+                    style={{
+                      color: tokenVar,
+                      opacity: count > 0 ? 1 : 0.55,
+                      textShadow: count > 0 && active
+                        ? `0 0 6px ${tokenVar}, 0 0 18px color-mix(in srgb, ${tokenVar} 70%, transparent)`
+                        : undefined,
+                      fontFamily: "var(--font-display)",
+                    }}
+                  >
+                    {count}
+                  </span>
+                  <span
+                    className="text-[11px] font-semibold uppercase tracking-widest"
+                    style={{
+                      color: tokenVar,
+                      opacity: active ? 1 : 0.78,
+                      textShadow: active
+                        ? `0 0 10px color-mix(in srgb, ${tokenVar} 70%, transparent)`
+                        : undefined,
+                      fontFamily: "var(--font-ui)",
+                    }}
+                  >
+                    {t.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* History date range filter */}
       {tab === "history" && (
@@ -318,79 +518,228 @@ export default function EstimatorKPIPage() {
       )}
 
       {/* ═══ ESTIMATES TABLE (Current Week or History) ═══ */}
-      {(tab === "current" || tab === "history") && (
-        <div style={cardStyle}>
-          {(() => {
-            const rows = tab === "current" ? filteredCurrent : filteredHistory;
-            if (rows.length === 0) {
-              return (
-                <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 40 }}>
-                  {tab === "current"
-                    ? "No estimates this week. Click Add Entry to get started."
-                    : "No estimates yet."}
-                </p>
-              );
-            }
-            return (
+      {(tab === "current" || tab === "history") && (() => {
+        const rows = tab === "current" ? tileFilteredCurrent : filteredHistory;
+        const sectionLabel = tab === "current"
+          ? (statusFilter ? STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label || statusFilter : `Current ${timeFilter === "day" ? "Day" : timeFilter === "week" ? "Week" : "Month"}`)
+          : "History";
+        const STATUS_TOKEN_MAP: Record<string, string> = {
+          "assigned": "--text-dim",
+          "in-progress": "--info",
+          "blocked": "--red",
+          "review": "--amber",
+          "sent-to-carrier": "--violet",
+          "revision-requested": "--orange",
+          "revised": "--info",
+          "settled": "--green",
+          "closed": "--text-faint",
+          "unable-to-start": "--red",
+        };
+        const headerCellStyle: React.CSSProperties = {
+          textAlign: "left",
+          padding: "12px 12px",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--text-faint)",
+          fontFamily: "var(--font-ui)",
+        };
+        const dataCellStyle: React.CSSProperties = {
+          padding: "14px 12px",
+          fontSize: 13,
+          verticalAlign: "middle",
+          color: "var(--text)",
+        };
+        const pillStyle = (token: string): React.CSSProperties => ({
+          display: "inline-block",
+          padding: "3px 10px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          fontFamily: "var(--font-ui)",
+          background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+          color: `var(${token})`,
+          border: `1px solid color-mix(in srgb, var(${token}) 40%, transparent)`,
+          textTransform: "uppercase",
+        });
+        return (
+          <div className="themed-card p-5">
+            <div className="themed-card-stripe" aria-hidden />
+            <div className="flex items-center gap-4 mb-4">
+              <h2
+                className="page-title text-xl font-bold leading-none flex items-center gap-2"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                <span className="themed-accent">{sectionLabel}</span>
+                <span className="themed-accent" style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}>
+                  ({rows.length})
+                </span>
+              </h2>
+              <span aria-hidden className="flex-1" style={{ height: 1, background: "var(--border)" }} />
+              {statusFilter && (
+                <button
+                  onClick={() => setStatusFilter(null)}
+                  className="text-xs px-3 py-1.5 cursor-pointer transition-colors"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-input)",
+                    color: "var(--text-dim)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--accent)";
+                    e.currentTarget.style.borderColor = "var(--border-active)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-dim)";
+                    e.currentTarget.style.borderColor = "var(--border)";
+                  }}
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+            {rows.length === 0 ? (
+              <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: 40 }}>
+                {tab === "current"
+                  ? (statusFilter ? "No estimates in this status." : "No estimates this week. Click Add Entry to get started.")
+                  : "No estimates yet."}
+              </p>
+            ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
-                    <tr>
-                      <th style={thStyle}>File #</th>
-                      <th style={thStyle}>Client</th>
-                      <th style={thStyle}>Peril</th>
-                      <th style={thStyle}>Sev</th>
-                      <th style={thStyle}>Active</th>
-                      <th style={thStyle}>Blocked</th>
-                      <th style={thStyle}>Rev Time</th>
-                      <th style={thStyle}>Value</th>
-                      <th style={thStyle}>$/hr</th>
-                      <th style={thStyle}>Revisions</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Actions</th>
+                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                      <th style={headerCellStyle}>Client</th>
+                      <th style={headerCellStyle}>File #</th>
+                      <th style={headerCellStyle}>Peril</th>
+                      <th style={headerCellStyle}>Sev</th>
+                      <th style={headerCellStyle}>Active</th>
+                      <th style={headerCellStyle}>Blocked</th>
+                      <th style={headerCellStyle}>Rev Time</th>
+                      <th style={headerCellStyle}>Value</th>
+                      <th style={headerCellStyle}>$/hr</th>
+                      <th style={headerCellStyle}>Rev</th>
+                      <th style={headerCellStyle}>Status</th>
+                      <th style={{ ...headerCellStyle, textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((e) => {
                       const activeHrs = (e.active_time_minutes + e.revision_time_minutes) / 60;
                       const dph = activeHrs > 0 ? e.estimate_value / activeHrs : 0;
-                      const sc = STATUS_COLORS[e.status] || STATUS_COLORS["assigned"];
+                      const initials = e.client_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                      const statusToken = STATUS_TOKEN_MAP[e.status] || "--text-dim";
                       return (
-                        <tr key={e.id}>
-                          <td style={tdStyle}>
-                            {e.file_number}
-                            {e.revision_number > 0 && (
-                              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: "#60a5fa", background: "rgba(96,165,250,0.15)", padding: "1px 5px", borderRadius: 3 }}>
-                                Rev {e.revision_number}
+                        <tr key={e.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={dataCellStyle}>
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="shrink-0 inline-flex items-center justify-center text-[12px] font-bold"
+                                style={{
+                                  width: 38, height: 38, borderRadius: 7,
+                                  background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+                                  border: "1px solid var(--border-active)",
+                                  color: "var(--accent)",
+                                  textShadow: "var(--accent-text-shadow)",
+                                  fontFamily: "var(--font-display)",
+                                }}
+                              >
+                                {initials || "—"}
                               </span>
-                            )}
+                              <span className="text-[14px]" style={{ fontWeight: 600, color: "var(--text)" }}>
+                                {e.client_name}
+                              </span>
+                            </div>
                           </td>
-                          <td style={tdStyle}>{e.client_name}</td>
-                          <td style={tdStyle}>{e.peril || "—"}</td>
-                          <td style={tdStyle}>{e.severity || "—"}</td>
-                          <td style={tdStyle}>{hrs(e.active_time_minutes)}</td>
-                          <td style={{ ...tdStyle, color: e.blocked_time_minutes > 0 ? "#ef4444" : "var(--text-primary)" }}>
-                            {hrs(e.blocked_time_minutes)}
+                          <td style={dataCellStyle}>
+                            <div className="flex items-center gap-2">
+                              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{e.file_number}</span>
+                              {e.revision_number > 0 && (
+                                <span style={pillStyle("--info")}>Rev {e.revision_number}</span>
+                              )}
+                            </div>
                           </td>
-                          <td style={tdStyle}>{hrs(e.revision_time_minutes)}</td>
-                          <td style={tdStyle}>{fmt(e.estimate_value)}</td>
-                          <td style={{ ...tdStyle, fontWeight: 600 }}>{fmt(dph)}</td>
-                          <td style={tdStyle}>{e.revisions}</td>
-                          <td style={tdStyle}>
+                          <td style={dataCellStyle}>
+                            {e.peril ? <span style={pillStyle("--info")}>{e.peril.toUpperCase()}</span> : <span style={{ color: "var(--text-faint)" }}>—</span>}
+                          </td>
+                          <td style={dataCellStyle}>
+                            {e.severity ? <span style={pillStyle("--violet")}>{String(e.severity).toUpperCase()}</span> : <span style={{ color: "var(--text-faint)" }}>—</span>}
+                          </td>
+                          <td style={dataCellStyle}>
+                            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{hrs(e.active_time_minutes)}</span>
+                          </td>
+                          <td style={dataCellStyle}>
                             <span style={{
-                              display: "inline-block", padding: "2px 8px", borderRadius: 4,
-                              fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.text,
+                              fontFamily: "var(--font-mono)",
+                              color: e.blocked_time_minutes > 0 ? "var(--red)" : "var(--text-faint)",
+                              fontWeight: e.blocked_time_minutes > 0 ? 700 : 400,
                             }}>
-                              {e.status}
+                              {hrs(e.blocked_time_minutes)}
                             </span>
                           </td>
-                          <td style={tdStyle}>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              <button style={{ ...btnOutline, fontSize: 11, padding: "3px 8px" }} onClick={() => startEdit(e)}>Edit</button>
+                          <td style={dataCellStyle}>
+                            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{hrs(e.revision_time_minutes)}</span>
+                          </td>
+                          <td style={dataCellStyle}>
+                            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>{fmt(e.estimate_value)}</span>
+                          </td>
+                          <td style={dataCellStyle}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontWeight: 700,
+                                color: "var(--accent)",
+                                textShadow: "var(--accent-text-shadow)",
+                              }}
+                            >
+                              {fmt(dph)}
+                            </span>
+                          </td>
+                          <td style={dataCellStyle}>
+                            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{e.revisions}</span>
+                          </td>
+                          <td style={dataCellStyle}>
+                            <span style={pillStyle(statusToken)}>{e.status.replace(/-/g, " ")}</span>
+                          </td>
+                          <td style={{ ...dataCellStyle, textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
                               <button
-                                style={{ ...btnOutline, fontSize: 11, padding: "3px 8px", color: "#ef4444", borderColor: "#ef4444" }}
+                                onClick={() => startEdit(e)}
+                                aria-label="Edit"
+                                style={{
+                                  width: 30, height: 30, borderRadius: 6,
+                                  background: "transparent",
+                                  border: "1px solid color-mix(in srgb, var(--info) 40%, transparent)",
+                                  color: "var(--info)",
+                                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button
                                 onClick={() => { if (confirm("Delete this estimate?")) deleteMut.mutate(e.id); }}
-                              >×</button>
+                                aria-label="Delete"
+                                style={{
+                                  width: 30, height: 30, borderRadius: 6,
+                                  background: "transparent",
+                                  border: "1px solid color-mix(in srgb, var(--red) 40%, transparent)",
+                                  color: "var(--red)",
+                                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -399,10 +748,10 @@ export default function EstimatorKPIPage() {
                   </tbody>
                 </table>
               </div>
-            );
-          })()}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* ═══ ADD / EDIT TAB ═══ */}
       {tab === "add" && (

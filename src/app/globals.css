@@ -57,6 +57,8 @@
   --accent-text-shadow: none;
   --grid-color: rgba(255,255,255,0.04);
   --grid-size: 56px;
+  --bg-image: none;
+  --bg-glow: none;
 
   /* Legacy aliases (existing components consume these) */
   --bg-primary: var(--bg);
@@ -86,6 +88,11 @@
   --font-body: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
+
+/* Throwback: hide user photos so the initials chip shows through.
+   Modern keeps the photo. The initials chip is always rendered underneath; the
+   photo overlays it via absolute positioning, so removing the photo reveals it. */
+[data-style="throwback"] .avatar-photo { display: none; }
 
 /* Throwback: uppercase + tracked page titles. Modern stays mixed-case. */
 [data-style="throwback"] .page-title {
@@ -129,6 +136,7 @@
   --card-stripe-shadow: none;
   --accent-text-shadow: none;
   --grid-color: rgba(255,255,255,0.21);
+  --bg-glow: none;
   --bg-primary: var(--bg);
   --bg-secondary: var(--pad);
   --bg-surface: var(--pad);
@@ -144,6 +152,7 @@
 /* Modern · Med (default) — slate-800 + green */
 [data-style="modern"][data-mode="med"] {
   --grid-color: rgba(255,255,255,0.18);
+  --bg-glow: none;
   --bg: #1A2235;
   --pad: #232C42;
   --pad-elev: #2A3450;
@@ -179,32 +188,33 @@
   --scrollbar-thumb-hover: rgba(255,255,255,0.22);
 }
 
-/* Modern · Light — white + deeper green for AA */
+/* Modern · Light — brushed steel (calm mercury sheen, no candy contrast) */
 [data-style="modern"][data-mode="light"] {
-  --bg: #F8FAFC;
-  --pad: #FFFFFF;
-  --pad-elev: #F1F5F9;
-  --pad-input: #F8FAFC;
+  --bg: #C5CDD8;
+  --bg-image: linear-gradient(135deg, #D8DEE7 0%, #CBD3DD 30%, #BCC5D1 55%, #CBD3DD 80%, #D8DEE7 100%);
+  --pad: #EDF1F5;
+  --pad-elev: #E3E9EF;
+  --pad-input: #E8EDF2;
   --text: #0F172A;
-  --text-dim: #475569;
+  --text-dim: #334155;
   --text-faint: #64748B;
   --accent: #16A34A;
   --accent-hover: #15803D;
-  --border: #E2E8F0;
+  --border: #A6B1BF;
   --border-active: #16A34A;
   --green: #16A34A;
   --red: #DC2626;
-  --amber: #D97706;
-  --violet: #7C3AED;
-  --info: #0891B2;
+  --amber: #B45309;
+  --violet: #6D28D9;
+  --info: #0E7490;
   --cta-bg: #16A34A;
   --cta-text: #FFFFFF;
-  --cta-shadow: 0 6px 16px rgba(22,163,74,0.25), inset 0 1px 0 rgba(255,255,255,0.30);
-  --card-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  --cta-shadow: 0 4px 12px rgba(22,163,74,0.22), inset 0 1px 0 rgba(255,255,255,0.25);
+  --card-shadow: 0 2px 6px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.05);
   --card-stripe-bg: transparent;
   --card-stripe-shadow: none;
   --accent-text-shadow: none;
-  --grid-color: rgba(15,23,42,0.05);
+  --grid-color: rgba(51,65,85,0.18);
   --bg-primary: var(--bg);
   --bg-secondary: var(--pad);
   --bg-surface: var(--pad);
@@ -242,6 +252,7 @@
   --card-stripe-bg: #5DECF7;
   --card-stripe-shadow: 0 0 12px rgba(93,236,247,0.85), 0 0 28px rgba(93,236,247,0.45);
   --grid-color: rgba(93,236,247,0.33);
+  --bg-glow: none;
   --accent-text-shadow:
     0 0 4px rgba(165,243,252,0.95),
     0 0 18px rgba(93,236,247,0.85),
@@ -284,6 +295,7 @@
   --card-stripe-bg: #5DECF7;
   --card-stripe-shadow: 0 0 8px rgba(93,236,247,0.55), 0 0 20px rgba(93,236,247,0.28);
   --grid-color: rgba(93,236,247,0.27);
+  --bg-glow: none;
   --accent-text-shadow:
     0 0 3px rgba(165,243,252,0.55),
     0 0 12px rgba(93,236,247,0.45),
@@ -300,32 +312,33 @@
   --scrollbar-thumb-hover: rgba(93,236,247,0.35);
 }
 
-/* Throwback · Light — white + deep teal, no glow */
+/* Throwback · Light — brushed steel with deep teal */
 [data-style="throwback"][data-mode="light"] {
-  --bg: #FFFFFF;
-  --pad: #FFFFFF;
-  --pad-elev: #F1F5F9;
-  --pad-input: #F8FAFC;
+  --bg: #C5CDD8;
+  --bg-image: linear-gradient(135deg, #D6DDE5 0%, #C5CDD8 30%, #B6BFCC 55%, #C5CDD8 80%, #D6DDE5 100%);
+  --pad: #EDF1F5;
+  --pad-elev: #E3E9EF;
+  --pad-input: #E8EDF2;
   --text: #0F172A;
-  --text-dim: #475569;
+  --text-dim: #334155;
   --text-faint: #64748B;
   --accent: #0891B2;
   --accent-hover: #0E7490;
-  --border: #E2E8F0;
+  --border: #A6B1BF;
   --border-active: #0891B2;
   --green: #059669;
   --red: #DC2626;
-  --amber: #D97706;
-  --violet: #7C3AED;
+  --amber: #B45309;
+  --violet: #6D28D9;
   --info: #0891B2;
   --cta-bg: var(--gradient-cta-throwback);
   --cta-text: #050510;
-  --cta-shadow: 0 4px 14px rgba(167,139,250,0.22), 0 1px 3px rgba(15,23,42,0.08);
-  --card-shadow: 0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04);
+  --cta-shadow: 0 4px 12px rgba(167,139,250,0.22), 0 1px 3px rgba(15,23,42,0.08);
+  --card-shadow: 0 2px 6px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.05);
   --card-stripe-bg: transparent;
   --card-stripe-shadow: none;
   --accent-text-shadow: none;
-  --grid-color: rgba(15,23,42,0.05);
+  --grid-color: rgba(51,65,85,0.18);
   --bg-primary: var(--bg);
   --bg-secondary: var(--pad);
   --bg-surface: var(--pad);
@@ -350,8 +363,15 @@ body {
   background-color: var(--bg-primary);
   background-image:
     linear-gradient(var(--grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-  background-size: var(--grid-size) var(--grid-size);
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+    var(--bg-glow),
+    var(--bg-image);
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    100% 100%,
+    100% 100%;
+  background-attachment: fixed, fixed, fixed, fixed;
   color: var(--text-primary);
   font-family: var(--font-body), system-ui, -apple-system, Arial, sans-serif;
 }

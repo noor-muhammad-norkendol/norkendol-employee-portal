@@ -112,9 +112,21 @@ export default function TopBar() {
 
   return (
     <div
-      className="flex items-center justify-between px-6 h-[60px] shrink-0"
+      className="relative flex items-center justify-between px-6 h-[80px] shrink-0"
       style={{ background: "var(--bg)" }}
     >
+      {/* Gradient bottom divider — continues the line from the sidebar */}
+      <span
+        aria-hidden
+        className="absolute left-0 right-0 bottom-0 pointer-events-none"
+        style={{
+          height: "1px",
+          background:
+            "linear-gradient(90deg, var(--accent) 0%, var(--violet) 50%, var(--magenta) 100%)",
+          boxShadow:
+            "0 0 14px color-mix(in srgb, var(--violet) 30%, transparent), 0 0 28px color-mix(in srgb, var(--magenta) 18%, transparent)",
+        }}
+      />
       {/* Breadcrumb */}
       <div
         className="flex items-center gap-2 text-sm font-medium"
@@ -217,26 +229,25 @@ export default function TopBar() {
             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--pad-elev)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            {userPhoto ? (
-              <img
-                src={userPhoto}
-                alt={userName}
-                className="w-8 h-8 rounded-full object-cover"
-                style={{ border: "1px solid var(--border-active)" }}
-              />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{
-                  background: "color-mix(in srgb, var(--accent) 18%, transparent)",
-                  color: "var(--accent)",
-                  border: "1px solid var(--border-active)",
-                  textShadow: "var(--accent-text-shadow)",
-                }}
-              >
-                {initials}
-              </div>
-            )}
+            <span
+              className="relative w-8 h-8 inline-flex items-center justify-center rounded-full text-xs font-bold shrink-0"
+              style={{
+                background: "color-mix(in srgb, var(--accent) 18%, var(--bg))",
+                color: "var(--accent)",
+                border: "1px solid var(--border-active)",
+                textShadow: "var(--accent-text-shadow)",
+              }}
+            >
+              {initials}
+              {userPhoto && (
+                <img
+                  src={userPhoto}
+                  alt={userName}
+                  className="avatar-photo absolute inset-0 w-full h-full rounded-full object-cover"
+                  style={{ border: "1px solid var(--border-active)" }}
+                />
+              )}
+            </span>
             <span
               className="text-sm font-medium"
               style={{ color: "var(--text)" }}

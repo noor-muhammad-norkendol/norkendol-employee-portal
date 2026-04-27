@@ -13,78 +13,157 @@ interface Props {
 const ACTIVE_STAGES: OnboardingStatus[] = ["new", "step_2", "step_3", "final_step", "on_hold"];
 
 export default function UrgencyBanner({ allClients, onClickClient }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
-  const overdueClients = allClients.filter((c) => {
-    if (!ACTIVE_STAGES.includes(c.status)) return false;
-    const hours = (Date.now() - new Date(c.status_entered_at).getTime()) / HOUR_MS;
-    const target = STAGE_TARGET_HOURS[c.status as keyof typeof STAGE_TARGET_HOURS];
-    return target ? hours > target : false;
-  });
+  const overdueClients = allClients
+    .filter((c) => {
+      if (!ACTIVE_STAGES.includes(c.status)) return false;
+      const hours = (Date.now() - new Date(c.status_entered_at).getTime()) / HOUR_MS;
+      const target = STAGE_TARGET_HOURS[c.status as keyof typeof STAGE_TARGET_HOURS];
+      return target ? hours > target : false;
+    })
+    .sort((a, b) => {
+      // Worst (longest in stage) first
+      const aHrs = (Date.now() - new Date(a.status_entered_at).getTime()) / HOUR_MS;
+      const bHrs = (Date.now() - new Date(b.status_entered_at).getTime()) / HOUR_MS;
+      return bHrs - aHrs;
+    });
 
-  if (overdueClients.length === 0) return null;
+  if (overdueClients.length === 0 || dismissed) return null;
+
+  const lead = overdueClients[0];
+  const leadHours = (Date.now() - new Date(lead.status_entered_at).getTime()) / HOUR_MS;
+  const leadLabel = leadHours < 24 ? `${Math.round(leadHours)}h` : `${(leadHours / 24).toFixed(1)}d`;
+  const more = overdueClients.length - 1;
 
   return (
-    <div style={{
-      background: "rgba(239,68,68,0.08)",
-      border: "1px solid rgba(239,68,68,0.25)",
-      borderRadius: 8,
-      marginBottom: 16,
-      overflow: "hidden",
-    }}>
-      <button
-        onClick={() => setExpanded(!expanded)}
+    <div
+      onClick={() => onClickClient?.(lead)}
+      className="relative overflow-hidden mb-5 cursor-pointer transition-all"
+      style={{
+        background: "var(--pad)",
+        backgroundImage:
+          "linear-gradient(180deg, color-mix(in srgb, var(--red) 14%, var(--pad)) 0%, var(--pad) 100%)",
+        border: "1.5px solid var(--red)",
+        borderRadius: "var(--radius-card)",
+        boxShadow:
+          "0 0 24px color-mix(in srgb, var(--red) 30%, transparent), var(--card-shadow)",
+        transitionProperty: "box-shadow, transform",
+        transitionDuration: "var(--transition-base)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow =
+          "0 0 32px color-mix(in srgb, var(--red) 45%, transparent), var(--card-shadow)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow =
+          "0 0 24px color-mix(in srgb, var(--red) 30%, transparent), var(--card-shadow)";
+      }}
+    >
+      {/* Top stripe — red glow */}
+      <span
+        aria-hidden
+        className="absolute left-0 right-0 top-0 h-[2px] pointer-events-none"
         style={{
-          width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "10px 16px", background: "none", border: "none", cursor: "pointer",
-          color: "#ef4444", fontSize: 13, fontWeight: 600,
+          background: "var(--red)",
+          boxShadow: "0 0 14px var(--red), 0 0 32px color-mix(in srgb, var(--red) 55%, transparent)",
         }}
-      >
-        <span>
-          {expanded ? "\u25B2" : "\u25BC"}{" "}
-          {overdueClients.length} client{overdueClients.length !== 1 ? "s" : ""} overdue — Action Required
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 400, color: "var(--text-muted)" }}>
-          {expanded ? "Click to hide" : "Click to show"}
-        </span>
-      </button>
+      />
 
-      {expanded && (
-        <div style={{ padding: "0 16px 12px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {overdueClients.map((client) => {
-              const hours = (Date.now() - new Date(client.status_entered_at).getTime()) / HOUR_MS;
-              const label = hours < 24 ? `${Math.round(hours)}h` : `${(hours / 24).toFixed(1)}d`;
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => onClickClient?.(client)}
-                  style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "6px 10px", borderRadius: 6,
-                    background: "rgba(239,68,68,0.06)", cursor: onClickClient ? "pointer" : "default",
-                    fontSize: 12,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                    {client.client_name}
-                    <span style={{ fontWeight: 400, color: "var(--text-muted)", marginLeft: 8 }}>
-                      {STATUS_LABELS[client.status]}
-                    </span>
-                  </span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600, color: "#ef4444",
-                    padding: "1px 6px", borderRadius: 4,
-                    background: "rgba(239,68,68,0.12)",
-                  }}>
-                    {label} in stage
-                  </span>
-                </div>
-              );
-            })}
+      <div className="flex items-center gap-3 pl-4 pr-12" style={{ paddingTop: 16, paddingBottom: 16 }}>
+        {/* Alert icon */}
+        <span
+          className="shrink-0 w-10 h-10 flex items-center justify-center rounded-md"
+          style={{
+            background: "color-mix(in srgb, var(--red) 14%, var(--pad))",
+            border: "1px solid var(--red)",
+            color: "var(--red)",
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m12 2 11 19H1L12 2Z" />
+            <path d="M12 9v5M12 17h.01" />
+          </svg>
+        </span>
+
+        {/* Two-line summary, both lines compact and inline */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div
+            className="text-[14px] font-bold uppercase tracking-wider flex items-center gap-2"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            <span
+              style={{
+                color: "var(--red)",
+                textShadow: "0 0 10px color-mix(in srgb, var(--red) 60%, transparent)",
+              }}
+            >
+              {overdueClients.length}
+            </span>
+            <span style={{ color: "var(--text-dim)" }}>
+              client{overdueClients.length !== 1 ? "s" : ""}
+            </span>
+            <span
+              style={{
+                color: "var(--red)",
+                textShadow: "0 0 10px color-mix(in srgb, var(--red) 60%, transparent)",
+              }}
+            >
+              overdue
+            </span>
+            <span style={{ color: "var(--text-faint)" }}>·</span>
+            <span style={{ color: "var(--amber)" }}>
+              Action Required
+            </span>
+          </div>
+          <div className="text-[13px] flex items-center gap-2 flex-wrap">
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>{lead.client_name}</span>
+            <span style={{ color: "var(--text-faint)" }}>·</span>
+            <span style={{ color: "var(--amber)" }}>{STATUS_LABELS[lead.status]}</span>
+            <span style={{ color: "var(--text-faint)" }}>·</span>
+            <span
+              style={{
+                color: "var(--red)",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 600,
+              }}
+            >
+              {leadLabel} in stage
+            </span>
+            {more > 0 && (
+              <>
+                <span style={{ color: "var(--text-faint)" }}>·</span>
+                <span style={{ color: "var(--text-dim)" }}>
+                  +{more} more
+                </span>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Dismiss */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setDismissed(true);
+        }}
+        aria-label="Dismiss"
+        className="absolute top-1/2 right-3 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors"
+        style={{
+          color: "var(--red)",
+          background: "transparent",
+          border: "1px solid color-mix(in srgb, var(--red) 50%, transparent)",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.background = "color-mix(in srgb, var(--red) 14%, transparent)")
+        }
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }

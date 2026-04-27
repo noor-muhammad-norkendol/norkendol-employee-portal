@@ -427,11 +427,366 @@ Legacy tokens are still aliased in every cell, so the old code still renders. Ne
 
 ## Pages already migrated
 
-- `src/app/login/page.tsx` — full reference for the auth/landing pattern
-- `src/app/dashboard/page.tsx` — full reference for cards, badges, headings, panels
+- `src/app/login/page.tsx` — auth/landing pattern
+- `src/app/dashboard/page.tsx` — cards, badges, headings, panels (Welcome dashboard)
+- `src/app/dashboard/onboarder-kpi/page.tsx` + `components/PipelineHeader.tsx` + `components/UrgencyBanner.tsx` + `components/WorkboardTable.tsx` — KPI-with-pipeline pattern (REFERENCE for any future pipeline/stage page)
+- `src/app/dashboard/estimator-kpi/page.tsx` — KPI-with-status-tiles pattern (REFERENCE for any future status-tiles page)
+- `src/app/dashboard/university/page.tsx` — course-grid pattern with category filter (REFERENCE for any future "library/catalog" page)
 - `src/components/IconSidebar.tsx` — sidebar pattern
 - `src/components/TopBar.tsx` — chrome pattern
 
 ## Pages still to migrate
 
-Every other `src/app/dashboard/*` page is on legacy tokens with no card stripes, no glow accents, no display-font headings. Migrate one at a time per "one screen at a time" rule.
+Every other `src/app/dashboard/*` page is on legacy tokens. Use Onboarder KPI as the template for KPI-style pages, University for catalog/list pages, Welcome dashboard for mixed-card layouts.
+
+---
+
+# COMPONENT CATALOG — STRICT SPECS
+
+These are not suggestions. They're enforced patterns to keep the look consistent across all 6 cells. **Before merging a new page, run through the Pre-Merge Checklist at the bottom of this document.**
+
+## Page header (any non-list page)
+
+```tsx
+<h1
+  className="page-title text-5xl leading-none tracking-tight"
+  style={{ fontFamily: "var(--font-display)" }}
+>
+  <span style={{ color: "var(--accent)", textShadow: "var(--accent-text-shadow)", fontWeight: 800 }}>
+    PrimaryWord
+  </span>{" "}
+  <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+    SecondaryWord
+  </span>
+</h1>
+```
+
+- **Always `text-5xl`** for page titles — not `text-2xl`, not `text-3xl`. Pages must feel big.
+- **Always `--font-display`** (Orbitron in Throwback / Plus Jakarta in Modern). Never `--font-ui`.
+- **Always `.page-title` class** so Layer 2 CSS gives Throwback uppercase + tracking. Never hardcode uppercase in JSX.
+- Two-word split: first word heavy + accent + glow, second word plain text 92% opacity. If the title is one word, the whole word gets the accent treatment.
+
+Followed immediately by a **stats line**:
+```tsx
+<p className="mt-3 text-sm flex items-center gap-3" style={{ color: "var(--text-dim)" }}>
+  <span><strong style={{ color: "var(--text)" }}>{n}</strong> items</span>
+  <span style={{ color: "var(--text-faint)" }}>·</span>
+  <span><strong style={{ color: "var(--green)" }}>{percent}%</strong> completion</span>
+  ...
+</p>
+```
+- Numbers each get their semantic color (`--green` for completion, `--red` for overdue, `--info` for in-progress, `--text` for raw counts).
+- Dot separators in `--text-faint`.
+
+## Top-right action buttons (next to the page title)
+
+Always a pair — outline (secondary) + gradient (primary CTA).
+
+```tsx
+{/* Outline (My Performance / History / etc.) */}
+<button
+  className="px-7 py-3.5 text-[15px] font-bold uppercase cursor-pointer transition-all"
+  style={{
+    background: active ? "color-mix(in srgb, var(--accent) 14%, var(--bg))" : "var(--bg)",
+    color: "var(--accent)",
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: "var(--accent)",
+    borderRadius: "8px",
+    fontFamily: "var(--font-display)",
+    letterSpacing: "0.10em",
+    textShadow: "var(--accent-text-shadow)",
+    boxShadow: "0 0 16px color-mix(in srgb, var(--accent) 30%, transparent)",
+  }}
+>
+  Label
+</button>
+
+{/* Gradient CTA (+ Add Client / + Add Entry) */}
+<button
+  className="px-7 py-3.5 text-[15px] font-extrabold uppercase cursor-pointer transition-all"
+  style={{
+    background: "var(--cta-bg)",
+    color: "var(--cta-text)",
+    borderRadius: "8px",
+    boxShadow: "0 0 22px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 50px color-mix(in srgb, var(--magenta) 28%, transparent), 0 4px 14px rgba(0,0,0,0.30)",
+    border: "none",
+    fontFamily: "var(--font-display)",
+    letterSpacing: "0.08em",
+  }}
+>
+  + Add Thing
+</button>
+```
+
+**Strict rules:**
+- Border radius **8px**, NEVER `var(--radius-pill)` (full pill is reserved for inline link-style chips).
+- Font **`var(--font-display)`**, never `var(--font-ui)`.
+- Padding `px-7 py-3.5` minimum. Don't shrink them.
+- Outline button background is `var(--bg)` SOLID (or `color-mix` over `var(--bg)` when active). NEVER `transparent` — would let the page-bg grid show through and look broken.
+- Gradient CTA needs the **multi-color halo** (cyan + magenta + grounding shadow). Single-color halo is rejected.
+- Hover bumps the halo intensity AND brightness — do both.
+
+## Stat tiles (the bar of clickable status counters)
+
+```tsx
+<button
+  className="relative overflow-hidden p-4 text-left flex flex-col gap-2 cursor-pointer transition-all"
+  style={{
+    background: active ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))` : "var(--pad)",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+    borderColor: active ? tokenVar : "var(--border)",
+    borderRadius: "var(--radius-card)",
+    boxShadow: active
+      ? `0 0 0 1px ${tokenVar} inset, 0 0 24px color-mix(in srgb, ${tokenVar} 55%, transparent), 0 0 48px color-mix(in srgb, ${tokenVar} 22%, transparent)`
+      : "var(--card-shadow)",
+  }}
+  onMouseEnter/* lift -1px, light border to tokenVar, softer halo */
+>
+  <span className="absolute left-0 right-0 top-0 h-[2px]" style={{ background: active ? tokenVar : "var(--card-stripe-bg)", boxShadow: active ? `0 0 14px ${tokenVar}` : "var(--card-stripe-shadow)" }} />
+  <div className="flex items-start justify-between">
+    <span className="text-3xl font-extrabold" style={{ color: tokenVar, opacity: count > 0 ? 1 : 0.55, textShadow: count > 0 && active ? `0 0 18px color-mix(in srgb, ${tokenVar} 70%, transparent)` : undefined, fontFamily: "var(--font-display)" }}>{count}</span>
+    <span style={{ color: tokenVar, opacity: count > 0 ? 1 : 0.55, filter: active ? `drop-shadow(0 0 6px ${tokenVar})` : undefined }}>{icon}</span>
+  </div>
+  <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: tokenVar, opacity: active ? 1 : 0.78, fontFamily: "var(--font-ui)" }}>{label}</span>
+</button>
+```
+
+**Strict rules:**
+- Each tile maps to ONE semantic token (`--info`, `--amber`, `--orange`, `--red`, `--green`, `--violet`, `--text-faint` for "on hold"/neutral). Pick from this set.
+- **Number, icon, label all use the tile's semantic token color** — not `--text-dim`, not `--text-faint`. When count is 0, drop opacity to 0.55. When inactive, drop label opacity to 0.78. The eye should see "this is the AMBER tile, this is the RED tile" at a glance.
+- **Active state must have all three glow layers**: `inset 0 0 0 1px`, `0 0 24px medium`, `0 0 48px wide`. Single-shadow active state is rejected.
+- Stripe always 2px tall, glows when active, transparent when inactive (uses `--card-stripe-bg` token).
+
+## Filter pill row (category / time / type filters)
+
+```tsx
+<button
+  className="text-[12px] font-bold uppercase cursor-pointer transition-all"
+  style={{
+    padding: "10px 18px",
+    borderRadius: 8,
+    letterSpacing: "0.10em",
+    fontFamily: "var(--font-display)",
+    background: active ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))` : "var(--pad)",
+    color: active ? tokenVar : "var(--text-dim)",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+    borderColor: active ? tokenVar : "var(--border)",
+    textShadow: active ? `0 0 8px color-mix(in srgb, ${tokenVar} 70%, transparent)` : undefined,
+    boxShadow: active
+      ? `0 0 0 1px ${tokenVar} inset, 0 0 18px color-mix(in srgb, ${tokenVar} 50%, transparent), 0 0 36px color-mix(in srgb, ${tokenVar} 22%, transparent)`
+      : "none",
+  }}
+>
+  {label}
+</button>
+```
+
+**Strict rules:**
+- **Border radius 8px**, NEVER 999px (no full-oval pills for filter rows). Full pill chips are reserved for **status badges inside table rows** ONLY.
+- **Each pill option gets its own semantic token color**, not all the same accent. Adjusters can scan a multi-color pill row faster than a uniform cyan one. Map categories to: cyan/info, violet, amber, magenta, orange, green, text-faint.
+- "All" or default option keeps `--accent`.
+- Display font (Orbitron in Throwback). Letter-spacing `0.10em`. Padding `10px 18px` minimum.
+- Hover state must show the eventual active color so the user sees "this would light up purple/green/etc."
+
+## Status badges (inside table rows / data displays)
+
+```tsx
+<span style={{
+  display: "inline-block",
+  padding: "3px 10px",
+  borderRadius: 6,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  fontFamily: "var(--font-ui)",
+  background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+  color: `var(${token})`,
+  border: `1px solid color-mix(in srgb, var(${token}) 40%, transparent)`,
+  textTransform: "uppercase",
+}}>
+  {label}
+</span>
+```
+
+- 6px corners, 12%/40% color-mix for bg/border, full token for text. Always uppercase. Never raw text like `not_sent` — replace underscores and uppercase.
+
+## Themed card (any container holding content)
+
+```tsx
+<div className="themed-card p-5">
+  <div className="themed-card-stripe" aria-hidden />
+  ...
+</div>
+```
+
+Or for clickable cards:
+```tsx
+<div className="themed-card is-interactive p-5 cursor-pointer">
+  <div className="themed-card-stripe" aria-hidden />
+  ...
+</div>
+```
+
+- Always render `<div className="themed-card-stripe" aria-hidden />` as the first child. The stripe self-hides in cells where it shouldn't show; never conditionally render it.
+- Never replace with `style={{ background: "var(--pad)", border: "..." }}` inline — use the class.
+- Solid bg only. NEVER translucent. NEVER `bg-white/10` or `color-mix(..., transparent)` for card backgrounds.
+
+## Banner / alert (overdue, error, success)
+
+- **Solid bg**: `var(--pad)` base + `linear-gradient(180deg, color-mix(in srgb, var(--<color>) 14%, var(--pad)) 0%, var(--pad) 100%)` overlay. Never `color-mix(..., transparent)` alone — Frank caught this and called it out as "transparent".
+- 1.5px solid color border in the semantic token (full token, no `color-mix`).
+- Multi-layer halo box-shadow.
+- Top stripe glow in the same color.
+- **Color hierarchy in the headline**: count number in semantic color + glow, neutral nouns in `--text-dim`, action verb in a DIFFERENT semantic color (e.g., overdue=red, "Action Required"=amber). Don't paint everything the same color.
+
+## Workboard table (any list-of-things table)
+
+- Wrapped in `<div className="themed-card p-5">` with stripe.
+- Section header with `.page-title` + `.themed-accent` + count in mono + flex-1 rule line + (search input | filter button | download button) on the right.
+- `<thead>` row has `borderBottom: 1px solid var(--border)`. Each `<tr>` in `<tbody>` also gets `borderBottom: 1px solid var(--border)`.
+- Header cells: 11px, font-weight 600, letter-spacing 0.12em, uppercase, `var(--text-faint)`, font-ui.
+- Data cells: 13px, padding `14px 12px`, vertical-align middle, `var(--text)`.
+- Last column ("Actions") is right-aligned.
+
+## Row pattern (Client column shape)
+
+```tsx
+<td>
+  <div className="flex items-center gap-3">
+    <span className="shrink-0 inline-flex items-center justify-center text-[12px] font-bold"
+      style={{
+        width: 38, height: 38, borderRadius: 7,
+        background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+        border: "1px solid var(--border-active)",
+        color: "var(--accent)",
+        textShadow: "var(--accent-text-shadow)",
+        fontFamily: "var(--font-display)",
+      }}
+    >
+      {initials}
+    </span>
+    <span className="text-[14px]" style={{ fontWeight: 600, color: "var(--text)" }}>
+      {name}
+    </span>
+  </div>
+</td>
+```
+
+- **Always** an AG-style chip (38×38, 7px corner, accent-tinted) on the left of the client name. Never a plain bold name.
+- Phone number does NOT belong in the Client cell. Move it to the next column with the referral source dim below.
+
+## Action icons (per-row icon column)
+
+- 30×30 outline buttons, 6px corner radius.
+- 1px border in `color-mix(in srgb, var(--<token>) 40%, transparent)`.
+- Color = full semantic token.
+- **Color mapping (locked):** text/chat = `--info`, email = `--amber`, phone/call = `--violet`, complete/check = `--green`, notes/document = `--orange`, kebab/more = `--text-dim`.
+- Never use plain gray for action icons. Each action gets its meaning from its color.
+
+## Sidebar
+
+- 300px expanded, 60px collapsed.
+- Brand wordmark: `var(--font-display)`, fontSize 22px (≤10 chars) / 18px (longer). First letter accent + glow.
+- Section labels (USER/ADMIN/SUPER ADMIN/etc.) are **the click target**, NO chevron icon. Color `var(--accent)` with `var(--accent-text-shadow)`. Followed by a 1px `var(--border)` rule line filling to the right edge.
+- Active nav item: full pill outline in `var(--border-active)`, `--accent` text + glow, 10% accent bg tint, halo box-shadow. NO left bar.
+- Chevron toggle: 34×30 inside the top-right of the sidebar at top:26px. 6px corners. Subtle border, no glow halo.
+
+## TopBar
+
+- 80px tall.
+- `background: var(--bg)` SOLID (never transparent — would let the page-bg grid show through and look wrong).
+- 1px gradient bottom line: `linear-gradient(90deg, var(--accent) 0%, var(--violet) 50%, var(--magenta) 100%)` with halo box-shadow. The same line continues across the sidebar via `SidebarLogo`'s bottom border.
+- Left: breadcrumb `Company / Page` (company dim, slash faint, current page accent + glow).
+- Right cluster (in order, never reordered): digital clock pill (`HH:MM:SS` 24-hour mono, accent border + glow) → search button → notification bell → avatar + first name.
+
+## Avatar (TopBar / row-level)
+
+- Always render initials chip as the base layer.
+- If a photo exists, overlay it as `position: absolute inset-0` with `object-cover`, `var(--border-active)` border. Add `className="avatar-photo"`.
+- CSS `[data-style="throwback"] .avatar-photo { display: none; }` automatically hides the photo in Throwback so the initials chip shows. Don't write JS to detect the theme.
+
+---
+
+# FORBIDDEN PATTERNS
+
+These are explicit "don't do this" rules from things Frank had to correct multiple times:
+
+1. **Don't make page titles `text-2xl` or `text-3xl`.** They must be `text-5xl`. The whole portal feels small if titles aren't big.
+2. **Don't use `var(--font-ui)` (Audiowide) for buttons.** It's reserved for tiny accent text, never CTAs or filter pills. Use `var(--font-display)`.
+3. **Don't use `var(--radius-pill)` (full oval) for buttons or filter chips.** Full pill is for status badges only, and even those are 6px square in some contexts. Default to 8px square corners.
+4. **Don't make buttons translucent.** `background: transparent` lets the page-bg grid show through and looks broken. Use `var(--bg)` solid (or a `color-mix` over it when active).
+5. **Don't make banners translucent either.** `color-mix(..., transparent)` for the bg color is rejected. Use `var(--pad)` base + linear-gradient overlay.
+6. **Don't paint everything one color in a headline / status row.** Use color hierarchy: counts in semantic color, neutrals in dim, action verbs in a DIFFERENT semantic color.
+7. **Don't use a single-shadow active state for stat tiles.** Active needs all three layers: inset 0 0 0 1px, 0 0 24px medium, 0 0 48px wide.
+8. **Don't add page-bg atmospheric glow gradients (`--bg-glow`).** It was tried and rejected as "everything glowing." Glow comes from active components only.
+9. **Don't ship plain bold client names without the AG chip.** Every list/table row that represents a person/entity gets a 38×38 initials chip on the left.
+10. **Don't ship phone numbers in the Client cell.** They live in the Referral cell with the source dim below.
+11. **Don't make filter pills round ovals.** 8px square corners. Each pill gets its OWN semantic color.
+12. **Don't use emoji icons (🥇🚀⚙️).** SVG only, ALWAYS.
+13. **Don't render the secondary TextSidebar on non-CRM pages.** Add the path to `HIDE_TEXT_SIDEBAR_ON` in `PortalShell.tsx` for any new non-CRM page.
+14. **Don't query the active theme in JS.** Use CSS `[data-style="throwback"]` selectors. The avatar-photo hide is the canonical example.
+15. **Don't mix `border:` shorthand with `borderColor:` longhand on the same element.** React warns. Use longhand for both.
+16. **Don't hardcode hex colors.** Even for one-offs. Use semantic tokens (`--info`, `--green`, `--amber`, `--red`, `--violet`, `--magenta`, `--orange`, `--accent`, `--text-faint`).
+17. **Don't use `bg-white/10`, `bg-black/20`, etc.** Invisible in Light cells. Use `var(--pad-elev)` for hover/elevation.
+18. **Don't shrink the brand wordmark to fit.** It auto-scales 22px / 18px based on length. Anything below 18px reads as a label, not a brand mark.
+19. **Don't kill the gradient TopBar bottom line.** Even if you redesign the TopBar, the cyan→violet→magenta line stays. It's the visual seam between chrome and content.
+20. **Don't render hovers without the matching active glow color.** A neutral gray hover on a tile that activates to red feels broken. Hover previews the eventual active color.
+
+---
+
+# PRE-MERGE CHECKLIST
+
+Before declaring a page done, walk through:
+
+**Layout & chrome**
+- [ ] TextSidebar killed for this path (added to `HIDE_TEXT_SIDEBAR_ON`)?
+- [ ] Page renders correctly in all 6 cells (Modern Dark/Med/Light + Throwback Dark/Med/Light)?
+- [ ] Toggle Style/Mode in TopBar — every element re-skins live, no hardcoded color anywhere?
+
+**Headers**
+- [ ] Page title is `text-5xl`, `--font-display`, `.page-title` class, two-word split with first word accent + glow?
+- [ ] Stats line below title with each metric in its semantic color?
+- [ ] Section headers use `.page-title` + `.themed-accent` last word + 1px rule line extending right?
+
+**Buttons**
+- [ ] Primary CTA + outline secondary at top-right?
+- [ ] 8px corners, NOT pill?
+- [ ] `--font-display`?
+- [ ] Multi-color halo on the gradient CTA?
+- [ ] Outline button bg is `var(--bg)` solid, not `transparent`?
+
+**Stat tiles** (if applicable)
+- [ ] Each tile maps to a unique semantic token?
+- [ ] Number, icon, label ALL use the tile's color?
+- [ ] Active state has all 3 halo layers?
+- [ ] Hover previews the active color?
+- [ ] Empty (count=0) tiles drop opacity to 0.55, not switch to gray?
+
+**Cards & banners**
+- [ ] Every card uses `themed-card` + `themed-card-stripe`?
+- [ ] No translucent backgrounds anywhere?
+- [ ] Banners use `var(--pad)` base + linear-gradient overlay?
+- [ ] Color hierarchy in banner headlines?
+
+**Tables** (if applicable)
+- [ ] Wrapped in `themed-card`?
+- [ ] Section header with rule line + search/filter/download cluster?
+- [ ] `border-bottom: 1px solid var(--border)` on thead and every tr?
+- [ ] AG-style chip in client cell?
+- [ ] Phone in referral cell, not client cell?
+- [ ] Status pills with semantic tokens (color-mix bg + border, full token text, uppercase)?
+- [ ] Action icons with locked color mapping (text=info, email=amber, phone=violet, complete=green, notes=orange, kebab=text-dim)?
+
+**Forbidden patterns**
+- [ ] No emoji icons?
+- [ ] No `var(--font-ui)` on buttons or pills?
+- [ ] No `var(--radius-pill)` on buttons or filter chips?
+- [ ] No hardcoded hex?
+- [ ] No `bg-white/X` opacity hacks?
+- [ ] No `--bg-glow` atmospheric lighting?
+- [ ] No JS theme detection?
+
+If anything fails the checklist, fix it BEFORE saying the page is done. This is what stops the back-and-forth.

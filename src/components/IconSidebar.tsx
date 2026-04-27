@@ -187,11 +187,11 @@ function SortableNavItem({
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, padding: expanded ? "0 8px" : "0 6px" }}
+      style={{ ...style, padding: expanded ? "1px 8px" : "1px 6px" }}
       className="relative group"
     >
       <div
-        className={`relative rounded-md flex items-center transition-colors w-full h-10 ${
+        className={`relative rounded-md flex items-center transition-colors w-full h-11 ${
           expanded ? "px-3 gap-1" : "justify-center"
         }`}
         style={{
@@ -234,7 +234,7 @@ function SortableNavItem({
         {/* When collapsed, attach drag listeners to the whole item */}
         <Link
           href={href}
-          className="flex items-center gap-3 flex-1 h-full"
+          className="flex items-center gap-3.5 flex-1 h-full"
           style={{ textDecoration: "none", color: "inherit" }}
           {...(!expanded ? { ...attributes, ...listeners } : {})}
         >
@@ -289,7 +289,8 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
 
   return (
     <div
-      className={`flex items-center mb-5 ${expanded ? "px-4" : "justify-center"}`}
+      className={`relative flex items-center ${expanded ? "pl-5 pr-14" : "justify-center"}`}
+      style={{ height: "80px" }}
     >
       {expanded ? (
         <span
@@ -297,7 +298,8 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
           style={{
             fontFamily: "var(--font-display)",
             color: "var(--text)",
-            fontSize: label.length > 10 ? "14px" : "17px",
+            fontSize: label.length > 10 ? "18px" : "22px",
+            letterSpacing: "0.02em",
             maxWidth: "100%",
           }}
           title={label}
@@ -314,7 +316,7 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
         </span>
       ) : (
         <span
-          className="text-[18px] font-extrabold leading-none"
+          className="text-[20px] font-extrabold leading-none"
           style={{
             fontFamily: "var(--font-display)",
             color: "var(--accent)",
@@ -324,6 +326,16 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
           {initial}
         </span>
       )}
+      {/* Gradient bottom divider — matches the TopBar line */}
+      <span
+        aria-hidden
+        className="absolute left-0 right-0 bottom-0 pointer-events-none"
+        style={{
+          height: "1px",
+          background: "linear-gradient(90deg, var(--accent) 0%, var(--violet) 60%, var(--magenta) 100%)",
+          boxShadow: "0 0 12px color-mix(in srgb, var(--violet) 30%, transparent)",
+        }}
+      />
     </div>
   );
 }
@@ -431,23 +443,31 @@ export default function IconSidebar({
 
   return (
     <div
-      className="relative flex flex-col border-r py-5 transition-all duration-200 shrink-0"
+      className="relative flex flex-col border-r pb-5 transition-all duration-200 shrink-0"
       style={{
-        width: expanded ? "260px" : "60px",
+        width: expanded ? "300px" : "60px",
         overflow: "visible",
         background: "var(--pad)",
         borderColor: "var(--border)",
       }}
     >
-      {/* Chevron toggle — right edge */}
+      {/* Chevron toggle — sits inside the sidebar, vertically centered in the 80px brand band */}
       <button
         onClick={onToggleExpand}
-        className="absolute top-7 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer z-50 transition-colors"
+        aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        className="absolute flex items-center justify-center cursor-pointer z-50 transition-colors"
         style={{
-          right: "-12px",
-          background: "var(--pad)",
+          top: "26px",
+          right: expanded ? "14px" : "50%",
+          transform: expanded ? "translateX(0)" : "translateX(50%)",
+          width: "34px",
+          height: "30px",
+          background: "transparent",
           color: "var(--text-dim)",
-          border: "1px solid var(--border)",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--border)",
+          borderRadius: "6px",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = "var(--accent)";
@@ -459,10 +479,13 @@ export default function IconSidebar({
         }}
       >
         <svg
-          width="10" height="10" viewBox="0 0 16 16" fill="none"
-          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }}
+          width="12" height="12" viewBox="0 0 16 16" fill="none"
+          style={{
+            transform: expanded ? "rotate(0deg)" : "rotate(180deg)",
+            transition: "transform 200ms",
+          }}
         >
-          <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 

@@ -11,6 +11,9 @@ import { usePathname } from "next/navigation";
 // rolling out one screen at a time.
 const HIDE_TEXT_SIDEBAR_ON: Set<string> = new Set([
   "/dashboard",
+  "/dashboard/onboarder-kpi",
+  "/dashboard/estimator-kpi",
+  "/dashboard/university",
 ]);
 
 export default function PortalShell({ children }: { children: React.ReactNode }) {

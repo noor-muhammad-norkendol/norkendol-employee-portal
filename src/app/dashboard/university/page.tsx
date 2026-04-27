@@ -70,29 +70,38 @@ interface Progress {
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
 
-const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
-  beginner: { bg: "#1a3a2a", text: "#4ade80" },
-  intermediate: { bg: "#3a3520", text: "#facc15" },
-  advanced: { bg: "#3a1a1a", text: "#f87171" },
+const LEVEL_TOKEN: Record<string, string> = {
+  beginner: "--green",
+  intermediate: "--amber",
+  advanced: "--red",
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  assigned: { bg: "#3a3520", text: "#facc15" },
-  in_progress: { bg: "#1e3a5f", text: "#60a5fa" },
-  completed: { bg: "#1a3a2a", text: "#4ade80" },
-  failed: { bg: "#4a1a1a", text: "#ef4444" },
-  not_started: { bg: "#2a2a2a", text: "#888888" },
+const STATUS_TOKEN: Record<string, string> = {
+  assigned: "--amber",
+  in_progress: "--info",
+  completed: "--green",
+  failed: "--red",
+  not_started: "--text-faint",
 };
 
-const LESSON_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  video: { bg: "#1e3a5f", text: "#60a5fa" },
-  document: { bg: "#2d1b4e", text: "#a78bfa" },
-  quiz: { bg: "#3a3520", text: "#facc15" },
+const LESSON_TYPE_TOKEN: Record<string, string> = {
+  video: "--info",
+  document: "--violet",
+  quiz: "--amber",
 };
 
-function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
+function Badge({ label, token }: { label: string; token: string }) {
   return (
-    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full capitalize" style={{ background: colors.bg, color: colors.text }}>
+    <span
+      className="text-[11px] font-bold px-2.5 py-1 rounded-md uppercase"
+      style={{
+        background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+        color: `var(${token})`,
+        border: `1px solid color-mix(in srgb, var(${token}) 35%, transparent)`,
+        letterSpacing: "0.06em",
+        fontFamily: "var(--font-ui)",
+      }}
+    >
       {label.replace("_", " ")}
     </span>
   );
@@ -107,15 +116,15 @@ function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-const CAT_COLORS: Record<string, { bg: string; text: string }> = {
-  Onboarding: { bg: "#1e3a5f", text: "#60a5fa" },
-  Technical: { bg: "#2d1b4e", text: "#a78bfa" },
-  Compliance: { bg: "#3a3520", text: "#facc15" },
-  Leadership: { bg: "#3a1a2a", text: "#f472b6" },
-  Safety: { bg: "#3a2a1a", text: "#fb923c" },
-  "Claims adjuster": { bg: "#1a3a2a", text: "#4ade80" },
-  "Soft skills": { bg: "#2a2a3a", text: "#818cf8" },
-  Other: { bg: "#2a2a2a", text: "#94a3b8" },
+const CAT_TOKEN: Record<string, string> = {
+  Onboarding: "--info",
+  Technical: "--violet",
+  Compliance: "--amber",
+  Leadership: "--magenta",
+  Safety: "--orange",
+  "Claims adjuster": "--green",
+  "Soft skills": "--info",
+  Other: "--text-faint",
 };
 
 /* ── Standard letter grading scale ───────────────────── */
@@ -428,7 +437,7 @@ export default function UniversityPage() {
           <div className="flex-1">
             <h1 className="text-xl font-semibold">{viewingCourse.title}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <Badge label={viewingCourse.level} colors={LEVEL_COLORS[viewingCourse.level]} />
+              <Badge label={viewingCourse.level} token={LEVEL_TOKEN[viewingCourse.level]} />
               <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{getCatName(viewingCourse.category_id)}</span>
               {viewingCourse.instructor_name && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>by {viewingCourse.instructor_name}</span>}
             </div>
@@ -457,7 +466,7 @@ export default function UniversityPage() {
               {currentLesson && (
                 <div className="rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                   <div className="flex items-center gap-2 mb-4">
-                    <Badge label={currentLesson.lesson_type} colors={LESSON_TYPE_COLORS[currentLesson.lesson_type]} />
+                    <Badge label={currentLesson.lesson_type} token={LESSON_TYPE_TOKEN[currentLesson.lesson_type]} />
                     <h2 className="text-lg font-semibold">{currentLesson.title}</h2>
                     {isLessonCompleted(currentLesson.id) && (
                       <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>Completed</span>
@@ -562,7 +571,7 @@ export default function UniversityPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{l.title}</p>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <Badge label={l.lesson_type} colors={LESSON_TYPE_COLORS[l.lesson_type]} />
+                        <Badge label={l.lesson_type} token={LESSON_TYPE_TOKEN[l.lesson_type]} />
                       </div>
                     </div>
                   </button>
@@ -601,34 +610,82 @@ export default function UniversityPage() {
 
   if (loading) return <p style={{ color: "var(--text-secondary)" }}>Loading...</p>;
 
+  const inProgressCount = activeAssignments.filter((a) => {
+    const p = progressMap[a.course_id];
+    return p && p.progress_percentage > 0;
+  }).length;
+  const notStartedCount = activeAssignments.length - inProgressCount;
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">University</h1>
+      {/* ── Title row ── */}
+      <div className="mb-6">
+        <h1
+          className="page-title text-5xl leading-none tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          <span style={{ color: "var(--accent)", textShadow: "var(--accent-text-shadow)", fontWeight: 800 }}>
+            University
+          </span>
+        </h1>
+        <p className="mt-3 text-sm flex items-center gap-3 flex-wrap" style={{ color: "var(--text-dim)" }}>
+          <span><strong style={{ color: "var(--text)" }}>{activeAssignments.length}</strong> assigned</span>
+          {inProgressCount > 0 && (
+            <>
+              <span style={{ color: "var(--text-faint)" }}>·</span>
+              <span><strong style={{ color: "var(--info)" }}>{inProgressCount}</strong> in progress</span>
+            </>
+          )}
+          {notStartedCount > 0 && (
+            <>
+              <span style={{ color: "var(--text-faint)" }}>·</span>
+              <span><strong style={{ color: "var(--amber)" }}>{notStartedCount}</strong> not started</span>
+            </>
+          )}
+          {completedAssignments.length > 0 && (
+            <>
+              <span style={{ color: "var(--text-faint)" }}>·</span>
+              <span><strong style={{ color: "var(--green)" }}>{completedAssignments.length}</strong> completed</span>
+            </>
+          )}
+          <span style={{ color: "var(--text-faint)" }}>·</span>
+          <span><strong style={{ color: "var(--text)" }}>{browseCourses.length}</strong> courses available</span>
+        </p>
+      </div>
 
       {/* ── My Assignments ─────────────────────────────── */}
       {activeAssignments.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>MY ASSIGNMENTS</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2
+              className="page-title text-xl font-bold leading-none"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              My <span className="themed-accent">Assignments</span>
+            </h2>
+            <span aria-hidden className="flex-1" style={{ height: 1, background: "var(--border)" }} />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeAssignments.map((a) => {
               const course = courses.find((c) => c.id === a.course_id);
               if (!course) return null;
               const progress = progressMap[a.course_id];
               return (
-                <div key={a.id} onClick={() => openCourseViewer(course)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                <div key={a.id} onClick={() => openCourseViewer(course)} className="themed-card is-interactive cursor-pointer">
+                  <div className="themed-card-stripe" aria-hidden />
                   {/* Cover image */}
                   {course.thumbnail_url ? (
                     <div className="relative w-full h-48">
                       <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
                       <div className="absolute top-2 right-2">
-                        <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
+                        <Badge label={a.status} token={STATUS_TOKEN[a.status]} />
                       </div>
                     </div>
                   ) : (
                     <div className="relative w-full h-48 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%)" }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
                       <div className="absolute top-2 right-2">
-                        <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
+                        <Badge label={a.status} token={STATUS_TOKEN[a.status]} />
                       </div>
                     </div>
                   )}
@@ -662,8 +719,8 @@ export default function UniversityPage() {
                     {/* Badges + action */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <Badge label={course.level} colors={LEVEL_COLORS[course.level]} />
-                        <Badge label={getCatName(course.category_id)} colors={CAT_COLORS[getCatName(course.category_id)] ?? CAT_COLORS.Other} />
+                        <Badge label={course.level} token={LEVEL_TOKEN[course.level]} />
+                        <Badge label={getCatName(course.category_id)} token={CAT_TOKEN[getCatName(course.category_id)] ?? CAT_TOKEN.Other} />
                       </div>
                       <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
                         {a.status === "completed" ? "Review" : (progress?.progress_percentage ?? 0) > 0 ? "Resume" : "Start"} &rsaquo;
@@ -679,18 +736,67 @@ export default function UniversityPage() {
 
       {/* ── Browse Courses ─────────────────────────────── */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>BROWSE COURSES</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2
+            className="page-title text-xl font-bold leading-none"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Browse <span className="themed-accent">Courses</span>
+          </h2>
+          <span aria-hidden className="flex-1" style={{ height: 1, background: "var(--border)" }} />
+        </div>
 
         {/* Category filter */}
-        <div className="flex items-center gap-1 mb-4 flex-wrap">
-          <button onClick={() => setSelectedCategory("all")} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: selectedCategory === "all" ? "var(--bg-hover)" : "transparent", color: selectedCategory === "all" ? "var(--text-primary)" : "var(--text-muted)" }}>
-            All
-          </button>
-          {categories.map((cat) => (
-            <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: selectedCategory === cat.id ? "var(--bg-hover)" : "transparent", color: selectedCategory === cat.id ? "var(--text-primary)" : "var(--text-muted)" }}>
-              {cat.name}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          {[{ id: "all", name: "All" }, ...categories].map((cat) => {
+            const active = selectedCategory === cat.id;
+            // Each category picks up its own semantic token; "All" stays accent.
+            const token = cat.id === "all" ? "--accent" : (CAT_TOKEN[cat.name] ?? "--accent");
+            const tokenVar = `var(${token})`;
+            const activeShadow =
+              `0 0 0 1px ${tokenVar} inset, ` +
+              `0 0 18px color-mix(in srgb, ${tokenVar} 50%, transparent), ` +
+              `0 0 36px color-mix(in srgb, ${tokenVar} 22%, transparent)`;
+            const hoverShadow = `0 0 14px color-mix(in srgb, ${tokenVar} 35%, transparent)`;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className="text-[12px] font-bold uppercase cursor-pointer transition-all"
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  letterSpacing: "0.10em",
+                  fontFamily: "var(--font-display)",
+                  background: active
+                    ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`
+                    : "var(--pad)",
+                  color: active ? tokenVar : "var(--text-dim)",
+                  borderWidth: "1.5px",
+                  borderStyle: "solid",
+                  borderColor: active ? tokenVar : "var(--border)",
+                  textShadow: active
+                    ? `0 0 8px color-mix(in srgb, ${tokenVar} 70%, transparent)`
+                    : undefined,
+                  boxShadow: active ? activeShadow : "none",
+                }}
+                onMouseEnter={(e) => {
+                  if (active) return;
+                  e.currentTarget.style.borderColor = tokenVar;
+                  e.currentTarget.style.color = tokenVar;
+                  e.currentTarget.style.boxShadow = hoverShadow;
+                }}
+                onMouseLeave={(e) => {
+                  if (active) return;
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.color = "var(--text-dim)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
         </div>
 
         {browseCourses.length === 0 ? (
@@ -703,7 +809,8 @@ export default function UniversityPage() {
               const progress = progressMap[c.id];
               const isAssigned = myAssignedCourseIds.includes(c.id);
               return (
-                <div key={c.id} onClick={() => openCourseViewer(c)} className="rounded-xl overflow-hidden cursor-pointer transition-all hover:translate-y-[-2px]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                <div key={c.id} onClick={() => openCourseViewer(c)} className="themed-card is-interactive cursor-pointer">
+                  <div className="themed-card-stripe" aria-hidden />
                   {/* Cover image */}
                   {c.thumbnail_url ? (
                     <div className="relative w-full h-48">
@@ -757,8 +864,8 @@ export default function UniversityPage() {
                     {/* Badges + action */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <Badge label={c.level} colors={LEVEL_COLORS[c.level]} />
-                        <Badge label={getCatName(c.category_id)} colors={CAT_COLORS[getCatName(c.category_id)] ?? CAT_COLORS.Other} />
+                        <Badge label={c.level} token={LEVEL_TOKEN[c.level]} />
+                        <Badge label={getCatName(c.category_id)} token={CAT_TOKEN[getCatName(c.category_id)] ?? CAT_TOKEN.Other} />
                       </div>
                       <span className="text-[12px] font-semibold" style={{ color: "var(--accent)" }}>
                         {progress?.status === "completed" ? "Review Course" : progress && progress.progress_percentage > 0 ? "Resume Course" : "Start Course"} &rsaquo;
@@ -775,21 +882,36 @@ export default function UniversityPage() {
       {/* ── Completed ──────────────────────────────────── */}
       {completedAssignments.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>COMPLETED</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2
+              className="page-title text-xl font-bold leading-none"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              <span className="themed-accent">Completed</span>
+            </h2>
+            <span aria-hidden className="flex-1" style={{ height: 1, background: "var(--border)" }} />
+          </div>
           <div className="space-y-2">
             {completedAssignments.map((a) => {
               const course = courses.find((c) => c.id === a.course_id);
               if (!course) return null;
               return (
-                <div key={a.id} onClick={() => openCourseViewer(course)} className="rounded-xl p-3 flex items-center gap-4 cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", opacity: 0.7 }}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#1a3a2a" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                <div key={a.id} onClick={() => openCourseViewer(course)} className="themed-card is-interactive p-3 flex items-center gap-4 cursor-pointer">
+                  <div className="themed-card-stripe" aria-hidden style={{ background: "var(--green)", boxShadow: "0 0 10px var(--green)" }} />
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                    style={{
+                      background: "color-mix(in srgb, var(--green) 14%, var(--pad))",
+                      border: "1px solid var(--green)",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium">{course.title}</h3>
-                    <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{getCatName(course.category_id)}</span>
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>{course.title}</h3>
+                    <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>{getCatName(course.category_id)}</span>
                   </div>
-                  {a.completed_at && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Completed {formatDate(a.completed_at)}</span>}
+                  {a.completed_at && <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>Completed {formatDate(a.completed_at)}</span>}
                 </div>
               );
             })}

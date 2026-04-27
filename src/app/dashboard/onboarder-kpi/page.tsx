@@ -23,7 +23,9 @@ import {
   CreateClientInput,
   OnboardingStatus,
   STATUS_LABELS,
+  STAGE_TARGET_HOURS,
 } from "@/types/onboarder-kpi";
+import { HOUR_MS } from "./components/styles";
 
 import PipelineHeader from "./components/PipelineHeader";
 import WorkboardTable from "./components/WorkboardTable";
@@ -323,6 +325,25 @@ export default function OnboarderKPIPage() {
     return counts;
   }, [allClients]);
 
+  // Overdue count — clients past their stage target
+  const overdueCount = useMemo(() => {
+    const ACTIVE: OnboardingStatus[] = ["new", "step_2", "step_3", "final_step", "on_hold"];
+    return allClients.filter((c) => {
+      if (!ACTIVE.includes(c.status)) return false;
+      const hours = (Date.now() - new Date(c.status_entered_at).getTime()) / HOUR_MS;
+      const target = STAGE_TARGET_HOURS[c.status as keyof typeof STAGE_TARGET_HOURS];
+      return target ? hours > target : false;
+    }).length;
+  }, [allClients]);
+
+  function openAddClient() {
+    setView("add");
+    setEditId(null);
+    setForm({ ...EMPTY_FORM, assigned_user_name: userInfo?.fullName || null });
+    setFormError(null);
+    fileNumGenRef.current = null;
+  }
+
   // Personal metrics
   const myMetrics = useMemo(() => {
     if (!userInfo) return null;
@@ -461,10 +482,13 @@ export default function OnboarderKPIPage() {
       <PipelineHeader
         totalClients={allClients.length}
         completionRate={myMetrics?.completionRate ?? null}
+        overdueCount={overdueCount}
         pipelineCounts={pipelineCounts}
         statusFilter={statusFilter}
         view={view}
         onSelectStatus={(s) => { setView("pipeline"); setStatusFilter(s); setExpandedClient(null); }}
+        onAddClient={openAddClient}
+        onPerformance={() => setView("performance")}
       />
 
       {/* ═══ PIPELINE VIEW ═══ */}

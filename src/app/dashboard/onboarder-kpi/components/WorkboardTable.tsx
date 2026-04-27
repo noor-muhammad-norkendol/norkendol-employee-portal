@@ -56,16 +56,50 @@ const IconNotes = () => (
 
 const iconBtnStyle: React.CSSProperties = {
   background: "transparent",
-  border: "1px solid var(--border-color)",
-  borderRadius: 4,
-  padding: "4px 5px",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  width: 30,
+  height: 30,
   cursor: "pointer",
-  color: "var(--text-muted)",
+  color: "var(--text-faint)",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  transition: "color 0.15s, border-color 0.15s",
+  transition: "color 0.15s, border-color 0.15s, background 0.15s",
 };
+
+const headerCellStyle: React.CSSProperties = {
+  textAlign: "left",
+  padding: "12px 12px",
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--text-faint)",
+  fontFamily: "var(--font-ui)",
+};
+
+const dataCellStyle: React.CSSProperties = {
+  padding: "14px 12px",
+  fontSize: 13,
+  verticalAlign: "middle",
+  color: "var(--text)",
+};
+
+function pillStyle(token: string): React.CSSProperties {
+  return {
+    display: "inline-block",
+    padding: "3px 10px",
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    fontFamily: "var(--font-ui)",
+    background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+    color: `var(${token})`,
+    border: `1px solid color-mix(in srgb, var(${token}) 40%, transparent)`,
+  };
+}
 
 export type PanelAction = "email" | "text" | "call" | "notes" | null;
 
@@ -85,33 +119,117 @@ export default function WorkboardTable({
   onToggleExpand, onEdit, onDelete, onMoveStatus, onOpenPanel,
 }: WorkboardTableProps) {
   return (
-    <div style={cardStyle}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-          {STATUS_LABELS[statusFilter]}
-          <span style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)", marginLeft: 8 }}>
-            {filteredClients.length} client{filteredClients.length !== 1 ? "s" : ""}
+    <div className="themed-card p-5">
+      <div className="themed-card-stripe" aria-hidden />
+      <div className="flex items-center gap-4 mb-4">
+        <h2
+          className="page-title text-xl font-bold leading-none flex items-center gap-2"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          <span className="themed-accent">{STATUS_LABELS[statusFilter]}</span>
+          <span
+            className="themed-accent"
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.85em" }}
+          >
+            ({filteredClients.length})
           </span>
         </h2>
+        <span
+          aria-hidden
+          className="flex-1"
+          style={{ height: "1px", background: "var(--border)" }}
+        />
+        {/* Search input */}
+        <div
+          className="flex items-center gap-2 px-3"
+          style={{
+            height: 36,
+            background: "var(--pad-input)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-input)",
+            minWidth: 240,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-faint)" }}>
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search clients..."
+            className="flex-1 bg-transparent outline-none text-sm"
+            style={{ color: "var(--text)" }}
+            disabled
+          />
+        </div>
+        {/* Filter + Download */}
+        <button
+          aria-label="Filter"
+          className="flex items-center justify-center cursor-pointer transition-colors"
+          style={{
+            width: 36, height: 36,
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-input)",
+            color: "var(--text-dim)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--accent)";
+            e.currentTarget.style.borderColor = "var(--border-active)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--text-dim)";
+            e.currentTarget.style.borderColor = "var(--border)";
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+        </button>
+        <button
+          aria-label="Download"
+          className="flex items-center justify-center cursor-pointer transition-colors"
+          style={{
+            width: 36, height: 36,
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-input)",
+            color: "var(--text-dim)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--accent)";
+            e.currentTarget.style.borderColor = "var(--border-active)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--text-dim)";
+            e.currentTarget.style.borderColor = "var(--border)";
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
       </div>
 
       {filteredClients.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 40 }}>
+        <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: 40 }}>
           No clients in {STATUS_LABELS[statusFilter]}. Click Add Client to get started.
         </p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr>
-                <th style={thStyle}>Client</th>
-                <th style={thStyle}>Referral</th>
-                <th style={thStyle}>State</th>
-                <th style={thStyle}>Peril</th>
-                <th style={thStyle}>Type</th>
-                <th style={thStyle}>Time in Stage</th>
-                <th style={thStyle}>Contract</th>
-                <th style={{ ...thStyle, textAlign: "center" }}>Actions</th>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                <th style={headerCellStyle}>Client</th>
+                <th style={headerCellStyle}>Referral</th>
+                <th style={headerCellStyle}>State</th>
+                <th style={headerCellStyle}>Peril</th>
+                <th style={headerCellStyle}>Type</th>
+                <th style={headerCellStyle}>Time in Stage</th>
+                <th style={headerCellStyle}>Contract</th>
+                <th style={{ ...headerCellStyle, textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -120,51 +238,100 @@ export default function WorkboardTable({
                 const transitions = ALLOWED_TRANSITIONS[client.status] || [];
                 const isExpanded = expandedClient === client.id;
                 const nextStage = NEXT_STAGE[client.status];
+                const initials = client.client_name
+                  .split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
                 return (
                   <React.Fragment key={client.id}>
-                    <tr>
-                      <td style={tdStyle}>
+                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td style={dataCellStyle}>
                         <div
+                          className="flex items-center gap-3"
                           style={{ cursor: onOpenPanel ? "pointer" : "default" }}
                           onClick={() => onOpenPanel?.(client, null)}
                         >
-                          <span style={{ fontWeight: 600 }}>{client.client_name}</span>
+                          <span
+                            className="shrink-0 inline-flex items-center justify-center text-[12px] font-bold"
+                            style={{
+                              width: 38, height: 38,
+                              borderRadius: 7,
+                              background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+                              border: "1px solid var(--border-active)",
+                              color: "var(--accent)",
+                              textShadow: "var(--accent-text-shadow)",
+                              fontFamily: "var(--font-display)",
+                            }}
+                          >
+                            {initials || "\u2014"}
+                          </span>
+                          <span
+                            className="text-[14px]"
+                            style={{ fontWeight: 600, color: "var(--text)" }}
+                          >
+                            {client.client_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={dataCellStyle}>
+                        <div className="flex flex-col leading-tight">
                           {client.phone && (
-                            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>{client.phone}</span>
+                            <span style={{ color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{client.phone}</span>
+                          )}
+                          {client.referral_source && (
+                            <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{client.referral_source}</span>
+                          )}
+                          {!client.phone && !client.referral_source && (
+                            <span style={{ color: "var(--text-faint)" }}>\u2014</span>
                           )}
                         </div>
                       </td>
-                      <td style={tdStyle}>{client.referral_source || "\u2014"}</td>
-                      <td style={tdStyle}>{client.state || "\u2014"}</td>
-                      <td style={tdStyle}>{client.peril || "\u2014"}</td>
-                      <td style={tdStyle}>{client.onboard_type || "\u2014"}</td>
-                      <td style={{
-                        ...tdStyle,
-                        fontWeight: 600,
-                        color: tis.overdue ? "#ef4444" : "var(--text-primary)",
-                      }}>
-                        {tis.label}
-                        {tis.overdue && (
-                          <span style={{ fontSize: 10, marginLeft: 4, color: "#ef4444" }}>OVERDUE</span>
+                      <td style={dataCellStyle}>
+                        {client.state ? (
+                          <span style={pillStyle("--violet")}>{client.state.toUpperCase()}</span>
+                        ) : (
+                          <span style={{ color: "var(--text-faint)" }}>\u2014</span>
                         )}
                       </td>
-                      <td style={tdStyle}>
-                        <span style={{
-                          display: "inline-block", padding: "2px 8px", borderRadius: 4,
-                          fontSize: 11, fontWeight: 600,
-                          background: client.contract_status === "signed" ? "rgba(74,222,128,0.15)" : "rgba(148,163,184,0.1)",
-                          color: client.contract_status === "signed" ? "#4ade80" : "var(--text-muted)",
-                        }}>
-                          {client.contract_status || "not_sent"}
+                      <td style={dataCellStyle}>
+                        {client.peril ? (
+                          <span style={pillStyle("--info")}>{client.peril.toUpperCase()}</span>
+                        ) : (
+                          <span style={{ color: "var(--text-faint)" }}>\u2014</span>
+                        )}
+                      </td>
+                      <td style={dataCellStyle}>
+                        <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                          {client.onboard_type || "\u2014"}
                         </span>
                       </td>
-                      <td style={{ ...tdStyle, textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
+                      <td style={dataCellStyle}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontFamily: "var(--font-mono)",
+                            color: tis.overdue ? "var(--red)" : "var(--accent)",
+                            textShadow: tis.overdue
+                              ? "0 0 8px color-mix(in srgb, var(--red) 50%, transparent)"
+                              : "var(--accent-text-shadow)",
+                          }}
+                        >
+                          {tis.label}
+                        </span>
+                        {tis.overdue && (
+                          <span style={{ fontSize: 10, marginLeft: 6, color: "var(--red)", fontWeight: 700 }}>OVERDUE</span>
+                        )}
+                      </td>
+                      <td style={dataCellStyle}>
+                        <span style={pillStyle(client.contract_status === "signed" ? "--green" : "--amber")}>
+                          {(client.contract_status || "not_sent").replace(/_/g, " ").toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ ...dataCellStyle, textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                           {/* Text */}
                           <button
                             title="Send text/message"
-                            style={{ ...iconBtnStyle, color: "#60a5fa", borderColor: "rgba(96,165,250,0.3)" }}
+                            style={{ ...iconBtnStyle, color: "var(--info)", borderColor: "color-mix(in srgb, var(--info) 40%, transparent)" }}
                             onClick={() => onOpenPanel?.(client, "text")}
                           >
                             <IconText />
@@ -172,7 +339,7 @@ export default function WorkboardTable({
                           {/* Email */}
                           <button
                             title="Send email"
-                            style={{ ...iconBtnStyle, color: "#fbbf24", borderColor: "rgba(251,191,36,0.3)" }}
+                            style={{ ...iconBtnStyle, color: "var(--amber)", borderColor: "color-mix(in srgb, var(--amber) 40%, transparent)" }}
                             onClick={() => onOpenPanel?.(client, "email")}
                           >
                             <IconEmail />
@@ -180,7 +347,7 @@ export default function WorkboardTable({
                           {/* Call — opens panel */}
                           <button
                             title="Log a call"
-                            style={{ ...iconBtnStyle, color: "#a78bfa", borderColor: "rgba(167,139,250,0.3)" }}
+                            style={{ ...iconBtnStyle, color: "var(--violet)", borderColor: "color-mix(in srgb, var(--violet) 40%, transparent)" }}
                             onClick={() => onOpenPanel?.(client, "call")}
                           >
                             <IconPhone />
@@ -189,7 +356,7 @@ export default function WorkboardTable({
                           {nextStage && (
                             <button
                               title={`Advance to ${STATUS_LABELS[nextStage]}`}
-                              style={{ ...iconBtnStyle, color: "#4ade80", borderColor: "rgba(74,222,128,0.3)" }}
+                              style={{ ...iconBtnStyle, color: "var(--green)", borderColor: "color-mix(in srgb, var(--green) 40%, transparent)" }}
                               onClick={() => onMoveStatus(client, nextStage)}
                             >
                               <IconCheck />
@@ -198,18 +365,28 @@ export default function WorkboardTable({
                           {/* Notes — opens panel */}
                           <button
                             title="View notes & activity"
-                            style={{ ...iconBtnStyle, color: "#fb923c", borderColor: "rgba(251,146,60,0.3)" }}
+                            style={{ ...iconBtnStyle, color: "var(--orange)", borderColor: "color-mix(in srgb, var(--orange) 40%, transparent)" }}
                             onClick={() => onOpenPanel?.(client, "notes")}
                           >
                             <IconNotes />
                           </button>
                           {/* More: Move / Edit */}
                           <button
-                            style={{ ...btnOutline, fontSize: 10, padding: "2px 6px" }}
+                            style={{ ...iconBtnStyle, color: "var(--text-dim)" }}
                             onClick={() => onToggleExpand(isExpanded ? null : client.id)}
                             title="More actions"
                           >
-                            {isExpanded ? "\u2715" : "\u2026"}
+                            {isExpanded ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <path d="M18 6 6 18M6 6l12 12" />
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.5" />
+                                <circle cx="12" cy="12" r="1.5" />
+                                <circle cx="12" cy="19" r="1.5" />
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </td>
