@@ -295,7 +295,21 @@ Internal roles stack: 4 > 3 > 2A > 1A. External is separate track: 2B > 1B.
 **Port:** 3002
 **Start:** `npm run dev`
 **Branch:** staging (ALL work goes to staging unless Frank explicitly says otherwise)
-**Supabase:** `hkscsovtejeedjebytsv`
+**Supabase:** `hkscsovtejeedjebytsv` (org: **coastal claims services**, project name: **norkendolportal**)
+
+> ### ⚠️ DO NOT TOUCH `.env.local` SUPABASE VALUES
+>
+> The CORRECT Supabase project is **`hkscsovtejeedjebytsv`** in the **`coastal claims services`** org, project name **`norkendolportal`**. It has the full application schema (`action_items`, `notifications`, `company_updates`, `user_pinned_apps`, `users` with ~83 employees, etc.) and Frank's user account.
+>
+> **A different, look-alike project exists** at ref `mmccqhxomkohjydukxnn` in **`noor@norkendol.com's Org`**, project name **`norkendol-employee-portal`**. It is NOT the right project — it has Frank's auth user but **no application schema**. Pointing `.env.local` at it makes login work but every dashboard query 404 and the app appears broken.
+>
+> **If login fails with HTTP 400 ("Invalid login credentials") against `hkscsovtejeedjebytsv`:**
+> 1. Do NOT swap `.env.local` to a different project ref. The schema lives only on `hkscsovtejeedjebytsv`.
+> 2. First check: caps lock, rate limit (wait 5–15 min), and that `.env.local` URL still says `hkscsovtejeedjebytsv`.
+> 3. If still failing, reset Frank's password via the Supabase dashboard for that project (Auth → Users → row → "Send password recovery" or set new password directly). Frank is the project owner.
+> 4. Do NOT use the "Authentication → Users" view in any other org's dashboard to conclude "users are missing." Verify the URL bar's project ref matches `.env.local` before drawing any conclusion.
+>
+> Lesson learned 2026-04-27: a session burned hours pointing `.env.local` at the wrong look-alike project after misreading a dashboard. Don't repeat.
 
 ## File Map
 

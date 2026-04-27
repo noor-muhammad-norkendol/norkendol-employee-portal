@@ -1,27 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailFocus, setEmailFocus] = useState(false);
+  const [passwordFocus, setPasswordFocus] = useState(false);
+  const [brand, setBrand] = useState<{ name: string; logo: string | null }>({
+    name: "Norkendol",
+    logo: null,
+  });
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
+
+  useEffect(() => {
+    const name = localStorage.getItem("portal-company-name") || "Norkendol";
+    const logo = localStorage.getItem("portal-logo");
+    setBrand({ name, logo });
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -33,95 +43,217 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  const inputBase: React.CSSProperties = {
+    background: "var(--pad-input)",
+    color: "var(--text)",
+    borderRadius: "var(--radius-input)",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+    borderColor: "var(--border)",
+    transition: "border-color var(--transition-base), box-shadow var(--transition-base)",
+  };
+
+  const inputFocus: React.CSSProperties = {
+    borderColor: "var(--accent)",
+    boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)",
+  };
+
   return (
-    <div
-      className="flex h-full items-center justify-center"
-      style={{ background: "var(--bg-primary)" }}
-    >
-      <div
-        className="w-full max-w-sm rounded-lg border p-8"
-        style={{
-          background: "var(--bg-secondary)",
-          borderColor: "var(--border-color)",
-        }}
-      >
-        <h1 className="text-xl font-semibold mb-1">Sign in</h1>
-        <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-          Enter your credentials to access the portal
-        </p>
-
-        {error && (
-          <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        {/* Brand mark above the card */}
+        <div className="mb-8 flex flex-col items-center">
+          {brand.logo ? (
+            <Image
+              src={brand.logo}
+              alt={brand.name}
+              width={120}
+              height={120}
+              className="mb-3 h-14 w-auto object-contain"
+              style={{ maxHeight: 56 }}
+              unoptimized
+            />
+          ) : null}
+          <div
+            className="text-2xl font-bold tracking-[0.18em] uppercase"
+            style={{
+              fontFamily: "var(--font-display)",
+              color: "var(--text)",
+            }}
+          >
+            {brand.name.split("").map((ch, i) => (
+              <span
+                key={i}
+                style={
+                  i === 0
+                    ? {
+                        color: "var(--accent)",
+                        textShadow: "var(--accent-text-shadow)",
+                      }
+                    : undefined
+                }
+              >
+                {ch}
+              </span>
+            ))}
           </div>
-        )}
-
-        <form onSubmit={handleLogin}>
-          <label
-            className="block text-sm mb-1"
-            style={{ color: "var(--text-secondary)" }}
+          <div
+            className="mt-2 text-xs tracking-widest uppercase"
+            style={{ color: "var(--text-faint)", letterSpacing: "0.25em" }}
           >
-            Email
-          </label>
-          <input
-            type="email"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded-md border px-3 py-2 text-sm mb-4 outline-none focus:border-[var(--accent)]"
+            Employee Portal
+          </div>
+        </div>
+
+        {/* Card */}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            background: "var(--pad)",
+            border: "1.5px solid var(--border)",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--card-shadow)",
+          }}
+        >
+          {/* Top accent stripe — visible only in cells where --card-stripe-bg is set */}
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-0 h-[2px]"
             style={{
-              background: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
+              background: "var(--card-stripe-bg)",
+              boxShadow: "var(--card-stripe-shadow)",
             }}
           />
 
-          <label
-            className="block text-sm mb-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Password
-          </label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded-md border px-3 py-2 text-sm mb-6 outline-none focus:border-[var(--accent)]"
-            style={{
-              background: "var(--bg-surface)",
-              borderColor: "var(--border-color)",
-              color: "var(--text-primary)",
-            }}
-          />
+          <div className="px-7 pt-7 pb-6">
+            <h1
+              className="text-2xl font-semibold"
+              style={{
+                fontFamily: "var(--font-display)",
+                color: "var(--text)",
+              }}
+            >
+              Sign{" "}
+              <span
+                style={{
+                  color: "var(--accent)",
+                  textShadow: "var(--accent-text-shadow)",
+                }}
+              >
+                in
+              </span>
+            </h1>
+            <p
+              className="mt-1 text-sm"
+              style={{ color: "var(--text-dim)" }}
+            >
+              Enter your credentials to access the portal
+            </p>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md py-2 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
-            style={{
-              background: "var(--accent)",
-              color: "var(--bg-primary)",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "var(--accent-hover)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "var(--accent)")
-            }
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+            {error && (
+              <div
+                role="alert"
+                className="mt-5 rounded-md px-3 py-2 text-sm"
+                style={{
+                  background: "color-mix(in srgb, var(--red) 12%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--red) 40%, transparent)",
+                  color: "var(--red)",
+                }}
+              >
+                {error}
+              </div>
+            )}
 
-        <p className="text-center text-sm mt-4" style={{ color: "var(--text-muted)" }}>
-          Don&apos;t have an account?{" "}
-          <Link href="/apply" className="font-medium" style={{ color: "var(--accent)" }}>
-            Apply here
-          </Link>
-        </p>
+            <form onSubmit={handleLogin} className="mt-5 space-y-4">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-1.5 block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: "var(--text-dim)" }}
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setEmailFocus(true)}
+                  onBlur={() => setEmailFocus(false)}
+                  required
+                  className="w-full px-3 py-2.5 text-sm outline-none"
+                  style={{ ...inputBase, ...(emailFocus ? inputFocus : {}) }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: "var(--text-dim)" }}
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setPasswordFocus(true)}
+                  onBlur={() => setPasswordFocus(false)}
+                  required
+                  className="w-full px-3 py-2.5 text-sm outline-none"
+                  style={{ ...inputBase, ...(passwordFocus ? inputFocus : {}) }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 w-full px-4 py-2.5 text-sm font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: "var(--cta-bg)",
+                  color: "var(--cta-text)",
+                  borderRadius: "var(--radius-pill)",
+                  boxShadow: "var(--cta-shadow)",
+                  border: "none",
+                  letterSpacing: "0.02em",
+                  transition: "transform var(--transition-fast), filter var(--transition-fast)",
+                }}
+                onMouseEnter={(e) => {
+                  if (loading) return;
+                  e.currentTarget.style.filter = "brightness(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.filter = "none";
+                }}
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
+            </form>
+
+            <p
+              className="mt-5 text-center text-sm"
+              style={{ color: "var(--text-faint)" }}
+            >
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/apply"
+                className="font-semibold"
+                style={{
+                  color: "var(--accent)",
+                  textShadow: "var(--accent-text-shadow)",
+                }}
+              >
+                Apply here
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

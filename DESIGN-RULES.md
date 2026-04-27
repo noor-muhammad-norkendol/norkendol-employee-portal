@@ -286,3 +286,152 @@ The structural rule depends on which module you're in:
 - Branch: `staging` (default — never main).
 - Repo: `noor-muhammad-norkendol/norkendol-employee-portal` on GitHub.
 - Push convention: confirm with Frank before pushing.
+
+---
+
+# IMPLEMENTATION REFERENCE — Replicable Patterns
+
+When building or redesigning any page, follow these patterns so it works in all 6 cells (Modern/Throwback × Dark/Med/Light) automatically. Reference pages: `src/app/login/page.tsx` and `src/app/dashboard/page.tsx`.
+
+## Tokens added to all 6 cells (in `globals.css`)
+
+Beyond the base tokens in DESIGN-RULES above, every combo cell now defines:
+
+| Token | Modern Dk/Med/Light | Throwback Dark | Throwback Med | Throwback Light |
+|---|---|---|---|---|
+| `--card-stripe-bg` | `transparent` | `#5DECF7` | `#5DECF7` | `transparent` |
+| `--card-stripe-shadow` | `none` | full cyan glow | softer cyan glow | `none` |
+| `--grid-color` | `rgba(255,255,255,0.21/0.18)` Dk/Med, `rgba(15,23,42,0.05)` Lt | `rgba(93,236,247,0.33)` | `rgba(93,236,247,0.27)` | `rgba(15,23,42,0.05)` |
+| `--grid-size` | `56px` (universal — `:root`) | — | — | — |
+
+## Global utility classes (in `globals.css`)
+
+```css
+.themed-card               /* solid --pad bg, 1.5px --border, --radius-card, --card-shadow, overflow:hidden */
+.themed-card.is-interactive /* hover: border → --border-active, translateY(-1px) */
+.themed-card-stripe        /* absolutely-positioned 2px top stripe — uses --card-stripe-bg + --card-stripe-shadow */
+.themed-accent             /* color: var(--accent); text-shadow: var(--accent-text-shadow) — for any accent word/link */
+```
+
+Throwback-only typography (Layer 2 — no component branching):
+```css
+[data-style="throwback"] .page-title       { text-transform: uppercase; letter-spacing: 0.04em; }
+[data-style="throwback"] .nav-brand        { text-transform: uppercase; letter-spacing: 0.06em; }
+[data-style="throwback"] .section-header   { text-transform: uppercase; letter-spacing: 0.15em; }
+```
+
+## Page-bg grid
+
+Applied to `body` in `globals.css` via two `linear-gradient` background-image layers using `var(--grid-color)` at `var(--grid-size)` cell size. Visible on every page (login + dashboard + sub-pages) because:
+- `body` has the grid
+- `<main>` and content containers stay transparent (no `background` on them)
+- Cards have solid `--pad` bg → grid only shows in gutters/padding (matches mocks)
+
+**TopBar exception:** `<TopBar>` root sets `background: var(--bg)` solid — same color as page bg, but blocks the grid in the top 60px strip. This matches the Throwback Onboarder KPI mock where the top reads as a clean band before the grid kicks in.
+
+## `<ThemedCard>` component pattern
+
+Defined in `src/app/dashboard/page.tsx`. Lift to `src/components/ThemedCard.tsx` when used by a third page.
+
+```tsx
+<ThemedCard className="p-5 flex flex-col" interactive onClick={...}>
+  <h2 className="page-title text-xl font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+    Recent <span className="themed-accent">Notifications</span>
+  </h2>
+  ...
+</ThemedCard>
+```
+
+Always wrap a card in `<ThemedCard>` instead of building one inline. The component renders the stripe div automatically.
+
+## Badge pattern (semantic, cell-aware)
+
+Map a label to a semantic token, then `color-mix` for bg + border, full token for text. Works across all 6 cells without hardcoded hex.
+
+```tsx
+const PRIORITY_TOKEN = { low: "--green", medium: "--amber", high: "--red", urgent: "--red" };
+
+<span style={{
+  background: `color-mix(in srgb, var(${token}) 14%, transparent)`,
+  color: `var(${token})`,
+  border: `1px solid color-mix(in srgb, var(${token}) 30%, transparent)`,
+}}>...</span>
+```
+
+Available semantic tokens per cell: `--green`, `--red`, `--amber`, `--violet`, `--magenta`, `--info`, `--accent`. Never hardcode hex for status colors.
+
+## Heading pattern
+
+Page titles and section headings always:
+1. Use `font-family: var(--font-display)` — Plus Jakarta in Modern, Orbitron in Throwback (auto)
+2. Add `className="page-title"` so Throwback gets uppercase + tracking
+3. Wrap the last (or accent) word in `<span className="themed-accent">` for the cyan/green glow word
+
+```tsx
+<h1 className="page-title text-4xl font-extrabold tracking-tight"
+    style={{ fontFamily: "var(--font-display)", color: "var(--text)" }}>
+  Welcome back, <span className="themed-accent">{firstName}</span>
+</h1>
+
+<h2 className="page-title text-xl font-semibold"
+    style={{ fontFamily: "var(--font-display)" }}>
+  Company <span className="themed-accent">Updates</span>
+</h2>
+```
+
+## Sidebar (IconSidebar) pattern
+
+- Width: **260px** expanded, **60px** collapsed
+- Brand wordmark: display font, first letter `var(--accent)` + `text-shadow: var(--accent-text-shadow)`. Font-size auto-scales: ≤10 chars = 17px, longer = 14px (handles "Coastal Claims" without overflow).
+- Section dividers: NO chevron icon. The label text itself is the click target. Color = `var(--accent)` with glow, uppercase + tracked (Throwback only). A 1px `var(--border)` rule line extends from label to right edge.
+- Nav items: `h-10`, `text-[15px] font-medium`, 18px icons.
+- Active item: full pill with `border: 1px solid var(--border-active)`, `background: color-mix(in srgb, var(--accent) 10%, transparent)`, `color: var(--accent)`, `text-shadow: var(--accent-text-shadow)`, `box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 18%, transparent)`. NO left bar — full pill outline.
+- Inactive hover: bg → `var(--pad-elev)`, color → `var(--text)`.
+
+## TopBar pattern
+
+- Height: **60px**, `background: var(--bg)` solid (blocks grid).
+- **Left:** breadcrumb `Company / Page` — company name `var(--text-dim)`, slash `var(--text-faint)`, current page `var(--accent)` + `text-shadow: var(--accent-text-shadow)`. Page label derived from `usePathname()`.
+- **Right cluster (in order):**
+  1. **Digital clock pill** — `HH:MM:SS` 24-hour, `var(--font-mono)`, accent text + glow, `var(--border-active)` border, `--radius-input`, ticks every second.
+  2. **Search button** — 36×36, outline `var(--border)`, hover → `var(--border-active)` + accent color.
+  3. **Bell button** — same outline treatment, 8px red dot indicator with red glow for unread.
+  4. **Avatar + first name** — accent-tinted circle (initials in accent + glow, or photo with accent border), name in `var(--text)`. Click opens dropdown (My Settings / ThemePicker / Sign Out).
+
+## Token migration cheatsheet (legacy → spec)
+
+When updating an existing page:
+
+| Legacy | Spec |
+|---|---|
+| `--bg-primary` | `--bg` |
+| `--bg-secondary` | `--pad` |
+| `--bg-surface` | `--pad` |
+| `--bg-hover` | `--pad-elev` |
+| `--text-primary` | `--text` |
+| `--text-secondary` | `--text-dim` |
+| `--text-muted` | `--text-faint` |
+| `--border-color` | `--border` |
+
+Legacy tokens are still aliased in every cell, so the old code still renders. New work uses spec tokens.
+
+## Anti-patterns (what NOT to do)
+
+- **No emoji icons** — use SVG. (E.g., medals: SVG trophy, not 🥇🥈🥉.)
+- **No translucent cards** — solid `--pad` bg always.
+- **No hardcoded hex for status colors** — use `color-mix` with semantic tokens.
+- **No `bg-white/10` or similar opacity hacks** — invisible in Light mode.
+- **Don't mix `border:` shorthand with `borderColor:` longhand** in the same element — React warns. Use `borderWidth/borderStyle/borderColor` separately.
+- **Don't query active theme in components** (`if style === "throwback"`). All branching belongs in CSS via `[data-style]` selectors.
+- **Don't set explicit `background: var(--bg)` on page roots** — let body show through, otherwise the grid disappears.
+
+## Pages already migrated
+
+- `src/app/login/page.tsx` — full reference for the auth/landing pattern
+- `src/app/dashboard/page.tsx` — full reference for cards, badges, headings, panels
+- `src/components/IconSidebar.tsx` — sidebar pattern
+- `src/components/TopBar.tsx` — chrome pattern
+
+## Pages still to migrate
+
+Every other `src/app/dashboard/*` page is on legacy tokens with no card stripes, no glow accents, no display-font headings. Migrate one at a time per "one screen at a time" rule.

@@ -78,7 +78,7 @@ const icons = {
   mySettings: ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"],
 };
 
-function NavIcon({ paths, size = 16 }: { paths: string[]; size?: number }) {
+function NavIcon({ paths, size = 18 }: { paths: string[]; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {paths.map((d, i) => <path key={i} d={d} />)}
@@ -187,22 +187,37 @@ function SortableNavItem({
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, padding: expanded ? "0 8px" : "0 5px" }}
+      style={{ ...style, padding: expanded ? "0 8px" : "0 6px" }}
       className="relative group"
     >
       <div
-        className={`rounded-md flex items-center transition-colors w-full h-8 ${
-          expanded ? "px-1 gap-1 pl-4" : "justify-center"
+        className={`relative rounded-md flex items-center transition-colors w-full h-10 ${
+          expanded ? "px-3 gap-1" : "justify-center"
         }`}
         style={{
-          color: isActivePage ? "var(--text-primary)" : "var(--text-secondary)",
-          background: isActivePage ? "var(--bg-hover)" : "transparent",
+          color: isActivePage ? "var(--accent)" : "var(--text-dim)",
+          background: isActivePage
+            ? "color-mix(in srgb, var(--accent) 10%, transparent)"
+            : "transparent",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: isActivePage ? "var(--border-active)" : "transparent",
+          textShadow: isActivePage ? "var(--accent-text-shadow)" : undefined,
+          boxShadow: isActivePage
+            ? "0 0 14px color-mix(in srgb, var(--accent) 18%, transparent)"
+            : undefined,
         }}
         onMouseEnter={(e) => {
-          if (!isActivePage) e.currentTarget.style.background = "var(--bg-hover)";
+          if (!isActivePage) {
+            e.currentTarget.style.background = "var(--pad-elev)";
+            e.currentTarget.style.color = "var(--text)";
+          }
         }}
         onMouseLeave={(e) => {
-          if (!isActivePage) e.currentTarget.style.background = "transparent";
+          if (!isActivePage) {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--text-dim)";
+          }
         }}
       >
         {/* Drag handle — visible on hover only */}
@@ -211,7 +226,7 @@ function SortableNavItem({
             {...attributes}
             {...listeners}
             className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity flex items-center"
-            style={{ color: "var(--text-muted)", touchAction: "none" }}
+            style={{ color: "var(--text-faint)", touchAction: "none" }}
           >
             <DragHandle />
           </span>
@@ -219,14 +234,24 @@ function SortableNavItem({
         {/* When collapsed, attach drag listeners to the whole item */}
         <Link
           href={href}
-          className="flex items-center gap-2 flex-1 h-full"
+          className="flex items-center gap-3 flex-1 h-full"
           style={{ textDecoration: "none", color: "inherit" }}
           {...(!expanded ? { ...attributes, ...listeners } : {})}
         >
-          <span className="shrink-0 w-5 flex items-center justify-center" style={{ color: "var(--text-muted)" }}>
+          <span
+            className="shrink-0 w-5 flex items-center justify-center"
+            style={{ color: "inherit" }}
+          >
             <NavIcon paths={item.paths} />
           </span>
-          {expanded && <span className="text-sm whitespace-nowrap">{item.label}</span>}
+          {expanded && (
+            <span
+              className="text-[15px] font-medium whitespace-nowrap"
+              style={{ fontFamily: "var(--font-ui)" }}
+            >
+              {item.label}
+            </span>
+          )}
         </Link>
       </div>
 
@@ -235,9 +260,9 @@ function SortableNavItem({
         <div
           className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
           style={{
-            background: "var(--bg-surface)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-color)",
+            background: "var(--pad)",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
           }}
         >
           {item.label}
@@ -248,12 +273,10 @@ function SortableNavItem({
 }
 
 function SidebarLogo({ expanded }: { expanded: boolean }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
     function loadBranding() {
-      setLogoUrl(localStorage.getItem("portal-logo"));
       setCompanyName(localStorage.getItem("portal-company-name"));
     }
     loadBranding();
@@ -261,31 +284,45 @@ function SidebarLogo({ expanded }: { expanded: boolean }) {
     return () => window.removeEventListener("portal-branding-changed", loadBranding);
   }, []);
 
-  const initial = companyName ? companyName.charAt(0).toUpperCase() : "N";
-  const label = companyName || "Portal";
+  const label = companyName || "Norkendol";
+  const initial = label.charAt(0).toUpperCase();
 
   return (
-    <div className={`flex items-center mb-4 ${expanded ? "px-3 gap-3" : "justify-center"}`}>
-      {logoUrl ? (
-        <img
-          src={logoUrl} alt={label}
-          className="shrink-0 rounded-md"
-          style={{ width: expanded ? 36 : 32, height: expanded ? 36 : 32, objectFit: "contain" }}
-        />
-      ) : (
-        <div
-          className="rounded-md flex items-center justify-center font-bold shrink-0"
+    <div
+      className={`flex items-center mb-5 ${expanded ? "px-4" : "justify-center"}`}
+    >
+      {expanded ? (
+        <span
+          className="nav-brand font-extrabold leading-none whitespace-nowrap overflow-hidden text-ellipsis"
           style={{
-            width: expanded ? 36 : 32, height: expanded ? 36 : 32,
-            fontSize: expanded ? 16 : 14,
-            background: "var(--accent)", color: "#fff",
+            fontFamily: "var(--font-display)",
+            color: "var(--text)",
+            fontSize: label.length > 10 ? "14px" : "17px",
+            maxWidth: "100%",
+          }}
+          title={label}
+        >
+          <span
+            style={{
+              color: "var(--accent)",
+              textShadow: "var(--accent-text-shadow)",
+            }}
+          >
+            {initial}
+          </span>
+          {label.slice(1)}
+        </span>
+      ) : (
+        <span
+          className="text-[18px] font-extrabold leading-none"
+          style={{
+            fontFamily: "var(--font-display)",
+            color: "var(--accent)",
+            textShadow: "var(--accent-text-shadow)",
           }}
         >
           {initial}
-        </div>
-      )}
-      {expanded && (
-        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{label}</span>
+        </span>
       )}
     </div>
   );
@@ -394,31 +431,31 @@ export default function IconSidebar({
 
   return (
     <div
-      className="relative flex flex-col border-r py-4 transition-all duration-200 shrink-0"
+      className="relative flex flex-col border-r py-5 transition-all duration-200 shrink-0"
       style={{
-        width: expanded ? "220px" : "50px",
+        width: expanded ? "260px" : "60px",
         overflow: "visible",
-        background: "var(--bg-secondary)",
-        borderColor: "var(--border-color)",
+        background: "var(--pad)",
+        borderColor: "var(--border)",
       }}
     >
       {/* Chevron toggle — right edge */}
       <button
         onClick={onToggleExpand}
-        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center cursor-pointer z-50 transition-colors"
+        className="absolute top-7 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer z-50 transition-colors"
         style={{
           right: "-12px",
-          background: "var(--bg-surface)",
-          color: "var(--text-secondary)",
-          border: "1px solid var(--border-color)",
+          background: "var(--pad)",
+          color: "var(--text-dim)",
+          border: "1px solid var(--border)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.color = "var(--text-primary)";
-          e.currentTarget.style.background = "var(--bg-hover)";
+          e.currentTarget.style.color = "var(--accent)";
+          e.currentTarget.style.borderColor = "var(--border-active)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.color = "var(--text-secondary)";
-          e.currentTarget.style.background = "var(--bg-surface)";
+          e.currentTarget.style.color = "var(--text-dim)";
+          e.currentTarget.style.borderColor = "var(--border)";
         }}
       >
         <svg
@@ -439,33 +476,53 @@ export default function IconSidebar({
           const orderedItems = getOrderedItems(section);
           return (
             <div key={section.tier} className="mb-1">
-              {/* Section header */}
+              {/* Section header — text IS the toggle, with a rule line extending to the right */}
               <button
                 onClick={() => toggleSection(section.tier)}
-                className="flex items-center w-full cursor-pointer transition-colors"
+                className="flex items-center w-full cursor-pointer transition-opacity"
+                title={isOpen ? "Collapse section" : "Expand section"}
                 style={{
-                  padding: expanded ? "6px 12px" : "6px 5px",
-                  color: "var(--text-secondary)",
+                  padding: expanded ? "12px 16px 6px" : "12px 6px 6px",
                   background: "transparent",
                   border: "none",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text-primary)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-secondary)";
+                  opacity: isOpen ? 1 : 0.85,
                 }}
               >
-                <svg
-                  width="10" height="10" viewBox="0 0 16 16" fill="none" className="shrink-0"
-                  style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms" }}
-                >
-                  <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                {expanded && (
-                  <span className="text-xs font-medium ml-2 whitespace-nowrap">{section.heading}</span>
+                {expanded ? (
+                  <>
+                    <span
+                      className="section-header text-[12px] font-bold whitespace-nowrap"
+                      style={{
+                        color: "var(--accent)",
+                        textShadow: "var(--accent-text-shadow)",
+                        letterSpacing: "0.16em",
+                        fontFamily: "var(--font-display)",
+                      }}
+                    >
+                      {section.heading.toUpperCase()}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="ml-3 flex-1"
+                      style={{
+                        height: "1px",
+                        background: "var(--border)",
+                      }}
+                    />
+                  </>
+                ) : (
+                  /* Collapsed: small accent dot to indicate section break + click target */
+                  <span
+                    aria-hidden
+                    className="mx-auto block"
+                    style={{
+                      width: "20px",
+                      height: "1px",
+                      background: "var(--accent)",
+                      opacity: 0.5,
+                      boxShadow: "var(--accent-text-shadow)",
+                    }}
+                  />
                 )}
               </button>
 

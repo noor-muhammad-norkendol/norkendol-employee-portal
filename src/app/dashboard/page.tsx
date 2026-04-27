@@ -77,36 +77,84 @@ interface LeaderboardConfig {
   metric_name: string;
 }
 
-/* ── badge helpers ─────────────────────────────────────── */
+/* ── badge tokens (semantic, theme-driven) ─────────────── */
 
-const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  news: { bg: "#1e3a5f", text: "#60a5fa" },
-  event: { bg: "#1a3a2a", text: "#4ade80" },
-  announcement: { bg: "#2d1b4e", text: "#a78bfa" },
+const TYPE_TOKEN: Record<string, string> = {
+  news: "--info",
+  event: "--green",
+  announcement: "--violet",
 };
 
-const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-  low: { bg: "#1a3a2a", text: "#4ade80" },
-  medium: { bg: "#3a3520", text: "#facc15" },
-  high: { bg: "#3a1a1a", text: "#f87171" },
-  urgent: { bg: "#4a1a1a", text: "#ef4444" },
+const PRIORITY_TOKEN: Record<string, string> = {
+  low: "--green",
+  medium: "--amber",
+  high: "--red",
+  urgent: "--red",
 };
 
-const NOTIF_COLORS: Record<string, string> = {
-  info: "#60a5fa",
-  warning: "#facc15",
-  error: "#ef4444",
-  success: "#4ade80",
+const NOTIF_TOKEN: Record<string, string> = {
+  info: "--info",
+  warning: "--amber",
+  error: "--red",
+  success: "--green",
 };
 
-function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
+function Badge({ label, token }: { label: string; token: string }) {
   return (
     <span
       className="text-[11px] font-medium px-2 py-0.5 rounded-full capitalize"
-      style={{ background: colors.bg, color: colors.text }}
+      style={{
+        background: `color-mix(in srgb, var(${token}) 14%, transparent)`,
+        color: `var(${token})`,
+        border: `1px solid color-mix(in srgb, var(${token}) 30%, transparent)`,
+      }}
     >
       {label}
     </span>
+  );
+}
+
+/* ── medal SVGs (replace emoji per design rules) ───────── */
+
+const MEDAL_COLORS = ["#FACC15", "#CBD5E1", "#D4A057"]; // gold, silver, bronze
+
+function Medal({ rank }: { rank: number }) {
+  const color = MEDAL_COLORS[rank];
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 3h10l-1.5 5.5"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 8.5L7 3"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="12"
+        cy="14.5"
+        r="5.5"
+        fill={color}
+        fillOpacity="0.18"
+        stroke={color}
+        strokeWidth="1.6"
+      />
+      <text
+        x="12"
+        y="17"
+        textAnchor="middle"
+        fontSize="6"
+        fontWeight="700"
+        fill={color}
+      >
+        {rank + 1}
+      </text>
+    </svg>
   );
 }
 
@@ -140,11 +188,19 @@ function AppIcon({ name, iconUrl }: { name: string; iconUrl: string | null }) {
 
 /* ── drag handle ──────────────────────────────────────── */
 
-function DragHandle({ listeners, attributes }: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) {
+function DragHandle({
+  listeners,
+  attributes,
+}: {
+  listeners: Record<string, Function> | undefined;
+  attributes: Record<string, unknown>;
+}) {
   return (
     <button
-      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-white/10 transition-colors"
-      style={{ color: "var(--text-muted)" }}
+      className="cursor-grab active:cursor-grabbing p-1 rounded transition-colors"
+      style={{ color: "var(--text-faint)" }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--pad-elev)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       {...attributes}
       {...listeners}
       title="Drag to reorder"
@@ -163,22 +219,25 @@ function DragHandle({ listeners, attributes }: { listeners: Record<string, Funct
 
 /* ── sortable panel wrapper ───────────────────────────── */
 
-function SortablePanel({ id, children }: { id: string; children: (props: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) => React.ReactNode }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+function SortablePanel({
+  id,
+  children,
+}: {
+  id: string;
+  children: (props: {
+    listeners: Record<string, Function> | undefined;
+    attributes: Record<string, unknown>;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     position: "relative" as const,
-    zIndex: isDragging ? 50 : "auto" as const,
+    zIndex: isDragging ? 50 : ("auto" as const),
   };
 
   return (
@@ -190,11 +249,7 @@ function SortablePanel({ id, children }: { id: string; children: (props: { liste
 
 /* ── panel order persistence ──────────────────────────── */
 
-const DEFAULT_ORDER = [
-  "company-updates",
-  "quick-access",
-  "bottom-row",
-];
+const DEFAULT_ORDER = ["company-updates", "quick-access", "bottom-row"];
 
 const STORAGE_KEY = "dashboard-panel-order";
 
@@ -203,7 +258,6 @@ function loadPanelOrder(userId: string): string[] {
     const raw = localStorage.getItem(`${STORAGE_KEY}-${userId}`);
     if (raw) {
       const parsed = JSON.parse(raw) as string[];
-      // Validate — must contain exactly the same panels
       if (
         parsed.length === DEFAULT_ORDER.length &&
         DEFAULT_ORDER.every((p) => parsed.includes(p))
@@ -211,18 +265,14 @@ function loadPanelOrder(userId: string): string[] {
         return parsed;
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return DEFAULT_ORDER;
 }
 
 function savePanelOrder(userId: string, order: string[]) {
   try {
     localStorage.setItem(`${STORAGE_KEY}-${userId}`, JSON.stringify(order));
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 /* ── company logo for welcome header ────────────────────── */
@@ -231,7 +281,9 @@ function DashboardLogo() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    function load() { setLogoUrl(localStorage.getItem("portal-logo")); }
+    function load() {
+      setLogoUrl(localStorage.getItem("portal-logo"));
+    }
     load();
     window.addEventListener("portal-branding-changed", load);
     return () => window.removeEventListener("portal-branding-changed", load);
@@ -240,9 +292,34 @@ function DashboardLogo() {
   if (!logoUrl) return null;
   return (
     <img
-      src={logoUrl} alt="Company Logo"
+      src={logoUrl}
+      alt="Company Logo"
       style={{ maxHeight: 72, maxWidth: 280, objectFit: "contain", opacity: 0.9 }}
     />
+  );
+}
+
+/* ── reusable card shell with optional accent stripe ───── */
+
+function ThemedCard({
+  className = "",
+  interactive = false,
+  onClick,
+  children,
+}: {
+  className?: string;
+  interactive?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`themed-card ${interactive ? "is-interactive cursor-pointer" : ""} ${className}`}
+      onClick={onClick}
+    >
+      <div className="themed-card-stripe" aria-hidden />
+      {children}
+    </div>
   );
 }
 
@@ -266,7 +343,6 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    // Get user name
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         const uid = user.id;
@@ -278,7 +354,6 @@ export default function DashboardPage() {
       }
     });
 
-    // Fetch all dashboard data
     supabase
       .from("company_updates")
       .select("*")
@@ -331,7 +406,7 @@ export default function DashboardPage() {
             );
         }
       });
-  }, []);
+  }, [supabase]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -353,43 +428,53 @@ export default function DashboardPage() {
 
   /* ── panel content map ──────────────────────────────── */
 
-  const panels: Record<string, (dragProps: { listeners: Record<string, Function> | undefined; attributes: Record<string, unknown> }) => React.ReactNode> = {
+  const panels: Record<
+    string,
+    (dragProps: {
+      listeners: Record<string, Function> | undefined;
+      attributes: Record<string, unknown>;
+    }) => React.ReactNode
+  > = {
     "company-updates": ({ listeners, attributes }) => (
       <section>
         <div className="flex items-center gap-2 mb-3">
           <DragHandle listeners={listeners} attributes={attributes} />
-          <h2 className="text-lg font-semibold">Company Updates</h2>
+          <h2
+            className="text-lg font-semibold"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Company <span className="themed-accent">Updates</span>
+          </h2>
         </div>
         {updates.length === 0 ? (
-          <div
-            className="rounded-xl p-8 text-center"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-          >
-            <p style={{ color: "var(--text-secondary)" }}>No updates right now.</p>
-          </div>
+          <ThemedCard className="p-8 text-center">
+            <p style={{ color: "var(--text-dim)" }}>No updates right now.</p>
+          </ThemedCard>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {updates.map((u) => (
-              <div
+              <ThemedCard
                 key={u.id}
-                className="rounded-xl p-5 flex flex-col gap-3 cursor-pointer transition-colors hover:brightness-110"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)",
-                }}
+                interactive
                 onClick={() =>
                   setExpandedUpdate(expandedUpdate === u.id ? null : u.id)
                 }
+                className="p-5 flex flex-col gap-3"
               >
                 <div className="flex items-center justify-between">
-                  <Badge label={u.type} colors={TYPE_COLORS[u.type]} />
-                  <Badge label={u.priority} colors={PRIORITY_COLORS[u.priority]} />
+                  <Badge label={u.type} token={TYPE_TOKEN[u.type]} />
+                  <Badge label={u.priority} token={PRIORITY_TOKEN[u.priority]} />
                 </div>
-                <h3 className="font-semibold text-[15px] leading-snug">{u.title}</h3>
+                <h3
+                  className="font-semibold text-[15px] leading-snug"
+                  style={{ color: "var(--text)" }}
+                >
+                  {u.title}
+                </h3>
                 <p
                   className="text-sm leading-relaxed"
                   style={{
-                    color: "var(--text-secondary)",
+                    color: "var(--text-dim)",
                     display: "-webkit-box",
                     WebkitLineClamp: expandedUpdate === u.id ? 999 : 3,
                     WebkitBoxOrient: "vertical",
@@ -399,18 +484,19 @@ export default function DashboardPage() {
                   {u.content}
                 </p>
                 {expandedUpdate !== u.id && u.content.length > 120 && (
-                  <span className="text-xs" style={{ color: "var(--accent)" }}>
-                    Read More ↓
-                  </span>
+                  <span className="text-xs themed-accent">Read More ↓</span>
                 )}
                 <div
                   className="flex items-center justify-between text-xs mt-auto pt-2"
-                  style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border-color)" }}
+                  style={{
+                    color: "var(--text-faint)",
+                    borderTop: "1px solid var(--border)",
+                  }}
                 >
                   <span>By {u.author_name ?? "Unknown"}</span>
                   <span>{formatDate(u.published_at ?? u.created_at)}</span>
                 </div>
-              </div>
+              </ThemedCard>
             ))}
           </div>
         )}
@@ -422,25 +508,26 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <DragHandle listeners={listeners} attributes={attributes} />
-            <h2 className="text-lg font-semibold">Quick Access</h2>
+            <h2
+              className="text-lg font-semibold"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Quick <span className="themed-accent">Access</span>
+            </h2>
           </div>
           <a
             href="/dashboard/applications"
-            className="text-sm transition-colors hover:underline"
-            style={{ color: "var(--accent)" }}
+            className="text-sm transition-colors hover:underline themed-accent"
           >
             View All →
           </a>
         </div>
-        <div
-          className="rounded-xl p-6"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-        >
+        <ThemedCard className="p-6">
           {apps.length === 0 ? (
             <div className="text-center py-4">
-              <p style={{ color: "var(--text-secondary)" }}>
+              <p style={{ color: "var(--text-dim)" }}>
                 No pinned apps yet.{" "}
-                <a href="/dashboard/applications" style={{ color: "var(--accent)" }}>
+                <a href="/dashboard/applications" className="themed-accent">
                   Browse the App Vault →
                 </a>
               </p>
@@ -460,7 +547,7 @@ export default function DashboardPage() {
                   </div>
                   <span
                     className="text-xs text-center max-w-[80px] truncate"
-                    style={{ color: "var(--text-secondary)" }}
+                    style={{ color: "var(--text-dim)" }}
                   >
                     {app.name}
                   </span>
@@ -468,32 +555,44 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+        </ThemedCard>
       </section>
     ),
 
     "bottom-row": ({ listeners, attributes }) => (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* My Action Items */}
-        <div
-          className="rounded-xl p-5 flex flex-col"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-        >
+        <ThemedCard className="p-5 flex flex-col">
           <div className="flex items-center gap-2 mb-4">
             <DragHandle listeners={listeners} attributes={attributes} />
-            <h2 className="text-lg font-semibold">My Action Items</h2>
+            <h2
+              className="text-lg font-semibold"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              My Action <span className="themed-accent">Items</span>
+            </h2>
           </div>
           {actionItems.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-8 gap-2">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-faint)"
+                strokeWidth="1.5"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-sm font-medium"
+                style={{ color: "var(--text-dim)" }}
+              >
                 No action items
               </p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                You're all caught up!
+              <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+                You&apos;re all caught up!
               </p>
             </div>
           ) : (
@@ -502,27 +601,48 @@ export default function DashboardPage() {
                 <div
                   key={item.id}
                   className="rounded-lg p-3 flex items-start gap-3"
-                  style={{ background: "var(--bg-surface)" }}
+                  style={{ background: "var(--pad-elev)" }}
                 >
                   <div
-                    className="w-5 h-5 rounded border-2 shrink-0 mt-0.5 cursor-pointer transition-colors hover:border-[var(--accent)]"
-                    style={{ borderColor: "var(--border-color)" }}
+                    className="w-5 h-5 rounded shrink-0 mt-0.5 cursor-pointer transition-colors"
+                    style={{
+                      borderWidth: "2px",
+                      borderStyle: "solid",
+                      borderColor: "var(--border)",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.borderColor = "var(--accent)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.borderColor = "var(--border)")
+                    }
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.title}</p>
+                    <p
+                      className="text-sm font-medium truncate"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {item.title}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge
                         label={item.priority}
-                        colors={PRIORITY_COLORS[item.priority]}
+                        token={PRIORITY_TOKEN[item.priority]}
                       />
                       {item.due_date && (
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        <span
+                          className="text-[11px]"
+                          style={{ color: "var(--text-faint)" }}
+                        >
                           Due {formatDate(item.due_date)}
                         </span>
                       )}
                     </div>
                     {item.assigned_by_name && (
-                      <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                      <p
+                        className="text-[11px] mt-1"
+                        style={{ color: "var(--text-faint)" }}
+                      >
                         From: {item.assigned_by_name}
                       </p>
                     )}
@@ -531,74 +651,118 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+        </ThemedCard>
 
         {/* Leaderboard */}
-        <div
-          className="rounded-xl p-5 flex flex-col"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-        >
-          <h2 className="text-lg font-semibold mb-1">Leaderboard</h2>
-          <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+        <ThemedCard className="p-5 flex flex-col">
+          <h2
+            className="text-lg font-semibold mb-1"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            <span className="themed-accent">Leaderboard</span>
+          </h2>
+          <p
+            className="text-xs mb-4"
+            style={{ color: "var(--text-faint)" }}
+          >
             {leaderboardMetric}
           </p>
           {leaderboard.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-8 gap-2">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-faint)"
+                strokeWidth="1.5"
+              >
                 <path d="M8 21h8M12 17v4M17 3H7a2 2 0 0 0-2 2v4a7 7 0 0 0 14 0V5a2 2 0 0 0-2-2Z" />
               </svg>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-sm font-medium"
+                style={{ color: "var(--text-dim)" }}
+              >
                 No rankings yet
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {leaderboard.map((entry, i) => {
-                const medals = ["🥇", "🥈", "🥉"];
-                return (
-                  <div
-                    key={entry.id}
-                    className="rounded-lg px-4 py-3 flex items-center justify-between"
-                    style={{
-                      background: i === 0 ? "rgba(250, 204, 21, 0.08)" : "var(--bg-surface)",
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-base w-6 text-center">
-                        {i < 3 ? medals[i] : <span style={{ color: "var(--text-muted)" }}>{entry.rank}</span>}
-                      </span>
-                      <span className="text-sm font-medium">{entry.user_name}</span>
-                    </div>
+              {leaderboard.map((entry, i) => (
+                <div
+                  key={entry.id}
+                  className="rounded-lg px-4 py-3 flex items-center justify-between"
+                  style={{
+                    background:
+                      i === 0
+                        ? "color-mix(in srgb, var(--amber) 12%, transparent)"
+                        : "var(--pad-elev)",
+                    border:
+                      i === 0
+                        ? "1px solid color-mix(in srgb, var(--amber) 35%, transparent)"
+                        : "1px solid transparent",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 flex items-center justify-center">
+                      {i < 3 ? (
+                        <Medal rank={i} />
+                      ) : (
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-faint)" }}
+                        >
+                          {entry.rank}
+                        </span>
+                      )}
+                    </span>
                     <span
-                      className="text-sm font-semibold"
-                      style={{ color: "var(--accent)" }}
+                      className="text-sm font-medium"
+                      style={{ color: "var(--text)" }}
                     >
-                      ${entry.value.toLocaleString()}
+                      {entry.user_name}
                     </span>
                   </div>
-                );
-              })}
+                  <span
+                    className="text-sm font-semibold themed-accent"
+                  >
+                    ${entry.value.toLocaleString()}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </ThemedCard>
 
         {/* Recent Notifications */}
-        <div
-          className="rounded-xl p-5 flex flex-col"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
-        >
-          <h2 className="text-lg font-semibold mb-4">Recent Notifications</h2>
+        <ThemedCard className="p-5 flex flex-col">
+          <h2
+            className="text-lg font-semibold mb-4"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Recent <span className="themed-accent">Notifications</span>
+          </h2>
           {notifications.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-8 gap-2">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-faint)"
+                strokeWidth="1.5"
+              >
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              <p
+                className="text-sm font-medium"
+                style={{ color: "var(--text-dim)" }}
+              >
                 No new notifications
               </p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                You're all caught up!
+              <p className="text-xs" style={{ color: "var(--text-faint)" }}>
+                You&apos;re all caught up!
               </p>
             </div>
           ) : (
@@ -607,29 +771,40 @@ export default function DashboardPage() {
                 <div
                   key={n.id}
                   className="rounded-lg p-3 flex items-start gap-3"
-                  style={{ background: "var(--bg-surface)" }}
+                  style={{ background: "var(--pad-elev)" }}
                 >
                   <div
                     className="w-2 h-2 rounded-full shrink-0 mt-1.5"
-                    style={{ background: NOTIF_COLORS[n.type] }}
+                    style={{ background: `var(${NOTIF_TOKEN[n.type]})` }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{n.title}</p>
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {n.title}
+                    </p>
                     {n.message && (
                       <p
                         className="text-xs mt-0.5 line-clamp-2"
-                        style={{ color: "var(--text-secondary)" }}
+                        style={{ color: "var(--text-dim)" }}
                       >
                         {n.message}
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5">
                       {n.sender_name && (
-                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        <span
+                          className="text-[11px]"
+                          style={{ color: "var(--text-faint)" }}
+                        >
                           {n.sender_name}
                         </span>
                       )}
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      <span
+                        className="text-[11px]"
+                        style={{ color: "var(--text-faint)" }}
+                      >
                         {timeAgo(n.created_at)}
                       </span>
                     </div>
@@ -640,12 +815,11 @@ export default function DashboardPage() {
           )}
           <a
             href="/dashboard/dashboard-admin"
-            className="text-xs mt-4 text-center block transition-colors hover:underline"
-            style={{ color: "var(--accent)" }}
+            className="text-xs mt-4 text-center block transition-colors hover:underline themed-accent"
           >
             View All Notifications →
           </a>
-        </div>
+        </ThemedCard>
       </div>
     ),
   };
@@ -653,13 +827,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* ── Welcome Header (fixed, not draggable) ──────── */}
-      <div
-        className="rounded-xl p-6"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-      >
+      <ThemedCard className="p-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold">Welcome back, {firstName}</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          <h1
+            className="text-4xl font-extrabold tracking-tight"
+            style={{ fontFamily: "var(--font-display)", color: "var(--text)" }}
+          >
+            Welcome back,{" "}
+            <span className="themed-accent">{firstName}</span>
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-dim)" }}>
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
@@ -669,7 +846,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <DashboardLogo />
-      </div>
+      </ThemedCard>
 
       {/* ── Draggable Panels ───────────────────────────── */}
       <DndContext
@@ -677,7 +854,10 @@ export default function DashboardPage() {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={panelOrder} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={panelOrder}
+          strategy={verticalListSortingStrategy}
+        >
           <div className="space-y-6">
             {panelOrder.map((panelId) => (
               <SortablePanel key={panelId} id={panelId}>
