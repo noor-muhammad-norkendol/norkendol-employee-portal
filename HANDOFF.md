@@ -385,14 +385,13 @@ src/
 
 ## Next Session: CRM Phase 1 Step 5 (claim_id FKs on the seven spokes)
 
-Steps 1, 2, 3, and 4 of CRM Phase 1 all closed on 2026-04-27. Next up:
+Steps 1, 2, 3, 4 of CRM Phase 1 plus the canonical `file_number` sweep all closed across 2026-04-27 / early 2026-04-28. Next up:
 
-- **Step 5 — Add `claim_id` FK on each of the seven spokes:** `onboarding_clients`, `estimates`, `litigation_files`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records`. Each gets a nullable `claim_id uuid REFERENCES claims(id) ON DELETE SET NULL`. After the column lands, link the existing rows: estimates' 6 rows all → the single `AL-123456` claims row.
+- **Step 5 — Add `claim_id` FK on each of the seven spokes:** `onboarding_clients`, `estimates`, `litigation_files`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records`. Each gets a nullable `claim_id uuid REFERENCES claims(id) ON DELETE SET NULL`. After the column lands, link existing rows (estimates' 6 rows all → the single `AL-123456` claims row).
+- **Pair with backfill:** while we're touching pa_settlements / mediations / appraisals, also UPDATE the new `file_number` column on each of them from `litigation_files.file_number` via the existing `litigation_file_id` FK.
 - **`mediations` and `appraisals` heads-up:** these tables exist in the live DB but have NO migration files (created via dashboard). Step 5's `ALTER TABLE` will work either way, but worth capturing their definitions in the migrations folder during a future cleanup pass.
 
 After Step 5: Step 6 reworks `useClaimLookup` to scope queries via the new FK. Step 7 tightens RLS on the seven spokes (replaces remaining `USING (true)` permissive policies with real personnel-mediated predicates). Steps 8–9 wrap the access model rollout.
-
-The bigger picture: Step 5 adds `claim_id` FKs to the seven spokes (with the `mediations` / `appraisals` untracked-schema heads-up captured in HANDOFF + Step 1 session entry). Step 6 reworks `useClaimLookup` to scope queries. Step 7 tightens RLS to use `claim_personnel`. Steps 8–9 finish the access model rollout.
 
 See `.planning/CRM-PLAN.md` for the full phase plan and Decision Log.
 
@@ -926,6 +925,34 @@ New feature: lets each tenant customize the portal's look and feel during onboar
 - The 2 onboarding_clients rows in dev are NOT eligible for backfill yet (neither is `status = 'completed'`). They'll get `claims` rows naturally via Step 12's "Onboarder KPI completion → claim record creation hook."
 - One data quality observation: `loss_state` came across as lowercase (`fl` instead of `FL`). Not a bug, but worth normalizing in app code at some point.
 - The `mediations` and `appraisals` untracked-schema heads-up still applies for Step 5.
+
+---
+
+### Session — April 28, 2026 (early hours, continuation of Apr 27) — Canonical file_number sweep
+
+**Frank's directive that drove the sweep:** "everything that's on your onboarding KPI needs to be the same in each of these systems when you add something." Locked the canonical-vocabulary rule across the CRM: `file_number`, `claim_number`, `policy_number`, `client_name`, `loss_address` are the five required identifiers across every spoke. No synonyms in code, no per-table renames.
+
+**What landed in the live DB (`hkscsovtejeedjebytsv`):**
+- `claim_health_records.claim_id` (text) renamed to `file_number` — it was always semantically a file_number, just misnamed since the table was created.
+- `pa_settlements`, `mediations`, `appraisals` each got a new `file_number text` column added (nullable; backfill from `litigation_files.file_number` via the existing `litigation_file_id` FK is a follow-up that pairs with Step 5).
+- After: **all 7 CRM spokes carry `file_number` directly** — `onboarding_clients`, `estimates`, `litigation_files`, `pa_settlements`, `mediations`, `appraisals`, `claim_health_records`.
+
+**Code sweep — 13 references updated across 4 files:**
+- `src/types/claim-health.ts` (2 interface fields: `ClaimHealthRecord` + `CreateClaimHealthInput`)
+- `src/hooks/useClaimLookup.ts` (`normalizeClaimHealth` reads `row.file_number` and maps to `file_number` in the output, fixing both the column name AND the previously-wrong mapping to `claim_number`; CHR search-field branch now searches `file_number` instead of `claim_id`)
+- `src/hooks/settlement-tracker/useLitigationFiles.ts` (auto-CHR-row creation when a litigation file is settled)
+- `src/app/dashboard/claim-health/page.tsx` (form state, table column header, edit handler, lookup-field state + handlers, 2 UI labels). Placeholder also updated from `"CL-2026-0001"` → `"FL-12345-2026"` to match the actual file_number format.
+
+**Migration file:** `supabase/migrations/20260428_canonical_file_number_sweep.sql` captures all four DDL changes for repo parity.
+
+**New memory entries (durable feedback for future sessions):**
+- `feedback_cross_spoke_consistency.md` — "everything on `onboarding_clients` should be on the others"
+- `feedback_canonical_vocabulary.md` — the five locked column names
+
+**Known follow-ups (not tonight, paired with Step 5):**
+- Backfill the new `file_number` columns on `pa_settlements` / `mediations` / `appraisals` from `litigation_files.file_number` via `litigation_file_id` JOIN.
+- The other 4 canonical columns (`claim_number`, `policy_number`, `client_name`, `loss_address`) have known gaps on `pa_settlements` / `mediations` / `appraisals` (none of them carried) and on `litigation_files` (missing `claim_number`). Separate sweep when time allows.
+- Minor: `litigation_files.state` is `character varying` not `text` — non-breaking type drift, worth normalizing eventually.
 
 ---
 

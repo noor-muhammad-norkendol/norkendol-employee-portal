@@ -5,7 +5,7 @@ export interface ClaimHealthRecord {
   org_id: string;
   adjuster_id: string;
   adjuster_name: string;
-  claim_id: string;
+  file_number: string;
   client_name: string;
   referral_source: string;
   referral_representative: string;
@@ -27,7 +27,7 @@ export interface ClaimHealthRecord {
 }
 
 export interface CreateClaimHealthInput {
-  claim_id: string;
+  file_number: string;
   client_name: string;
   referral_source: string;
   referral_representative: string;

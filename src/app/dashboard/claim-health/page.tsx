@@ -10,7 +10,7 @@ import { CreateClaimHealthInput, ClaimHealthRecord, STATUS_AT_INTAKE_OPTIONS, RO
 import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline, thStyle, tdStyle } from "@/lib/styles";
 
 const EMPTY_FORM: CreateClaimHealthInput = {
-  claim_id: "", client_name: "", referral_source: "", referral_representative: "",
+  file_number: "", client_name: "", referral_source: "", referral_representative: "",
   start_date: new Date().toISOString().slice(0, 10), settlement_date: null,
   starting_value: 0, final_settlement_value: null, status_at_intake: "Denied",
   is_settled: false, total_communications: 0, roof_squares: null,
@@ -41,8 +41,8 @@ export default function ClaimHealthPage() {
   const [printRecord, setPrintRecord] = useState<ClaimHealthRecord | null>(null);
 
   // Shared claim lookup
-  const [chLookupField, setChLookupField] = useState<LookupField>('claim_number');
-  const chLookupTerm = chLookupField === 'claim_number' ? form.claim_id : form.client_name;
+  const [chLookupField, setChLookupField] = useState<LookupField>('file_number');
+  const chLookupTerm = chLookupField === 'file_number' ? form.file_number : form.client_name;
   const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
     supabase, orgId: userInfo?.orgId, searchTerm: chLookupTerm, searchField: chLookupField, enabled: !editId,
   });
@@ -50,7 +50,7 @@ export default function ClaimHealthPage() {
   function handleChClaimAccept(match: ClaimLookupMatch) {
     setForm((prev) => ({
       ...prev,
-      claim_id: match.claim_number || prev.claim_id,
+      file_number: match.file_number || prev.file_number,
       client_name: match.client_name || prev.client_name,
       referral_source: match.referral_source || prev.referral_source,
       referral_representative: match.referral_representative || prev.referral_representative,
@@ -72,7 +72,7 @@ export default function ClaimHealthPage() {
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
 
   async function handleSubmit() {
-    if (!form.claim_id || !form.client_name) return;
+    if (!form.file_number || !form.client_name) return;
     if (editId) {
       await updateMut.mutateAsync({ id: editId, ...form, is_complete: true });
       setEditId(null);
@@ -85,7 +85,7 @@ export default function ClaimHealthPage() {
 
   function startEdit(r: ClaimHealthRecord) {
     setForm({
-      claim_id: r.claim_id, client_name: r.client_name,
+      file_number: r.file_number, client_name: r.client_name,
       referral_source: r.referral_source, referral_representative: r.referral_representative,
       start_date: r.start_date, settlement_date: r.settlement_date || null,
       starting_value: r.starting_value, final_settlement_value: r.final_settlement_value ?? null,
@@ -136,7 +136,7 @@ export default function ClaimHealthPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
-                      <th style={thStyle}>Claim ID</th>
+                      <th style={thStyle}>File Number</th>
                       <th style={thStyle}>Client</th>
                       <th style={thStyle}>Status</th>
                       <th style={thStyle}>Start</th>
@@ -154,7 +154,7 @@ export default function ClaimHealthPage() {
                       const m = calculateClaimMetrics(r);
                       return (
                         <tr key={r.id} style={!r.is_complete && r.source === "auto" ? { background: "rgba(251,146,60,0.08)" } : {}}>
-                          <td style={tdStyle}>{r.claim_id}</td>
+                          <td style={tdStyle}>{r.file_number}</td>
                           <td style={tdStyle}>{r.client_name}</td>
                           <td style={tdStyle}>
                             <span style={{
@@ -206,12 +206,12 @@ export default function ClaimHealthPage() {
             {/* Row 1: ID + Client */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>Claim ID</label>
-                <input style={inputStyle} value={form.claim_id} onChange={(e) => { set("claim_id", e.target.value); if (e.target.value.length >= 3) setChLookupField('claim_number'); }} placeholder="CL-2026-0001" />
+                <label style={labelStyle}>File Number</label>
+                <input style={inputStyle} value={form.file_number} onChange={(e) => { set("file_number", e.target.value); if (e.target.value.length >= 3) setChLookupField('file_number'); }} placeholder="FL-12345-2026" />
               </div>
               <div>
                 <label style={labelStyle}>Client Name</label>
-                <input style={inputStyle} value={form.client_name} onChange={(e) => { set("client_name", e.target.value); if (e.target.value.length >= 3 && !form.claim_id) setChLookupField('client_name'); }} />
+                <input style={inputStyle} value={form.client_name} onChange={(e) => { set("client_name", e.target.value); if (e.target.value.length >= 3 && !form.file_number) setChLookupField('client_name'); }} />
               </div>
             </div>
 
@@ -320,7 +320,7 @@ export default function ClaimHealthPage() {
                 </div>
 
                 <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-                  <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{r.claim_id} — {r.client_name}</p>
+                  <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{r.file_number} — {r.client_name}</p>
                   <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
                     Referral: {r.referral_source} ({r.referral_representative}) | Status: {r.is_settled ? "Settled" : "Active"}
                   </p>
@@ -380,7 +380,7 @@ export default function ClaimHealthPage() {
         return (
           <div className="print-only" style={{ display: "none", padding: 40, color: "#000", fontSize: 13 }}>
             <h1 style={{ fontSize: 20, marginBottom: 4 }}>Claim Health Report Card</h1>
-            <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{r.claim_id} — {r.client_name}</p>
+            <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{r.file_number} — {r.client_name}</p>
             <p style={{ fontSize: 11, color: "#666", marginBottom: 20 }}>
               Referral: {r.referral_source} ({r.referral_representative}) | Generated: {new Date().toLocaleDateString()}
             </p>

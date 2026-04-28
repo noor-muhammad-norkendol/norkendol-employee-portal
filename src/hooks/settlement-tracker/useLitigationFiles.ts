@@ -86,7 +86,7 @@ export function useUpdateLitigationFile() {
               org_id: userInfo.orgId,
               adjuster_id: userInfo.userId,
               adjuster_name: userInfo.fullName,
-              claim_id: data.file_number || '',
+              file_number: data.file_number || '',
               client_name: data.client_name || '',
               referral_source: data.referral_source || '',
               referral_representative: data.referral_rep || '',

@@ -97,7 +97,7 @@ function normalizeClaimHealth(row: Record<string, unknown>): ClaimLookupMatch {
   return {
     source_table: 'claim_health_records',
     source_id: row.id as string,
-    claim_number: row.claim_id as string | null,
+    file_number: row.file_number as string | null,
     client_name: row.client_name as string | null,
     referral_source: row.referral_source as string | null,
     referral_representative: row.referral_representative as string | null,
@@ -170,11 +170,11 @@ export function useClaimLookup({ supabase, orgId, searchTerm, searchField, enabl
       // 4. claim_health_records
       try {
         let q = supabase.from('claim_health_records').select('*').eq('org_id', orgId);
-        if (searchField === 'claim_number') q = q.eq('claim_id', searchTerm);
+        if (searchField === 'file_number') q = q.eq('file_number', searchTerm);
         else if (searchField === 'client_name') q = q.ilike('client_name', `%${searchTerm}%`);
-        else if (searchField === 'file_number' || searchField === 'address') { /* no such fields — skip */ }
+        // CHR has no claim_number or address columns — skip those searches
 
-        if (searchField === 'claim_number' || searchField === 'client_name') {
+        if (searchField === 'file_number' || searchField === 'client_name') {
           const { data } = await q.limit(5);
           if (data) results.push(...data.map(normalizeClaimHealth));
         }
