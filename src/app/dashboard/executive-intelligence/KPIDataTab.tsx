@@ -63,6 +63,22 @@ function fmtTime(iso: string): string {
   });
 }
 
+// Resolve the actual referral source for display. When the dropdown enum is
+// "Contractor", show the contractor company (or contractor name). When it's
+// anything else (named individual, "Other", etc.), show as-is.
+function resolveReferralSource(m: Record<string, unknown>): string {
+  const raw = String(m.referral_source || "").trim();
+  if (raw.toLowerCase() === "contractor") {
+    const co = String(m.contractor_company || "").trim();
+    const name = String(m.contractor_name || "").trim();
+    if (co && name) return `${co} (${name})`;
+    if (co) return co;
+    if (name) return name;
+    return "Contractor";
+  }
+  return raw || "—";
+}
+
 function getMeta<T = string>(r: KPIRow, key: string): T | null {
   const v = r.metadata?.[key];
   return v == null ? null : (v as T);
@@ -218,7 +234,7 @@ export default function KPIDataTab() {
         String(m.loss_address || ""),
         String(m.email || ""),
         String(m.onboard_type || ""),
-        String(m.referral_source || ""),
+        resolveReferralSource(m as Record<string, unknown>),
         String(m.assigned_user_name || m.assigned_pa_name || ""),
         submissionLabel,
         String(m.contract_signed_date || ""),
@@ -277,7 +293,7 @@ export default function KPIDataTab() {
         <td style={{ ...cell, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{String(m.loss_address || "—")}</td>
         <td style={cell}>{String(m.email || "—")}</td>
         <td style={cell}>{String(m.onboard_type || "—")}</td>
-        <td style={cell}>{String(m.referral_source || "—")}</td>
+        <td style={cell}>{resolveReferralSource(m)}</td>
         <td style={cell}>{String(m.assigned_user_name || m.assigned_pa_name || "—")}</td>
         <td style={{ ...cell, color: "var(--text-primary)", fontWeight: 600 }}>{submissionLabel}</td>
         <td style={cell}>{String(m.contract_signed_date || "—")}</td>
@@ -429,7 +445,7 @@ export default function KPIDataTab() {
         <td style={{ padding: "10px 12px", color: "var(--text-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{String(latest.loss_address || "—")}</td>
         <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.email || "—")}</td>
         <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.onboard_type || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.referral_source || "—")}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{resolveReferralSource(latest as Record<string, unknown>)}</td>
         <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.assigned_user_name || latest.assigned_pa_name || "—")}</td>
         <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>—</td>
         <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>—</td>
