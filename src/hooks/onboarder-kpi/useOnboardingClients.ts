@@ -71,19 +71,17 @@ export function useOnboardingClients(statusFilter?: OnboardingStatus) {
   const { supabase, userInfo } = useOKSupabase();
 
   return useQuery({
-    queryKey: ['onboarding-clients', userInfo?.orgId, userInfo?.userId, userInfo?.role, statusFilter],
+    queryKey: ['onboarding-clients', userInfo?.orgId, statusFilter],
     queryFn: async (): Promise<OnboardingClient[]> => {
       if (!userInfo) return [];
+      // Sandbox visibility: anyone with access to this page (Intake or
+      // super_admin per page-level guard) sees the entire org pool — no
+      // per-user filter. Onboarding is shared work, not owned work.
       let query = supabase
         .from('onboarding_clients')
         .select('*')
         .eq('org_id', userInfo.orgId)
         .order('created_at', { ascending: false });
-
-      const adminRoles = ['admin', 'super_admin', 'system_admin'];
-      if (!adminRoles.includes(userInfo.role)) {
-        query = query.or(`created_by_id.eq.${userInfo.userId},assigned_user_id.eq.${userInfo.userId}`);
-      }
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);

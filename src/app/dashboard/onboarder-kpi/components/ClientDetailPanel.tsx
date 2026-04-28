@@ -3,6 +3,8 @@
 import React, { useEffect, useRef } from "react";
 import { useActivityLogs } from "@/hooks/onboarder-kpi/useActivityLogs";
 import { useLogActivity } from "@/hooks/onboarder-kpi/useActivityLogs";
+import { useOnboardingSession } from "@/hooks/onboarder-kpi/useOnboardingSession";
+import { useOKSupabase } from "@/hooks/onboarder-kpi/useSupabase";
 import type { OnboardingClient, OnboardingStatus, ContactTarget } from "@/types/onboarder-kpi";
 import { STATUS_LABELS } from "@/types/onboarder-kpi";
 import StageActionChecklist from "./StageActionChecklist";
@@ -23,9 +25,22 @@ interface Props {
 const CONTACT_TARGETS: ContactTarget[] = ["insured", "contractor", "pa"];
 
 export default function ClientDetailPanel({ client, open, onClose, onEdit, onDelete, initialAction }: Props) {
+  const { supabase, userInfo } = useOKSupabase();
   const { data: activityLogs = [] } = useActivityLogs(client?.id);
   const logActivity = useLogActivity();
   const { data: paInfo } = usePALookup(client?.assigned_pa_name);
+
+  // Spoke-unique behavior: track per-user time spent on this card while it
+  // sits in this phase. Sessions auto-close on panel close, idle (>21 min),
+  // and phase change. See useOnboardingSession for the full lifecycle.
+  useOnboardingSession({
+    supabase,
+    orgId: userInfo?.orgId,
+    userId: userInfo?.userId,
+    clientId: open && client ? client.id : null,
+    phase: open && client ? client.status : null,
+    enabled: open && !!client,
+  });
   const notesRef = useRef<HTMLDivElement>(null);
   const callRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);

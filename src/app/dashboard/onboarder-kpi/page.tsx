@@ -37,6 +37,7 @@ import UrgencyBanner from "./components/UrgencyBanner";
 
 /* ───── constants ───── */
 const SIDEBAR_TO_STATUS: Record<string, OnboardingStatus | null> = {
+  "Unassigned": "unassigned",
   "New Clients": "new",
   "24hr Follow-Up": "step_2",
   "48hr Follow-Up": "step_3",
@@ -74,7 +75,7 @@ export default function OnboarderKPIPage() {
   const writeKPIs = useWriteOnboarderKPISnapshots();
 
   const [view, setView] = useState<ViewMode>("pipeline");
-  const [statusFilter, setStatusFilter] = useState<OnboardingStatus>("new");
+  const [statusFilter, setStatusFilter] = useState<OnboardingStatus>("unassigned");
   const [form, setForm] = useState<CreateClientInput>({ ...EMPTY_FORM });
   const [editId, setEditId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -508,6 +509,24 @@ export default function OnboarderKPIPage() {
 
   if (isLoading) {
     return <div style={{ padding: 40, color: "var(--text-secondary)" }}>Loading onboarding clients...</div>;
+  }
+
+  // Access guard: only Intake department or super_admin tier can view this page.
+  // Locked 2026-04-28 — onboarding is shared work between the two onboarders
+  // (Reyneil + Ardee, dept='Intake') with super_admin oversight.
+  const isOnboarder = userInfo?.department === 'Intake';
+  const isSuperAdmin = userInfo?.role === 'super_admin';
+  if (userInfo && !isOnboarder && !isSuperAdmin) {
+    return (
+      <div style={{ padding: 40, maxWidth: 600, margin: "60px auto", textAlign: "center" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>
+          Onboarder KPI is restricted
+        </h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          This page is for the Intake team and super-admin oversight. If you need access, contact a super admin to be added to the Intake department.
+        </p>
+      </div>
+    );
   }
 
   return (

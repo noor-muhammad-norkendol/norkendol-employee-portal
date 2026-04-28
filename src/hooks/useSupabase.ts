@@ -10,6 +10,7 @@ export function useSupabase() {
     email: string;
     fullName: string;
     role: string;
+    department: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export function useSupabase() {
       if (!user) return;
       const { data: profile } = await supabase
         .from('users')
-        .select('org_id, full_name, role')
+        .select('org_id, full_name, role, department')
         .eq('id', user.id)
         .single();
       if (profile) {
@@ -28,6 +29,7 @@ export function useSupabase() {
           email: user.email || '',
           fullName: profile.full_name || '',
           role: profile.role || 'user',
+          department: (profile as { department?: string | null }).department ?? null,
         });
       }
     }

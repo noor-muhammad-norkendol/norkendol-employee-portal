@@ -1,7 +1,7 @@
 // ── Status & Options ──────────────────────────────
 
 export type OnboardingStatus =
-  | 'new' | 'step_2' | 'step_3' | 'final_step' | 'on_hold'
+  | 'unassigned' | 'new' | 'step_2' | 'step_3' | 'final_step' | 'on_hold'
   | 'completed' | 'erroneous' | 'revised' | 'abandoned';
 
 export type ActivityType = 'call' | 'text' | 'email' | 'note' | 'document' | 'status_change';
@@ -15,11 +15,12 @@ export type Peril =
   | 'Wind/Hail' | 'Flood' | 'Lightning' | 'Theft' | 'Vandalism' | 'Other';
 
 export const STATUS_OPTIONS: OnboardingStatus[] = [
-  'new', 'step_2', 'step_3', 'final_step', 'on_hold',
+  'unassigned', 'new', 'step_2', 'step_3', 'final_step', 'on_hold',
   'completed', 'erroneous', 'revised', 'abandoned',
 ];
 
 export const STATUS_LABELS: Record<OnboardingStatus, string> = {
+  'unassigned': 'Unassigned',
   'new': 'Initial Contact',
   'step_2': '24hr Follow-Up',
   'step_3': '48hr Follow-Up',
@@ -92,11 +93,12 @@ export const TEMPLATE_CONTACTS: { key: string; label: string }[] = [
 
 // Allowed status transitions
 export const ALLOWED_TRANSITIONS: Record<OnboardingStatus, OnboardingStatus[]> = {
+  'unassigned': ['new', 'on_hold', 'erroneous', 'abandoned'],
   'new': ['step_2', 'on_hold', 'completed', 'erroneous'],
   'step_2': ['step_3', 'on_hold', 'completed', 'erroneous', 'revised'],
   'step_3': ['final_step', 'on_hold', 'completed', 'erroneous', 'revised'],
   'final_step': ['on_hold', 'completed', 'erroneous', 'revised'],
-  'on_hold': ['step_2', 'step_3', 'final_step', 'completed', 'erroneous', 'revised'],
+  'on_hold': ['new', 'step_2', 'step_3', 'final_step', 'completed', 'erroneous', 'revised'],
   'completed': [],
   'erroneous': ['revised'],
   'revised': ['step_2', 'step_3', 'final_step', 'completed'],

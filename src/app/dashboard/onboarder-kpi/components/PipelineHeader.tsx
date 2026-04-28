@@ -16,11 +16,12 @@ interface PipelineHeaderProps {
 }
 
 const PIPELINE_STATUSES: OnboardingStatus[] = [
-  "new", "step_2", "step_3", "final_step", "on_hold", "completed",
+  "unassigned", "new", "step_2", "step_3", "final_step", "on_hold", "completed",
 ];
 
-// Maps each stage to a semantic CSS variable. Renders correctly in all 6 cells.
+// Maps each stage to a semantic CSS variable. Renders correctly in all 7 cells.
 const STATUS_TOKEN: Record<OnboardingStatus | string, string> = {
+  unassigned: "--accent",
   new: "--info",
   step_2: "--amber",
   step_3: "--orange",
@@ -31,6 +32,11 @@ const STATUS_TOKEN: Record<OnboardingStatus | string, string> = {
 
 // Short SVG icons per stage (Heroicons-ish, 24x24 strokes)
 const STATUS_ICON: Record<string, React.ReactNode> = {
+  unassigned: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  ),
   new: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 5v14M5 12h14" />
@@ -190,8 +196,8 @@ export default function PipelineHeader({
         </div>
       </div>
 
-      {/* Stat tiles bar — 6 stages */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Stat tiles bar — 7 stages (UNASSIGNED + 6) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {PIPELINE_STATUSES.map((s) => {
           const count = pipelineCounts[s] || 0;
           const active = statusFilter === s && view === "pipeline";
