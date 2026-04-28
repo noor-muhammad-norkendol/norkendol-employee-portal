@@ -383,13 +383,14 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: CRM Phase 1 Step 4 (backfill claims from the seven spokes)
+## Next Session: CRM Phase 1 Step 5 (claim_id FKs on the seven spokes)
 
-Steps 1 (`claims`), 2 (`claim_personnel_roles` + `claim_personnel`), and 3 (department-membership shape — closed 2026-04-27 as NOOP, v1 keeps existing `users.department` string column unchanged per Decision Log) all landed/closed on 2026-04-27. Next up:
+Steps 1, 2, 3, and 4 of CRM Phase 1 all closed on 2026-04-27. Next up:
 
-- **Step 4 — Backfill `claims` from the seven spokes.** Pull existing rows from `onboarding_clients`, `litigation_files`, `estimates`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records` into `claims`. Use `AL-` prefix on legacy `file_number` (per locked decision). Carries `assigned_adjuster_id` from `onboarding_clients.assigned_user_id` for completed-intake rows; nullable for pre-Onboarder litigation files. BINGO each spoke's backfill SQL chunk-by-chunk.
+- **Step 5 — Add `claim_id` FK on each of the seven spokes:** `onboarding_clients`, `estimates`, `litigation_files`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records`. Each gets a nullable `claim_id uuid REFERENCES claims(id) ON DELETE SET NULL`. After the column lands, link the existing rows: estimates' 6 rows all → the single `AL-123456` claims row.
+- **`mediations` and `appraisals` heads-up:** these tables exist in the live DB but have NO migration files (created via dashboard). Step 5's `ALTER TABLE` will work either way, but worth capturing their definitions in the migrations folder during a future cleanup pass.
 
-**Step 4 has real design questions that need a fresh-mind session, not end-of-evening:** dedup logic when the same claim shows up in multiple spokes (e.g., a `litigation_files` row and an `onboarding_clients` row sharing a `file_number`); per-spoke `current_phase` mapping (each spoke has its own status enum that needs to fold into the unified 8-value `claims.current_phase` rollup); status filtering on `onboarding_clients` (only `status = 'completed'` rows backfill, per CRM-PLAN.md). Open the next session by drafting a backfill plan per spoke before any INSERTs.
+After Step 5: Step 6 reworks `useClaimLookup` to scope queries via the new FK. Step 7 tightens RLS on the seven spokes (replaces remaining `USING (true)` permissive policies with real personnel-mediated predicates). Steps 8–9 wrap the access model rollout.
 
 The bigger picture: Step 5 adds `claim_id` FKs to the seven spokes (with the `mediations` / `appraisals` untracked-schema heads-up captured in HANDOFF + Step 1 session entry). Step 6 reworks `useClaimLookup` to scope queries. Step 7 tightens RLS to use `claim_personnel`. Steps 8–9 finish the access model rollout.
 
@@ -904,6 +905,27 @@ New feature: lets each tenant customize the portal's look and feel during onboar
 **Schedule/Calendar integration and Matterport removed from Phase 13+** — Frank confirmed CCS won't use them.
 
 **For Step 3 / Step 4 (next session):** Phase 1 Step 3 = department-membership decision (per CRM-PLAN.md, Frank locked in "single department per user for v1; multi-department deferred" — likely lands as a no-migration decision). Phase 1 Step 4 = backfill `claims` from the seven spokes with `AL-` prefix on legacy `file_number`. Step 5 adds `claim_id` FKs to all 7 spokes (with the `mediations`/`appraisals` untracked-schema heads-up).
+
+---
+
+### Session — April 27, 2026 (very late evening) — CRM Phase 1 Step 4 (backfill)
+
+**First data migration of the CRM build.** Backfilled `claims` from the seven spokes per Step 4 of the Phase 1 plan. Result: **6 estimates rows → 1 canonical `claims` row** (the other six spokes had zero rows in dev — empty no-ops).
+
+**What landed in the live DB (`hkscsovtejeedjebytsv`):**
+- `claims` table now has 1 row (was empty post-Step-1 cleanup) — file_number `AL-123456`, `is_legacy = true`, `current_phase = 'Estimating'` (derived from the latest estimate revision's status).
+- Dedup via `DISTINCT ON (file_number) ORDER BY revision_number DESC, created_at DESC` — picks the latest revision per claim. The 5 historical revisions stay in `estimates` and will get linked via `claim_id` FK in Step 5.
+
+**Migration file:** `supabase/migrations/20260427_crm_phase1_step4_backfill_estimates_to_claims.sql` captures the INSERT we ran.
+
+**Decisions logged in CRM-PLAN.md (this session):**
+- Option B for `current_phase` derivation: `closed`/`settled` → `'Closed'` (with `closed_at` populated); else `'Estimating'`.
+- DISTINCT ON pattern for any spoke with revision/parent linking — latest wins.
+
+**Notes for future:**
+- The 2 onboarding_clients rows in dev are NOT eligible for backfill yet (neither is `status = 'completed'`). They'll get `claims` rows naturally via Step 12's "Onboarder KPI completion → claim record creation hook."
+- One data quality observation: `loss_state` came across as lowercase (`fl` instead of `FL`). Not a bug, but worth normalizing in app code at some point.
+- The `mediations` and `appraisals` untracked-schema heads-up still applies for Step 5.
 
 ---
 
