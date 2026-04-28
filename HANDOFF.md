@@ -383,16 +383,14 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: CRM Phase 1 Step 2 (`claim_personnel`)
+## Next Session: CRM Phase 1 Steps 3 + 4 (department decision + backfill)
 
-The keystone CRM phase continues. Step 1 (canonical `claims` table) landed on 2026-04-27. Step 2 = `claim_personnel` — the m2m linking claims to the people working them, supporting BOTH internal users and external TPN contacts.
+Steps 1 (`claims` table) and 2 (`claim_personnel_roles` + `claim_personnel`) both landed on 2026-04-27. Next up:
 
-**Before drafting Step 2 SQL chunks, read:**
-- `src/app/dashboard/user-management/page.tsx` (permissions, user_type, role hierarchy)
-- `src/app/dashboard/talent-partner-network/page.tsx` + `src/components/tpn/*`
-- The 6 TPN migrations: `supabase/migrations/20260404_tpn_*.sql`
+- **Step 3 — Department membership decision.** Per CRM-PLAN.md decision log (2026-04-27): single department per user for v1, multi-department deferred. Likely a no-migration decision unless something surfaces.
+- **Step 4 — Backfill `claims` from the seven spokes.** Pull existing rows from `onboarding_clients`, `litigation_files`, `estimates`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records` into `claims`. Use `AL-` prefix on legacy `file_number` (per locked decision). Carries `assigned_adjuster_id` from `onboarding_clients.assigned_user_id` for completed-intake rows; nullable for pre-Onboarder litigation files. BINGO each spoke's backfill SQL chunk-by-chunk.
 
-**Schema must accommodate** internal users (FK to `users.id`) OR external TPN contacts (FK to `external_contacts.id`), with a CHECK enforcing exactly one is non-null. Plus `role`, `fee_pct`, `has_visible_access`, `added_at` / `added_by`, `removed_at` / `removed_by` / `removal_reason`.
+The bigger picture: Step 5 adds `claim_id` FKs to the seven spokes (with the `mediations` / `appraisals` untracked-schema heads-up captured in HANDOFF + Step 1 session entry). Step 6 reworks `useClaimLookup` to scope queries. Step 7 tightens RLS to use `claim_personnel`. Steps 8–9 finish the access model rollout.
 
 See `.planning/CRM-PLAN.md` for the full phase plan and Decision Log.
 
@@ -881,6 +879,30 @@ New feature: lets each tenant customize the portal's look and feel during onboar
 **Planning docs:** `.planning/CRM-PLAN.md`, `.planning/CW-LEARNINGS.md`, `.planning/OLD-REPO-AUDIT.md`, `.planning/HANDOFF-NEXT-SESSION.md`. All 8 architecture questions resolved before this migration. CRM-PLAN decision log + Phase 1 outline updated to reflect Step 1 ✅ DONE.
 
 **Heads-up for whoever picks up Step 5 later:** `mediations` and `appraisals` tables exist in the live DB (queried by `useMediations.ts` and `useAppraisals.ts`) but have NO migration files. They were created directly in the dashboard. Step 5 will `ALTER TABLE` them anyway, but worth capturing their definitions in the migrations folder during a future cleanup pass.
+
+---
+
+### Session — April 27, 2026 (later evening) — CRM Phase 1 Step 2 (claim_personnel + roles lookup)
+
+**The people side of the CRM hub-and-spoke.** Built two tables: `claim_personnel_roles` (admin-editable role lookup, 23 starter roles seeded) and `claim_personnel` (m2m linking claims to people, polymorphic over internal users + external TPN contacts).
+
+**What landed in the live DB (`hkscsovtejeedjebytsv`):**
+- `claim_personnel_roles` — 9 columns + id, 5 indexes (3 explicit + auto PK + auto unique-per-org-name), 5 RLS policies (admin all + active-internal SELECT + admin INSERT/UPDATE/DELETE), seeded with 23 roles (13 internal, 7 external, 3 either).
+- `claim_personnel` — 16 columns + id, 7 indexes (6 explicit + auto PK), 6 RLS policies, polymorphic `claim_personnel_person_xor` CHECK enforcing exactly-one of (`user_id`, `external_contact_id`).
+- Cascade on `claim_id → claims` confirmed working (test claim deleted → personnel row auto-removed).
+
+**Migration file:** `supabase/migrations/20260427_crm_phase1_step2_personnel_and_roles.sql` captures every statement applied via the dashboard SQL editor today, in run order.
+
+**Smoke-tested:**
+- Valid insert (user_id only) succeeded.
+- Invalid insert (both polymorphic columns null) failed with error code `23514` on constraint `claim_personnel_person_xor` — exactly as designed.
+- Cleanup via DELETE on parent claim cascaded to personnel row.
+
+**Approach C / lookup table chosen** because hardcoded role lists are why ClaimWizard mislabels Warren Harbin on the Wetzel claim. Roles editable from day 1; admin UI deferred to Phase 13+. Decision and rationale logged in `.planning/CRM-PLAN.md` Decision Log.
+
+**Schedule/Calendar integration and Matterport removed from Phase 13+** — Frank confirmed CCS won't use them.
+
+**For Step 3 / Step 4 (next session):** Phase 1 Step 3 = department-membership decision (per CRM-PLAN.md, Frank locked in "single department per user for v1; multi-department deferred" — likely lands as a no-migration decision). Phase 1 Step 4 = backfill `claims` from the seven spokes with `AL-` prefix on legacy `file_number`. Step 5 adds `claim_id` FKs to all 7 spokes (with the `mediations`/`appraisals` untracked-schema heads-up).
 
 ---
 

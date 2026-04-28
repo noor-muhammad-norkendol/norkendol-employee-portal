@@ -223,7 +223,7 @@ Each phase is **multiple sessions**, each session is a **BINGO'd chunk**. We nev
 The keystone phase. Nothing else makes sense until this lands.
 
 1. ✅ **DONE 2026-04-27** — Create `claims` table (canonical per-claim record). Applied to live DB (`hkscsovtejeedjebytsv`) via Supabase dashboard SQL editor; captured in `supabase/migrations/20260427_crm_phase1_claims_table.sql`. RLS tightened from day 1 (see Decision Log).
-2. Create `claim_personnel` (m2m: `claim_id × user_id × role × fee_pct × has_visible_access × added_at × added_by`) — must accommodate BOTH internal users (FK to `users.id`) AND external TPN contacts (FK to `external_contacts.id`), with a CHECK enforcing exactly one is non-null
+2. ✅ **DONE 2026-04-27** — Create `claim_personnel_roles` (admin-editable lookup, 23 starter roles seeded) + `claim_personnel` (m2m with polymorphic `user_id` / `external_contact_id` and exactly-one CHECK). Applied to live DB (`hkscsovtejeedjebytsv`) via Supabase dashboard SQL editor; captured in `supabase/migrations/20260427_crm_phase1_step2_personnel_and_roles.sql`. RLS enabled on both tables.
 3. Create `team_memberships` for departmental access (or decide on `users.team_codes` array — Frank to pick)
 4. Backfill: every existing `litigation_files` row gets a corresponding `claims` row; same for `onboarding_clients` where status=completed; same for `estimates`, `claim_health_records`
 5. Add `claim_id` foreign keys on existing tables (nullable initially; non-null after backfill)
@@ -324,7 +324,9 @@ The original lookup question that started this whole thread.
 
 ### Phase 13+ — Polish, edge cases, performance
 
-Schedule integration with Calendar module, Matterport (low priority), Diary, Watch, Update Claim modal, Edit Client / Edit Property modals, Print Settlement, etc.
+Diary, Watch, Update Claim modal, Edit Client / Edit Property modals, Print Settlement, etc.
+
+**Admin UI for managing `claim_personnel_roles`** — add / rename / activate / deactivate / reorder. Until this ships, role management is via Supabase dashboard (admin runs INSERT/UPDATE on `claim_personnel_roles` directly). Per the 2026-04-27 Approach C decision.
 
 ---
 
@@ -360,6 +362,8 @@ Schedule integration with Calendar module, Matterport (low priority), Diary, Wat
 | 2026-04-27 | **`crm_assignable` switch in User Management is a placeholder, not wired up yet** | The column exists in the permissions table and the toggle is rendered in the UI, but no code currently uses it (because the CRM doesn't exist yet). Phase 1 makes the switch real by wiring it as the gate for `claim_personnel` row creation. |
 | 2026-04-27 | **Phase 1 Step 1 applied to live DB (`hkscsovtejeedjebytsv`).** `claims` table created via Supabase dashboard SQL editor; captured in `supabase/migrations/20260427_crm_phase1_claims_table.sql`. | RLS tightened from day 1 — admins see all org claims; non-admin internal users see only claims where `assigned_adjuster_id = auth.uid()`; external partners get NO access until Step 7. Reasoning: Steps 1–7 spread across multiple sessions, so the permissive Step-1-to-Step-7 window isn't acceptable. Step 7 will broaden non-admin internal access to also include claims they're attached to via `claim_personnel` with `has_visible_access = true`. |
 | 2026-04-27 | **Clients and Properties get their own tables in a future phase (phase number TBD).** | v1 keeps `client_name`, `loss_address`, and the structured `loss_*` parts as flat text on `claims`. Real `clients` and `properties` tables will land when the system needs them; backfilling from the flat fields is a non-breaking change at that time. Doc gap acknowledged: this isn't called out as a phase in the build-phase list above — pencil it in when the right slot is clear. |
+| 2026-04-27 | **Approach C chosen for the role list — separate `claim_personnel_roles` lookup table.** Roles fully editable by admin via Supabase dashboard today; future admin UI deferred (Phase 13+). | Hardcoded role lists are exactly why ClaimWizard mislabels Warren Harbin (he's a Regional President; CW labels him "Adjuster Supervisor" because the firm can't edit the list). Norkendol does not replicate that limitation. Adding a new role = INSERT a row, no migration. |
+| 2026-04-27 | **Public Adjuster role is `kind=either`.** Internal CCS staff PAs use this role label (the only path used in practice today). External outside-firm PAs via TPN can also use this role if it ever happens. | CCS has never run a claim with an outside (TPN) Public Adjuster, but the role accommodates that future case without forcing a choice today. The polymorphic `claim_personnel.user_id` vs `external_contact_id` distinguishes which kind on a given row. |
 
 ---
 
