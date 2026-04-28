@@ -383,7 +383,22 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: Settlement Tracker — Wiring + Polish
+## Next Session: CRM Phase 1 Step 2 (`claim_personnel`)
+
+The keystone CRM phase continues. Step 1 (canonical `claims` table) landed on 2026-04-27. Step 2 = `claim_personnel` — the m2m linking claims to the people working them, supporting BOTH internal users and external TPN contacts.
+
+**Before drafting Step 2 SQL chunks, read:**
+- `src/app/dashboard/user-management/page.tsx` (permissions, user_type, role hierarchy)
+- `src/app/dashboard/talent-partner-network/page.tsx` + `src/components/tpn/*`
+- The 6 TPN migrations: `supabase/migrations/20260404_tpn_*.sql`
+
+**Schema must accommodate** internal users (FK to `users.id`) OR external TPN contacts (FK to `external_contacts.id`), with a CHECK enforcing exactly one is non-null. Plus `role`, `fee_pct`, `has_visible_access`, `added_at` / `added_by`, `removed_at` / `removed_by` / `removal_reason`.
+
+See `.planning/CRM-PLAN.md` for the full phase plan and Decision Log.
+
+---
+
+## Parallel track: Settlement Tracker — Wiring + Polish (still open)
 
 ### What's done (Sessions 18-20):
 - **Data layer:** 14 DB tables, 7 type files, 11 hook files
@@ -846,6 +861,26 @@ New feature: lets each tenant customize the portal's look and feel during onboar
 - `SIMPLIFY-20260418.md`
 
 **Commits:** `357c726` through `5a44443` — all pushed to staging
+
+---
+
+### Session — April 27, 2026 (evening) — CRM Phase 1 Step 1 (claims table)
+
+**The keystone migration of the CRM build.** Created the canonical `claims` table — the per-claim record that ties Onboarder KPI, Estimator KPI, Settlement Tracker, Claim Health, etc. together. Hub of the CRM hub-and-spoke architecture per `.planning/CRM-PLAN.md`.
+
+**What landed in the live DB (`hkscsovtejeedjebytsv`):**
+- `claims` table with 28 data columns + `id`
+- 7 explicit indexes + auto-PK + auto-UNIQUE (9 total)
+- 7 constraints: 1 PK, 1 UNIQUE (`org_id, file_number`), 2 CHECK (peril, current_phase), 3 FK (org → CASCADE, both user FKs → SET NULL)
+- RLS enabled with 6 policies — admins see all org claims; non-admin internal users see only claims where they're the `assigned_adjuster_id`; external partners get NO access until Step 7
+
+**Migration file:** `supabase/migrations/20260427_crm_phase1_claims_table.sql` captures every statement applied via the dashboard SQL editor today, in run order.
+
+**Smoke-tested:** insert / select / delete a `TEST-00001-2026` row succeeded. Unique-per-org constraint validated as a side bonus when an accidental double-Run hit the constraint cleanly.
+
+**Planning docs:** `.planning/CRM-PLAN.md`, `.planning/CW-LEARNINGS.md`, `.planning/OLD-REPO-AUDIT.md`, `.planning/HANDOFF-NEXT-SESSION.md`. All 8 architecture questions resolved before this migration. CRM-PLAN decision log + Phase 1 outline updated to reflect Step 1 ✅ DONE.
+
+**Heads-up for whoever picks up Step 5 later:** `mediations` and `appraisals` tables exist in the live DB (queried by `useMediations.ts` and `useAppraisals.ts`) but have NO migration files. They were created directly in the dashboard. Step 5 will `ALTER TABLE` them anyway, but worth capturing their definitions in the migrations folder during a future cleanup pass.
 
 ---
 
