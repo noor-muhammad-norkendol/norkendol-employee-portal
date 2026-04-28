@@ -88,7 +88,7 @@ export async function publishKPIEvent(
   try {
     const { error } = await supabase.from('kpi_snapshots').insert({
       org_id: orgId,
-      source_module: 'onboarding',
+      source_module: 'onboarder_kpi',
       metric_key: metricKey,
       metric_value: metricValue,
       metric_unit: metricUnit,

@@ -33,9 +33,10 @@ const SUBMISSION_LABEL: Record<string, string> = {
   time_in_phase: "Time in Phase",
 };
 
-type GroupBy = "none" | "client_name" | "user_name" | "referral_source" | "assigned_user_name";
+type GroupBy = "none" | "file_number" | "client_name" | "user_name" | "referral_source" | "assigned_user_name";
 
 const GROUP_OPTIONS: { key: GroupBy; label: string }[] = [
+  { key: "file_number", label: "File Number" },
   { key: "none", label: "None (flat)" },
   { key: "client_name", label: "Insured Name" },
   { key: "user_name", label: "Onboarder" },
@@ -97,11 +98,11 @@ export default function KPIDataTab() {
   const defaultStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
   const [dateStart, setDateStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [dateEnd, setDateEnd] = useState<string>(today.toISOString().slice(0, 10));
-  const [moduleFilter, setModuleFilter] = useState<string>("onboarding");
+  const [moduleFilter, setModuleFilter] = useState<string>("onboarder_kpi");
   const [metricFilter, setMetricFilter] = useState<string>("");
   const [userFilter, setUserFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  const [groupBy, setGroupBy] = useState<GroupBy>("file_number");
 
   // Expanded group state — keyed by group value
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -153,16 +154,23 @@ export default function KPIDataTab() {
     setLoading(false);
     if (qErr) { setError(qErr.message); return; }
     let result = (data || []) as KPIRow[];
+    // Hide org-level aggregate rows (avg_*, total_*) — they have no file_number
+    // because they're not tied to a specific claim. They live on the Dashboard tab.
+    result = result.filter((r) => !!r.metadata?.file_number);
     if (userFilter) {
       result = result.filter((r) => r.metadata?.user_id === userFilter);
     }
     if (searchTerm.trim()) {
       const t = searchTerm.toLowerCase().trim();
       result = result.filter((r) => {
-        const cn = String(r.metadata?.client_name || "").toLowerCase();
-        const la = String(r.metadata?.loss_address || "").toLowerCase();
-        const aa = String(r.metadata?.assigned_user_name || "").toLowerCase();
-        return cn.includes(t) || la.includes(t) || aa.includes(t);
+        const m = r.metadata || {};
+        const fields = [
+          m.file_number, m.claim_number, m.policy_number,
+          m.client_name, m.loss_address, m.insurance_company,
+          m.referral_source, m.contractor_company,
+          m.assigned_pa_name, m.assigned_user_name,
+        ];
+        return fields.some((v) => String(v || "").toLowerCase().includes(t));
       });
     }
     setRows(result);
@@ -210,7 +218,7 @@ export default function KPIDataTab() {
     // Headers match the live Onboarding Tracker xlsx, with File # / Claim # prepended
     const header = [
       "File Number", "Claim Number",
-      "Start time", "Completion time", "Email", "Name",
+      "Start time", "Completion time", "Name",
       "Insured Name", "Property Address", "Email Address",
       "Contract Created", "Referral Source", "Adjuster assigned",
       "What type of Submission", "Contract Signed Date",
@@ -221,14 +229,12 @@ export default function KPIDataTab() {
       const m = r.metadata || {};
       const submissionLabel = SUBMISSION_LABEL[r.metric_key] || r.metric_key;
       const isTime = r.metric_key === "time_in_phase";
-      const onboarderEmail = String(m.user_email || "");
       const onboarderName = String(m.user_name || userName(m.user_id as string | undefined));
       const cells = [
         String(m.file_number || ""),
         String(m.claim_number || ""),
         fmtTime(r.created_at),
         fmtTime(r.created_at),
-        onboarderEmail,
         onboarderName,
         String(m.client_name || ""),
         String(m.loss_address || ""),
@@ -264,14 +270,15 @@ export default function KPIDataTab() {
 
   function renderEventRow(r: KPIRow, indent: boolean = false) {
     const m = r.metadata || {};
-    const onboarderEmail = String(m.user_email || "—");
-    const onboarderName = String(m.user_name || userName(m.user_id as string | undefined));
     const submissionLabel = SUBMISSION_LABEL[r.metric_key] || r.metric_key;
     const isTime = r.metric_key === "time_in_phase";
     const timeStr = isTime ? fmtDuration(Number(r.metric_value)) : "—";
-    const fieldsChanged = Array.isArray(m.fields_changed) ? (m.fields_changed as string[]).join(", ") : "—";
     const cell: React.CSSProperties = { padding: "6px 10px", color: "var(--text-secondary)", whiteSpace: "nowrap" };
     const isRowOpen = expandedRows.has(r.id);
+    // When indented under a group, the file # column shows the event label
+    // (Phase Completed / Abandoned / etc.) — the file number is on the parent.
+    // When flat (no grouping), the file # column shows the file number itself.
+    const firstColLabel = indent ? submissionLabel : String(m.file_number || "—");
     return (
       <tr key={r.id} style={{ borderTop: "1px solid var(--border-color)" }}>
         <td style={{ ...cell, color: "var(--accent)", fontWeight: 600, paddingLeft: indent ? 36 : 10 }}>
@@ -282,30 +289,22 @@ export default function KPIDataTab() {
           >
             {isRowOpen ? "−" : "+"}
           </span>
-          {String(m.file_number || "—")}
+          {firstColLabel}
         </td>
-        <td style={cell}>{String(m.claim_number || "—")}</td>
-        <td style={cell}>{fmtTime(r.created_at)}</td>
-        <td style={cell}>{fmtTime(r.created_at)}</td>
-        <td style={cell}>{onboarderEmail}</td>
-        <td style={cell}>{onboarderName}</td>
         <td style={{ ...cell, color: "var(--text-primary)", fontWeight: 600 }}>{String(m.client_name || "—")}</td>
-        <td style={{ ...cell, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{String(m.loss_address || "—")}</td>
-        <td style={cell}>{String(m.email || "—")}</td>
+        <td style={{ ...cell, maxWidth: 280, whiteSpace: "normal" }}>{String(m.loss_address || "—")}</td>
         <td style={cell}>{String(m.onboard_type || "—")}</td>
         <td style={cell}>{resolveReferralSource(m)}</td>
         <td style={cell}>{String(m.assigned_user_name || m.assigned_pa_name || "—")}</td>
-        <td style={{ ...cell, color: "var(--text-primary)", fontWeight: 600 }}>{submissionLabel}</td>
-        <td style={cell}>{String(m.contract_signed_date || "—")}</td>
-        <td style={{ ...cell, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "normal" }}>{fieldsChanged}</td>
-        <td style={{ ...cell, textAlign: "right" }}>{isTime ? timeStr : "—"}</td>
+        <td style={{ ...cell, textAlign: "right" }}>{timeStr}</td>
       </tr>
     );
   }
 
   // Detail panel rendered as a colspan'd sub-row when [+] is clicked.
-  // Shows every captured field grouped by section.
-  function renderDetailPanel(r: KPIRow) {
+  // Shows every captured field grouped by section. colSpan adapts to the
+  // surrounding table (7 in the main 7-col table, 15 inside the group sub-table).
+  function renderDetailPanel(r: KPIRow, colSpan: number = 7) {
     const m = r.metadata || {};
     const dim = (v: unknown): string => {
       if (v === undefined || v === null || v === '') return '—';
@@ -398,7 +397,7 @@ export default function KPIDataTab() {
     ];
     return (
       <tr key={`detail-${r.id}`} style={{ borderTop: "1px solid var(--border-color)", background: "var(--bg-page)" }}>
-        <td colSpan={16} style={{ padding: 16 }}>
+        <td colSpan={colSpan} style={{ padding: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
             {sections.map((sec) => (
               <div key={sec.title}>
@@ -421,9 +420,95 @@ export default function KPIDataTab() {
     );
   }
 
+  // 15-column detailed row used inside the group sub-table. Mirrors the
+  // original Onboarding Tracker xlsx columns. Each cell renders the per-event
+  // value; canonical claim fields will repeat across siblings — that's fine
+  // since the parent group header already summarizes them.
+  function renderDetailedEventRow(r: KPIRow) {
+    const m = r.metadata || {};
+    const onboarderName = String(m.user_name || userName(m.user_id as string | undefined));
+    const submissionLabel = SUBMISSION_LABEL[r.metric_key] || r.metric_key;
+    const isTime = r.metric_key === "time_in_phase";
+    const timeStr = isTime ? fmtDuration(Number(r.metric_value)) : "—";
+    const fieldsChanged = Array.isArray(m.fields_changed) ? (m.fields_changed as string[]).join(", ") : "—";
+    const cell: React.CSSProperties = { padding: "6px 10px", color: "var(--text-secondary)", whiteSpace: "nowrap" };
+    const isRowOpen = expandedRows.has(r.id);
+    return (
+      <tr key={r.id} style={{ borderTop: "1px solid var(--border-color)" }}>
+        <td style={{ ...cell, color: "var(--accent)", fontWeight: 600 }}>
+          <span
+            onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}
+            style={{ cursor: "pointer", marginRight: 6, color: "var(--text-muted)", display: "inline-block", width: 14 }}
+            title={isRowOpen ? "Hide details" : "Show full claim details"}
+          >
+            {isRowOpen ? "−" : "+"}
+          </span>
+          {String(m.file_number || "—")}
+        </td>
+        <td style={cell}>{String(m.claim_number || "—")}</td>
+        <td style={cell}>{fmtTime(r.created_at)}</td>
+        <td style={cell}>{fmtTime(r.created_at)}</td>
+        <td style={cell}>{onboarderName}</td>
+        <td style={{ ...cell, color: "var(--text-primary)", fontWeight: 600 }}>{String(m.client_name || "—")}</td>
+        <td style={{ ...cell, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{String(m.loss_address || "—")}</td>
+        <td style={cell}>{String(m.email || "—")}</td>
+        <td style={cell}>{String(m.onboard_type || "—")}</td>
+        <td style={cell}>{resolveReferralSource(m)}</td>
+        <td style={cell}>{String(m.assigned_user_name || m.assigned_pa_name || "—")}</td>
+        <td style={{ ...cell, color: "var(--text-primary)", fontWeight: 600 }}>{submissionLabel}</td>
+        <td style={cell}>{String(m.contract_signed_date || "—")}</td>
+        <td style={{ ...cell, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "normal" }}>{fieldsChanged}</td>
+        <td style={{ ...cell, textAlign: "right" }}>{timeStr}</td>
+      </tr>
+    );
+  }
+
+  // Sub-table rendered as a single colspan'd row under an expanded group.
+  // Re-introduces the OLD 15-column detailed view (the original Onboarding
+  // Tracker layout) so all per-event detail lives here, not on the main bar.
+  function renderGroupChildrenTable(label: string, members: KPIRow[]) {
+    const subTh: React.CSSProperties = {
+      textAlign: "left", padding: "8px 10px", fontWeight: 700,
+      borderBottom: "1px solid var(--border-color)",
+    };
+    return (
+      <tr key={`children-${label}`} style={{ background: "var(--bg-surface)" }}>
+        <td colSpan={7} style={{ padding: 0 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-page)", color: "var(--text-primary)", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={subTh}>File #</th>
+                <th style={subTh}>Claim #</th>
+                <th style={subTh}>Start time</th>
+                <th style={subTh}>Completion time</th>
+                <th style={subTh}>Name</th>
+                <th style={subTh}>Insured Name</th>
+                <th style={subTh}>Property Address</th>
+                <th style={subTh}>Email Address</th>
+                <th style={subTh}>Contract Created</th>
+                <th style={subTh}>Source</th>
+                <th style={subTh}>Adjuster Assigned</th>
+                <th style={subTh}>Submission Type</th>
+                <th style={subTh}>Contract Signed</th>
+                <th style={subTh}>Why Corrected</th>
+                <th style={{ ...subTh, textAlign: "right" }}>Time Tracking</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.flatMap((r) => {
+                const out: React.ReactElement[] = [renderDetailedEventRow(r)];
+                if (expandedRows.has(r.id)) out.push(renderDetailPanel(r, 15));
+                return out;
+              })}
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    );
+  }
+
   function renderGroupHeader(label: string, members: KPIRow[]) {
     const isOpen = !!expanded[label];
-    const eventCount = members.length;
     const totalTime = members
       .filter((r) => r.metric_key === "time_in_phase")
       .reduce((s, r) => s + (Number(r.metric_value) || 0), 0);
@@ -438,19 +523,15 @@ export default function KPIDataTab() {
             cursor: "pointer",
             fontWeight: 600,
           }}>
-        <td colSpan={6} style={{ padding: "10px 12px", color: "var(--accent)" }}>
-          {isOpen ? "▼" : "▶"} {label} <span style={{ color: "var(--text-muted)", fontWeight: 400, marginLeft: 8 }}>({eventCount} event{eventCount === 1 ? "" : "s"})</span>
+        <td style={{ padding: "10px 12px", color: "var(--accent)" }}>
+          {isOpen ? "▼" : "▶"} {label}
         </td>
         <td style={{ padding: "10px 12px", color: "var(--text-primary)" }}>{String(latest.client_name || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}>{String(latest.loss_address || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.email || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.onboard_type || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{resolveReferralSource(latest as Record<string, unknown>)}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{String(latest.assigned_user_name || latest.assigned_pa_name || "—")}</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>—</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>—</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>—</td>
-        <td style={{ padding: "10px 12px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtDuration(totalTime)}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-primary)", maxWidth: 280, whiteSpace: "normal" }}>{String(latest.loss_address || "—")}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{String(latest.onboard_type || "—")}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{resolveReferralSource(latest as Record<string, unknown>)}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{String(latest.assigned_user_name || latest.assigned_pa_name || "—")}</td>
+        <td style={{ padding: "10px 12px", color: "var(--text-primary)", textAlign: "right" }}>{fmtDuration(totalTime)}</td>
       </tr>
     );
   }
@@ -490,10 +571,9 @@ export default function KPIDataTab() {
             <label style={labelStyle}>Module</label>
             <select style={selectStyle} value={moduleFilter} onChange={(e) => setModuleFilter(e.target.value)}>
               <option value="">All modules</option>
-              <option value="onboarding">onboarding</option>
+              <option value="onboarder_kpi">onboarder_kpi</option>
               <option value="claim_health">claim_health</option>
-              <option value="onboarder_kpi">onboarder_kpi (legacy)</option>
-              <option value="estimator_kpi">estimator_kpi (legacy)</option>
+              <option value="estimator_kpi">estimator_kpi</option>
             </select>
           </div>
           <div>
@@ -560,23 +640,14 @@ export default function KPIDataTab() {
         {!error && rows.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
-              <tr style={{ background: "var(--bg-page)", color: "var(--text-muted)", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>File #</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Claim #</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Start time</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Completion time</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Email</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Name</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Insured Name</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Property Address</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Email Address</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Contract Created</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Referral Source</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Adjuster assigned</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>What type of Submission</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Contract Signed Date</th>
-                <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600 }}>Why corrected?</th>
-                <th style={{ textAlign: "right", padding: "8px 10px", fontWeight: 600 }}>Time Tracking</th>
+              <tr style={{ background: "var(--bg-page)", color: "var(--text-primary)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>File #</th>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>Insured Name</th>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>Property Address</th>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>Contract Created</th>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>Source</th>
+                <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 700 }}>Adjuster Assigned</th>
+                <th style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700 }}>Time Tracking</th>
               </tr>
             </thead>
             <tbody>
@@ -590,10 +661,7 @@ export default function KPIDataTab() {
                     const isOpen = !!expanded[label];
                     const items: React.ReactElement[] = [renderGroupHeader(label, members)];
                     if (isOpen) {
-                      for (const r of members) {
-                        items.push(renderEventRow(r, true));
-                        if (expandedRows.has(r.id)) items.push(renderDetailPanel(r));
-                      }
+                      items.push(renderGroupChildrenTable(label, members));
                     }
                     return items;
                   })
