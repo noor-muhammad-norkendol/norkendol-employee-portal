@@ -3,6 +3,15 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline } from "@/lib/styles";
+import { STATUS_LABELS, type OnboardingStatus } from "@/types/onboarder-kpi";
+
+// Humanize a status code (e.g., "step_3" → "48hr Follow-Up"). Returns the
+// raw code as fallback if the map doesn't recognize it.
+function phaseLabel(code: unknown): string {
+  if (!code) return "";
+  const k = String(code).trim();
+  return STATUS_LABELS[k as OnboardingStatus] || k;
+}
 
 interface KPIRow {
   id: string;
@@ -214,56 +223,168 @@ export default function KPIDataTab() {
     return Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
   }, [rows, groupBy]);
 
-  function exportCSV() {
-    // Headers match the live Onboarding Tracker xlsx, with File # / Claim # prepended
-    const header = [
-      "File Number", "Claim Number",
-      "Start time", "Completion time", "Name",
-      "Insured Name", "Property Address", "Email Address",
-      "Contract Created", "Referral Source", "Adjuster assigned",
-      "What type of Submission", "Contract Signed Date",
-      "Why did the contract need to be corrected?", "Time Tracking",
-    ];
-    const csvRows = [header.join(",")];
+  // Two-sheet xlsx export.
+  //
+  // Sheet 1 "Activity" — mirrors the screen's parent/child layout using Excel's
+  // native row outlining. Each claim is a level-0 parent row; its events are
+  // level-1 children below it. Click +/- in Excel's gutter to expand/collapse
+  // a claim's events, just like the [▶] on screen.
+  //
+  // Sheet 2 "Claims Summary" — flat one-row-per-claim with aggregates (total
+  // time, current phase, outcome) for sorting/filtering in Excel. This is the
+  // sheet for "who took the longest to onboard" questions.
+  //
+  // xlsx is dynamically imported to keep the EI page bundle slim — same
+  // pattern as src/app/dashboard/tpn-admin/page.tsx (READ-side import).
+  async function exportExcel() {
+    const XLSX = await import("xlsx");
+
+    // Group rows by file_number (rows are already filtered + aggregate-stripped)
+    const claimsByFile = new Map<string, KPIRow[]>();
     for (const r of rows) {
-      const m = r.metadata || {};
-      const submissionLabel = SUBMISSION_LABEL[r.metric_key] || r.metric_key;
-      const isTime = r.metric_key === "time_in_phase";
-      const onboarderName = String(m.user_name || userName(m.user_id as string | undefined));
-      const cells = [
-        String(m.file_number || ""),
-        String(m.claim_number || ""),
-        fmtTime(r.created_at),
-        fmtTime(r.created_at),
-        onboarderName,
-        String(m.client_name || ""),
-        String(m.loss_address || ""),
-        String(m.email || ""),
-        String(m.onboard_type || ""),
-        resolveReferralSource(m as Record<string, unknown>),
-        String(m.assigned_user_name || m.assigned_pa_name || ""),
-        submissionLabel,
-        String(m.contract_signed_date || ""),
-        Array.isArray(m.fields_changed) ? (m.fields_changed as string[]).join("; ") : "",
-        isTime ? fmtDuration(Number(r.metric_value)) : "",
-      ].map((v) => {
-        const s = String(v ?? "");
-        if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-          return '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-      });
-      csvRows.push(cells.join(","));
+      const fn = String(r.metadata?.file_number || "").trim();
+      if (!fn) continue;
+      if (!claimsByFile.has(fn)) claimsByFile.set(fn, []);
+      claimsByFile.get(fn)!.push(r);
     }
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `kpi-data-${dateStart}-to-${dateEnd}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // ── Sheet 1: Activity (outlined parent/child) ────────
+    const activityHeader = [
+      "File #", "Claim #", "Start time", "Completion time", "Name",
+      "Insured Name", "Property Address", "Email Address",
+      "Contract Created", "Source", "Adjuster Assigned",
+      "Submission Type", "Contract Signed Date", "Why Corrected",
+      "Time Tracking",
+    ];
+    const activityAOA: (string | number)[][] = [activityHeader];
+    const rowMeta: { level: number }[] = [{ level: 0 }]; // header
+
+    for (const [fileNum, members] of claimsByFile.entries()) {
+      // Sort newest-first within each claim so [0] is the latest event
+      const sorted = [...members].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const latest = sorted[0]?.metadata || {};
+
+      const totalSeconds = members
+        .filter((r) => r.metric_key === "time_in_phase")
+        .reduce((s, r) => s + (Number(r.metric_value) || 0), 0);
+
+      // Parent row — only the 7 canonical claim-level fields populated; the
+      // 8 per-event columns are left blank to match the screen's parent row
+      // (which only shows File# / Insured / Address / Contract Created /
+      // Source / Adjuster / Time Tracking).
+      activityAOA.push([
+        fileNum,
+        "",                                                  // Claim # — per-event
+        "",                                                  // Start time — per-event
+        "",                                                  // Completion time — per-event
+        "",                                                  // Name (onboarder) — per-event
+        String(latest.client_name || ""),
+        String(latest.loss_address || ""),
+        "",                                                  // Email Address — per-event
+        String(latest.onboard_type || ""),
+        resolveReferralSource(latest as Record<string, unknown>),
+        String(latest.assigned_user_name || latest.assigned_pa_name || ""),
+        "",                                                  // Submission Type — per-event
+        "",                                                  // Contract Signed Date — per-event
+        "",                                                  // Why Corrected — per-event
+        fmtDuration(totalSeconds),
+      ]);
+      rowMeta.push({ level: 0 });
+
+      // Child rows — one per event, newest-first to match the screen.
+      // All 15 columns populated; Submission Type uses the plain event label
+      // exactly as the on-screen sub-table renders it.
+      for (const r of sorted) {
+        const m = r.metadata || {};
+        const onboarderName = String(m.user_name || userName(m.user_id as string | undefined));
+        const submissionLabel = SUBMISSION_LABEL[r.metric_key] || r.metric_key;
+        const isTime = r.metric_key === "time_in_phase";
+        activityAOA.push([
+          String(m.file_number || ""),
+          String(m.claim_number || ""),
+          fmtTime(r.created_at),
+          fmtTime(r.created_at),
+          onboarderName,
+          String(m.client_name || ""),
+          String(m.loss_address || ""),
+          String(m.email || ""),
+          String(m.onboard_type || ""),
+          resolveReferralSource(m as Record<string, unknown>),
+          String(m.assigned_user_name || m.assigned_pa_name || ""),
+          submissionLabel,
+          String(m.contract_signed_date || ""),
+          Array.isArray(m.fields_changed) ? (m.fields_changed as string[]).join("; ") : "",
+          isTime ? fmtDuration(Number(r.metric_value)) : "",
+        ]);
+        rowMeta.push({ level: 1 });
+      }
+    }
+
+    const activityWs = XLSX.utils.aoa_to_sheet(activityAOA);
+    activityWs["!rows"] = rowMeta;
+    // Show parent ABOVE its children in Excel's outline (default is below).
+    (activityWs as unknown as Record<string, unknown>)["!outline"] = { summaryBelow: false };
+
+    // ── Sheet 2: Claims Summary (flat, with humanized phase) ─────
+    const claimsSummary = Array.from(claimsByFile.entries()).map(([fileNum, members]) => {
+      const sorted = [...members].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const latest = sorted[0]?.metadata || {};
+      const earliestRow = sorted[sorted.length - 1];
+
+      const totalSeconds = members
+        .filter((r) => r.metric_key === "time_in_phase")
+        .reduce((s, r) => s + (Number(r.metric_value) || 0), 0);
+
+      const onboarderNames = Array.from(new Set(
+        members.map((r) => String(r.metadata?.user_name || "")).filter(Boolean)
+      )).join(", ");
+
+      // Current phase = the phase context of the most recent event.
+      // phase_completed → to_phase ; time_in_phase → phase ;
+      // claim_abandoned/erroneous/revised → from_phase
+      let currentPhaseCode = "";
+      const top = sorted[0];
+      if (top) {
+        const tm = top.metadata || {};
+        if (top.metric_key === "phase_completed") currentPhaseCode = String(tm.to_phase || "");
+        else if (top.metric_key === "time_in_phase") currentPhaseCode = String(tm.phase || "");
+        else currentPhaseCode = String(tm.from_phase || "");
+      }
+
+      const hasAbandoned = members.some((r) => r.metric_key === "claim_abandoned");
+      const hasErroneous = members.some((r) => r.metric_key === "claim_erroneous");
+      const outcome = hasAbandoned ? "Abandoned" : hasErroneous ? "Erroneous" : "Active";
+
+      return {
+        "File #": fileNum,
+        "Claim #": String(latest.claim_number || ""),
+        "Policy #": String(latest.policy_number || ""),
+        "Insured Name": String(latest.client_name || ""),
+        "Property Address": String(latest.loss_address || ""),
+        "Insurance Company": String(latest.insurance_company || ""),
+        "Contract Type": String(latest.onboard_type || ""),
+        "Source": resolveReferralSource(latest as Record<string, unknown>),
+        "Adjuster Assigned": String(latest.assigned_user_name || ""),
+        "Public Adjuster": String(latest.assigned_pa_name || ""),
+        "Onboarder(s)": onboarderNames,
+        "Total Events": members.length,
+        "Total Time on File": fmtDuration(totalSeconds),
+        "Total Time (seconds)": totalSeconds,
+        "Current Phase": phaseLabel(currentPhaseCode),
+        "First Touched": fmtTime(earliestRow.created_at),
+        "Last Activity": fmtTime(sorted[0].created_at),
+        "Outcome": outcome,
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, activityWs, "Activity");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(claimsSummary), "Claims Summary");
+    XLSX.writeFile(wb, `onboarder-kpi-${dateStart}-to-${dateEnd}.xlsx`);
   }
 
   // ── Render helpers ──────────────────────────
@@ -611,8 +732,8 @@ export default function KPIDataTab() {
             <button style={btnOutline} onClick={loadRows} disabled={loading}>
               {loading ? "Loading…" : "Refresh"}
             </button>
-            <button style={btnPrimary} onClick={exportCSV} disabled={loading || rows.length === 0}>
-              Export CSV
+            <button style={btnPrimary} onClick={exportExcel} disabled={loading || rows.length === 0}>
+              Export to Excel
             </button>
           </div>
         </div>

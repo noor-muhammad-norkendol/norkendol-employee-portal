@@ -154,6 +154,37 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 ---
 
+## Power BI
+
+### 11. Build a Power BI exec-intelligence layer over `kpi_snapshots`
+**Where:** External — Power BI Desktop / Service connecting to Supabase project `hkscsovtejeedjebytsv`.
+
+**What this is:** Rather than building richer-and-richer dashboards inside the portal, the in-portal EI Dashboard stays as the *operational* view (real-time, embedded in workflow), and Power BI becomes the *analytical* layer (deep slicing, trend analysis, exec reporting, mobile, scheduled refresh, eventually PE-diligence-ready).
+
+**Why this fits cleanly today:**
+- `kpi_snapshots` is already shaped like a fact table: `org_id`, `source_module`, `metric_key`, `metric_value`, `metric_unit`, `period_start`, `period_end`, `metadata` jsonb with the full ClaimContext (~30 fields).
+- Every spoke (onboarder_kpi, estimator_kpi, claim_health, eventually scope_of_loss + adjuster + others) writes to the same shape — Frank designed it that way deliberately.
+- Power BI's Postgres connector reads Supabase directly. No re-architecture needed.
+
+**Prerequisites (do these once before pointing Power BI at the DB):**
+- Build read-only Postgres views in Supabase that flatten the common jsonb fields (`metadata->>'file_number'`, `metadata->>'client_name'`, etc.) into typed columns. This avoids Power BI parsing JSON on every refresh and lets it model relationships properly.
+- Create a couple of dimension tables/views: `dim_user`, `dim_phase` (with the STATUS_LABELS mapping), `dim_metric_key`, `dim_date`. Star-schema the model.
+- Decide on Power BI access posture — direct connection from a desktop file exposes the DB to whoever has the .pbix. Better: Power BI Service workspace + on-premises gateway, or a Supabase service-role read-only key locked to the views above.
+- Map RLS strategy: Supabase RLS doesn't cross over to Power BI; if you want per-user visibility scoping in Power BI, that's a Power BI RLS rule expressed against `dim_user`.
+
+**Initial dashboards to scope when we start (Frank to confirm priorities):**
+- Onboarder leaderboard (entries, completion %, avg time-to-completion, abandonment rate, by date range)
+- Cross-spoke claim journey (one claim's full timeline: intake → TLS Phase 1 → scope → estimator → TLS Phase 2 → adjuster, with phase durations)
+- Carrier/peril/contractor pivots over time
+- Time-in-phase distribution + outliers (find the 7-hour onboarding cases)
+- Estimator efficiency by referral source / by onboarder
+
+**Effort:** prerequisites are a half-day of SQL views; first dashboard ~1-2 hours after that; mature multi-spoke environment is a couple of days; adding new spokes later is trivial because the schema is uniform.
+
+**Status:** Frank flagged 2026-04-28. Picking back up next session in dedicated time.
+
+---
+
 ## Done (recently fixed — keep here as record, prune occasionally)
 
 - ✅ **2026-04-28** — `startEdit` on Onboarder was wiping name/address/contractor/etc. fields when clicking Edit. Fixed by spreading all canonical fields into the form, not just a tiny subset.
