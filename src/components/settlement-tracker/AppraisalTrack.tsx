@@ -286,7 +286,7 @@ function AppraisalDataGrid({
 }
 
 /* ================================================================
-   CREATE MODAL — minimal (Claim File + Is Litigated checkbox)
+   CREATE MODAL — minimal (File Number + Is Litigated checkbox)
    ================================================================ */
 
 function AppraisalCreateModal({ onClose }: { onClose: () => void }) {
@@ -317,7 +317,7 @@ function AppraisalCreateModal({ onClose }: { onClose: () => void }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 pt-2">
           <div className="mb-4">
-            <label style={labelStyle}>Claim File *</label>
+            <label style={labelStyle}>File Number *</label>
             <select style={selectStyle} value={selectedFileId} onChange={(e) => setSelectedFileId(e.target.value)} required>
               <option value="">Select a claim file...</option>
               {files.map((f) => (

@@ -615,7 +615,7 @@ function PACreateModal({ onClose }: { onClose: () => void }) {
           >
             <div>
               <label style={labelStyle}>
-                Claim File <span style={{ color: "#ef4444" }}>*</span>
+                File Number <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <select
                 style={selectStyle}

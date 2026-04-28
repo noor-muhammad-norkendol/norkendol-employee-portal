@@ -314,7 +314,7 @@ function MediationDataGrid({
 }
 
 /* ================================================================
-   CREATE MODAL — minimal form (Dispute Type + Claim File)
+   CREATE MODAL — minimal form (Dispute Type + File Number)
    ================================================================ */
 
 function MediationCreateModal({
@@ -352,7 +352,7 @@ function MediationCreateModal({
         </div>
         <form onSubmit={handleSubmit} className="p-6 pt-2">
           <div className="mb-4">
-            <label style={labelStyle}>Claim File *</label>
+            <label style={labelStyle}>File Number *</label>
             <select style={selectStyle} value={selectedFileId} onChange={(e) => setSelectedFileId(e.target.value)} required>
               <option value="">Select a claim file...</option>
               {files.map((f) => (
