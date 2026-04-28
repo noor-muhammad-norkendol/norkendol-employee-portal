@@ -64,6 +64,22 @@ Scope of Loss and Adjuster KPI are **placeholder pages only** — backing spokes
 - Estimator `status='review'` → upserts `team_lead_reviews` Phase 2 row
 Idempotent via `(org_id, file_number, phase)` unique constraint. NOT a DB trigger — visible/debuggable.
 
+### Onboarder KPI event publishing (locked 2026-04-28)
+
+The Onboarder publishes 5 metric_keys to `kpi_snapshots` (`source_module='onboarding'`) so KPI questions can be answered without hand-querying. Event helper at `src/hooks/onboarder-kpi/publishKPIEvent.ts` — fire-and-forget (errors logged, never thrown).
+
+| metric_key | when fires | metadata |
+|---|---|---|
+| `claim_abandoned` | User confirms Mark Abandoned via toast | `{user_id, file_number, from_phase}` |
+| `claim_erroneous` | User confirms Mark Erroneous via toast | `{user_id, file_number, from_phase}` |
+| `claim_revised` | Save in Revise mode with at least one field changed | `{user_id, file_number, fields_changed: [...]}` |
+| `phase_completed` | Status advances to non-archival next phase | `{user_id, file_number, from_phase, to_phase}` |
+| `time_in_phase` | An `onboarding_phase_sessions` row gets `ended_at` (any reason) | `{user_id, phase, session_id, ended_reason}` |
+
+**EI Data tab** (`/dashboard/executive-intelligence` → KPI Admin tab → Data sub-tab) is the flat event-log viewer over kpi_snapshots: filter by date range / module / metric / user, sortable columns, CSV export. No EI tables (org_hierarchy etc.) needed — Data tab is independent of the deferred `20260405_executive_intelligence.sql` migration.
+
+**Soft-delete on Onboarder:** clicking Mark Erroneous / Mark Abandoned shows a confirm prompt, sets the status accordingly, publishes the kpi event, and auto-closes the panel. The dashboard query in `useOnboardingClients` excludes `erroneous`/`abandoned`/`revised` from the default view — those rows still exist in `onboarding_clients` (queryable from the EI Data tab) but never appear in the user-facing UI.
+
 ### Rule for new spokes
 
 When designing any new table that holds per-claim records (e.g., `claim_files`, `claim_action_items`, `claim_payments`, `claim_notes`, etc.):

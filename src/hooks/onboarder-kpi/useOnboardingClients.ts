@@ -85,6 +85,11 @@ export function useOnboardingClients(statusFilter?: OnboardingStatus) {
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
+      } else {
+        // Default view excludes archival statuses (erroneous/abandoned/revised).
+        // Those are soft-deleted from the dashboard; their data lives in
+        // kpi_snapshots for KPI reporting via the EI Data tab.
+        query = query.not('status', 'in', '("erroneous","abandoned","revised")');
       }
 
       const { data, error } = await query;

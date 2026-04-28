@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { TEMPLATE_STAGES as STAGES, TEMPLATE_CONTACTS as CONTACTS } from "@/types/onboarder-kpi";
 import { cardStyle, inputStyle } from "@/lib/styles";
+import KPIDataTab from "./KPIDataTab";
 
 /* ── Types ── */
 interface Template {
@@ -25,10 +26,10 @@ const sectionLabel: React.CSSProperties = {
   paddingBottom: 6, borderBottom: "1px solid var(--border-color)",
 };
 
-type AdminSubTab = "onboarding";
+type AdminSubTab = "templates" | "data";
 
 export default function KPIAdminTab() {
-  const [subTab, setSubTab] = useState<AdminSubTab>("onboarding");
+  const [subTab, setSubTab] = useState<AdminSubTab>("templates");
 
   const subTabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
@@ -40,11 +41,12 @@ export default function KPIAdminTab() {
     <div>
       {/* Sub-tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 20 }}>
-        <button style={subTabStyle(subTab === "onboarding")} onClick={() => setSubTab("onboarding")}>Onboarding</button>
-        {/* Future: Estimating, Litigation, etc. */}
+        <button style={subTabStyle(subTab === "templates")} onClick={() => setSubTab("templates")}>Templates</button>
+        <button style={subTabStyle(subTab === "data")} onClick={() => setSubTab("data")}>Data</button>
       </div>
 
-      {subTab === "onboarding" && <OnboardingTemplatesAdmin />}
+      {subTab === "templates" && <OnboardingTemplatesAdmin />}
+      {subTab === "data" && <KPIDataTab />}
     </div>
   );
 }

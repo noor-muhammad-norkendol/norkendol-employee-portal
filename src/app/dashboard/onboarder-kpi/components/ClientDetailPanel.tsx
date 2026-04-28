@@ -5,8 +5,16 @@ import { useActivityLogs } from "@/hooks/onboarder-kpi/useActivityLogs";
 import { useLogActivity } from "@/hooks/onboarder-kpi/useActivityLogs";
 import { useOnboardingSession } from "@/hooks/onboarder-kpi/useOnboardingSession";
 import { useOKSupabase } from "@/hooks/onboarder-kpi/useSupabase";
+import { useUpdateOnboardingClient } from "@/hooks/onboarder-kpi/useOnboardingClients";
+import { useLogStatusChange } from "@/hooks/onboarder-kpi/useStatusHistory";
+import { publishKPIEvent, buildClaimContext } from "@/hooks/onboarder-kpi/publishKPIEvent";
 import type { OnboardingClient, OnboardingStatus, ContactTarget } from "@/types/onboarder-kpi";
-import { STATUS_LABELS } from "@/types/onboarder-kpi";
+import { STATUS_LABELS, STATUS_OPTIONS } from "@/types/onboarder-kpi";
+
+// Statuses that act as soft-delete (card disappears from dashboard) — not
+// shown in the normal Move To row, accessed via dedicated buttons with a
+// confirm prompt
+const ARCHIVAL_STATUSES: OnboardingStatus[] = ['erroneous', 'abandoned'];
 import StageActionChecklist from "./StageActionChecklist";
 import ActionComposer from "./ActionComposer";
 import { usePALookup } from "@/hooks/onboarder-kpi/usePALookup";
@@ -28,19 +36,112 @@ export default function ClientDetailPanel({ client, open, onClose, onEdit, onDel
   const { supabase, userInfo } = useOKSupabase();
   const { data: activityLogs = [] } = useActivityLogs(client?.id);
   const logActivity = useLogActivity();
+  const updateMut = useUpdateOnboardingClient();
+  const logStatusChange = useLogStatusChange();
   const { data: paInfo } = usePALookup(client?.assigned_pa_name);
+  const [moving, setMoving] = React.useState<OnboardingStatus | null>(null);
 
   // Spoke-unique behavior: track per-user time spent on this card while it
   // sits in this phase. Sessions auto-close on panel close, idle (>21 min),
   // and phase change. See useOnboardingSession for the full lifecycle.
+  // The clientContext is embedded in the time_in_phase KPI event so the
+  // EI Data tab can render rich rows without joining onboarding_clients.
   useOnboardingSession({
     supabase,
     orgId: userInfo?.orgId,
     userId: userInfo?.userId,
+    userName: userInfo?.fullName,
     clientId: open && client ? client.id : null,
     phase: open && client ? client.status : null,
     enabled: open && !!client,
+    clientContext: open && client ? {
+      ...buildClaimContext(client as unknown as Record<string, unknown>),
+      user_name: userInfo?.fullName,
+      user_email: userInfo?.email,
+    } : undefined,
   });
+
+  async function handleMoveTo(targetStatus: OnboardingStatus) {
+    if (!client || targetStatus === client.status || moving) return;
+
+    // Archival statuses (erroneous/abandoned) trigger a confirmation toast.
+    // Once confirmed, the card disappears from the dashboard — soft delete.
+    const isArchival = ARCHIVAL_STATUSES.includes(targetStatus);
+    if (isArchival) {
+      const verb = targetStatus === 'abandoned' ? 'abandoned' : 'erroneous';
+      const ok = confirm(
+        `Are you sure you want to mark this claim ${verb}? It will be removed from the dashboard.`
+      );
+      if (!ok) return;
+    }
+
+    setMoving(targetStatus);
+    try {
+      const fromStatus = client.status;
+      await Promise.all([
+        updateMut.mutateAsync({
+          id: client.id,
+          status: targetStatus,
+          status_entered_at: new Date().toISOString(),
+          ...(targetStatus === "completed" ? { completed_at: new Date().toISOString() } : {}),
+          ...(targetStatus === "abandoned" ? { abandoned_at: new Date().toISOString() } : {}),
+        }),
+        logStatusChange.mutateAsync({
+          client_id: client.id,
+          from_status: fromStatus,
+          to_status: targetStatus,
+        }),
+        logActivity.mutateAsync({
+          client_id: client.id,
+          activity_type: "status_change",
+          subject: `Status changed: ${STATUS_LABELS[fromStatus]} → ${STATUS_LABELS[targetStatus]}`,
+        }),
+      ]);
+
+      // KPI event publishing — fire-and-forget, never blocks the user op
+      if (userInfo?.orgId) {
+        const claimCtx = {
+          ...buildClaimContext(client as unknown as Record<string, unknown>),
+          user_name: userInfo.fullName,
+          user_email: userInfo.email,
+        };
+        const baseMeta = {
+          user_id: userInfo.userId,
+          file_number: client.file_number,
+          from_phase: fromStatus,
+        };
+        if (targetStatus === 'abandoned') {
+          publishKPIEvent(supabase, {
+            orgId: userInfo.orgId,
+            metricKey: 'claim_abandoned',
+            metadata: baseMeta,
+            claimContext: claimCtx,
+          });
+        } else if (targetStatus === 'erroneous') {
+          publishKPIEvent(supabase, {
+            orgId: userInfo.orgId,
+            metricKey: 'claim_erroneous',
+            metadata: baseMeta,
+            claimContext: claimCtx,
+          });
+        } else {
+          publishKPIEvent(supabase, {
+            orgId: userInfo.orgId,
+            metricKey: 'phase_completed',
+            metadata: { ...baseMeta, to_phase: targetStatus },
+            claimContext: claimCtx,
+          });
+        }
+      }
+
+      // Auto-close panel when archiving — card no longer exists in the user view
+      if (isArchival) onClose();
+    } catch (e) {
+      console.error("[Move To] failed:", e);
+    } finally {
+      setMoving(null);
+    }
+  }
   const notesRef = useRef<HTMLDivElement>(null);
   const callRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -138,13 +239,81 @@ export default function ClientDetailPanel({ client, open, onClose, onEdit, onDel
               {STATUS_LABELS[client.status]}
             </span>
             <button style={{ ...btnOutline, fontSize: 11, padding: "2px 8px" }} onClick={() => onEdit(client)}>
-              Edit
+              Revise
             </button>
             <button
               style={{ ...btnOutline, fontSize: 11, padding: "2px 8px", color: "#ef4444", borderColor: "#ef4444" }}
               onClick={() => { if (confirm("Delete this client?")) { onDelete(client.id); onClose(); } }}
             >
               Delete
+            </button>
+          </div>
+          {/* Move To: row — only normal workflow phases. Archival statuses
+              (erroneous/abandoned) get dedicated red buttons below.
+              'revised' is driven by the Revise button click, not Move To. */}
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginRight: 4 }}>
+              Move to:
+            </span>
+            {STATUS_OPTIONS
+              .filter((s) => s !== client.status && s !== 'erroneous' && s !== 'abandoned' && s !== 'revised')
+              .map((s) => {
+              const isMoving = moving === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => handleMoveTo(s)}
+                  disabled={moving !== null}
+                  style={{
+                    ...btnOutline,
+                    fontSize: 11,
+                    padding: "3px 9px",
+                    opacity: moving !== null && !isMoving ? 0.4 : 1,
+                    cursor: moving !== null ? "not-allowed" : "pointer",
+                  }}
+                  title={`Move to ${STATUS_LABELS[s]}`}
+                >
+                  {isMoving ? "Moving…" : STATUS_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
+          {/* Archive row — soft-delete the card with a confirm prompt */}
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, marginRight: 4 }}>
+              Archive:
+            </span>
+            <button
+              onClick={() => handleMoveTo('erroneous')}
+              disabled={moving !== null || client.status === 'erroneous'}
+              style={{
+                ...btnOutline,
+                fontSize: 11,
+                padding: "3px 9px",
+                color: "#ef4444",
+                borderColor: "#ef4444",
+                opacity: moving !== null && moving !== 'erroneous' ? 0.4 : 1,
+                cursor: moving !== null ? "not-allowed" : "pointer",
+              }}
+              title="Mark as erroneous (entered in error). Removed from dashboard, archived to KPI data."
+            >
+              {moving === 'erroneous' ? "Saving…" : "Mark Erroneous"}
+            </button>
+            <button
+              onClick={() => handleMoveTo('abandoned')}
+              disabled={moving !== null || client.status === 'abandoned'}
+              style={{
+                ...btnOutline,
+                fontSize: 11,
+                padding: "3px 9px",
+                color: "#ef4444",
+                borderColor: "#ef4444",
+                opacity: moving !== null && moving !== 'abandoned' ? 0.4 : 1,
+                cursor: moving !== null ? "not-allowed" : "pointer",
+              }}
+              title="Mark as abandoned (policyholder gave up). Removed from dashboard, archived to KPI data."
+            >
+              {moving === 'abandoned' ? "Saving…" : "Mark Abandoned"}
             </button>
           </div>
         </div>

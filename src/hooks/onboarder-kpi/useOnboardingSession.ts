@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { publishKPIEvent, type ClaimContext } from './publishKPIEvent';
 
 // Tracks per-user time spent on a per-claim card while it sits in a given
 // phase. Inserts a row in onboarding_phase_sessions on mount, heartbeats
@@ -14,9 +15,11 @@ interface UseOnboardingSessionOptions {
   supabase: SupabaseClient;
   orgId: string | undefined;
   userId: string | undefined;
+  userName?: string | null;
   clientId: string | null;
   phase: string | null;
   enabled?: boolean;
+  clientContext?: ClaimContext;
 }
 
 const HEARTBEAT_MS = 60 * 1000;          // ping last_heartbeat_at every 60s
@@ -24,10 +27,26 @@ const IDLE_CHECK_MS = 60 * 1000;         // check for idle every 60s
 const IDLE_TIMEOUT_MS = 21 * 60 * 1000;  // 21 minutes per Frank's call
 
 export function useOnboardingSession({
-  supabase, orgId, userId, clientId, phase, enabled = true,
+  supabase, orgId, userId, userName, clientId, phase, enabled = true, clientContext,
 }: UseOnboardingSessionOptions) {
   const sessionIdRef = useRef<string | null>(null);
+  const sessionStartedAtRef = useRef<number>(0);
   const lastActivityRef = useRef<number>(Date.now());
+  // Keep latest clientContext + userName in refs so the publish at end-of-
+  // session reads CURRENT values, not stale closure values from when the
+  // effect first ran (userInfo may not be fully loaded at session start).
+  const clientContextRef = useRef<ClaimContext | undefined>(clientContext);
+  const userNameRef = useRef<string | null | undefined>(userName);
+  // Only OVERWRITE refs with non-empty values. The parent passes undefined on
+  // panel close (open toggles to false before client clears), and we'd lose
+  // the context right before endSession runs. Sticky refs keep the last
+  // populated value.
+  if (clientContext && Object.keys(clientContext).length > 0) {
+    clientContextRef.current = clientContext;
+  }
+  if (userName) {
+    userNameRef.current = userName;
+  }
 
   useEffect(() => {
     if (!enabled || !orgId || !userId || !clientId || !phase) return;
@@ -44,14 +63,42 @@ export function useOnboardingSession({
       const id = sessionIdRef.current;
       if (!id) return;
       sessionIdRef.current = null;
+      const endedAtMs = Date.now();
+      const durationSeconds = sessionStartedAtRef.current > 0
+        ? Math.max(0, Math.round((endedAtMs - sessionStartedAtRef.current) / 1000))
+        : 0;
       try {
         await supabase
           .from('onboarding_phase_sessions')
-          .update({ ended_at: new Date().toISOString(), ended_reason: reason })
+          .update({
+            ended_at: new Date(endedAtMs).toISOString(),
+            ended_reason: reason,
+            duration_seconds: durationSeconds,
+          })
           .eq('id', id);
-        console.info('[Session] ended', { id, reason });
+        console.info('[Session] ended', { id, reason, durationSeconds });
       } catch (e) {
         console.warn('[Session] end failed:', e);
+      }
+      // Publish time_in_phase event to kpi_snapshots — fire-and-forget.
+      // Read clientContext + userName from REFS so we get the current values
+      // even if userInfo finished loading after the effect first ran.
+      if (orgId && clientId && phase) {
+        const ctx = clientContextRef.current;
+        const uName = userNameRef.current;
+        publishKPIEvent(supabase, {
+          orgId,
+          metricKey: 'time_in_phase',
+          metricValue: durationSeconds,
+          metricUnit: 'seconds',
+          metadata: {
+            user_id: userId,
+            phase,
+            session_id: id,
+            ended_reason: reason,
+          },
+          claimContext: ctx ? { ...ctx, user_name: uName ?? ctx.user_name } : { user_name: uName },
+        });
       }
     }
 
@@ -96,6 +143,7 @@ export function useOnboardingSession({
         return;
       }
       sessionIdRef.current = (data as { id: string }).id;
+      sessionStartedAtRef.current = Date.now();
       console.info('[Session] started', { id: data.id, clientId, phase });
     }
 

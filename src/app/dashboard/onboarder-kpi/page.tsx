@@ -9,6 +9,7 @@ import {
 } from "@/hooks/onboarder-kpi/useOnboardingClients";
 import { useLogActivity } from "@/hooks/onboarder-kpi/useActivityLogs";
 import { useLogStatusChange } from "@/hooks/onboarder-kpi/useStatusHistory";
+import { publishKPIEvent, buildClaimContext } from "@/hooks/onboarder-kpi/publishKPIEvent";
 import {
   useOnboarderKPIs,
   useWriteOnboarderKPISnapshots,
@@ -37,8 +38,8 @@ import UrgencyBanner from "./components/UrgencyBanner";
 
 /* ───── constants ───── */
 const SIDEBAR_TO_STATUS: Record<string, OnboardingStatus | null> = {
-  "Unassigned": "unassigned",
-  "New Clients": "new",
+  "New": "unassigned",
+  "Initial Contact": "new",
   "24hr Follow-Up": "step_2",
   "48hr Follow-Up": "step_3",
   "72hr Escalation": "final_step",
@@ -78,6 +79,9 @@ export default function OnboarderKPIPage() {
   const [statusFilter, setStatusFilter] = useState<OnboardingStatus>("unassigned");
   const [form, setForm] = useState<CreateClientInput>({ ...EMPTY_FORM });
   const [editId, setEditId] = useState<string | null>(null);
+  // Snapshot of the client at the moment Revise opened — used to diff for
+  // the claim_revised KPI event so we know what fields changed.
+  const [editOriginal, setEditOriginal] = useState<OnboardingClient | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
@@ -409,13 +413,47 @@ export default function OnboarderKPIPage() {
     try {
       if (editId) {
         await updateMut.mutateAsync({ id: editId, ...submitForm });
+
+        // KPI event: claim_revised. Diff the submitted fields vs the
+        // original client snapshot to know what actually changed. Publish
+        // only if at least one field changed (skips no-op saves).
+        if (editOriginal && userInfo?.orgId) {
+          const fieldsChanged: string[] = [];
+          const orig = editOriginal as unknown as Record<string, unknown>;
+          const subm = submitForm as unknown as Record<string, unknown>;
+          for (const key of Object.keys(subm)) {
+            const a = subm[key];
+            const b = orig[key];
+            const aNorm = a === '' || a === undefined ? null : a;
+            const bNorm = b === '' || b === undefined ? null : b;
+            if (aNorm !== bNorm) fieldsChanged.push(key);
+          }
+          if (fieldsChanged.length > 0) {
+            publishKPIEvent(supabase, {
+              orgId: userInfo.orgId,
+              metricKey: 'claim_revised',
+              metadata: {
+                user_id: userInfo.userId,
+                file_number: editOriginal.file_number,
+                fields_changed: fieldsChanged,
+              },
+              claimContext: {
+                ...buildClaimContext(submitForm as unknown as Record<string, unknown>),
+                user_name: userInfo.fullName,
+                user_email: userInfo.email,
+              },
+            });
+          }
+        }
+
         setEditId(null);
+        setEditOriginal(null);
       } else {
         await createMut.mutateAsync(submitForm);
       }
       setForm({ ...EMPTY_FORM });
       setView("pipeline");
-      setStatusFilter("new");
+      setStatusFilter("unassigned");
       if (isNewClient && hasContractorInfo) {
         checkContractorInTPN(contractorData);
       }
@@ -477,12 +515,14 @@ export default function OnboarderKPIPage() {
       notes: client.notes || null,
     });
     setEditId(client.id);
+    setEditOriginal(client);
     setFormError(null);
     setView("add");
   }
 
   async function moveStatus(client: OnboardingClient, newStatus: OnboardingStatus) {
     try {
+      const fromStatus = client.status;
       await Promise.all([
         updateMut.mutateAsync({
           id: client.id,
@@ -493,15 +533,36 @@ export default function OnboarderKPIPage() {
         }),
         logStatusChange.mutateAsync({
           client_id: client.id,
-          from_status: client.status,
+          from_status: fromStatus,
           to_status: newStatus,
         }),
         logActivity.mutateAsync({
           client_id: client.id,
           activity_type: "status_change",
-          subject: `Status changed: ${STATUS_LABELS[client.status]} \u2192 ${STATUS_LABELS[newStatus]}`,
+          subject: `Status changed: ${STATUS_LABELS[fromStatus]} \u2192 ${STATUS_LABELS[newStatus]}`,
         }),
       ]);
+
+      // KPI event publishing
+      if (userInfo?.orgId) {
+        const claimCtx = {
+          ...buildClaimContext(client as unknown as Record<string, unknown>),
+          user_name: userInfo.fullName,
+          user_email: userInfo.email,
+        };
+        const baseMeta = {
+          user_id: userInfo.userId,
+          file_number: client.file_number,
+          from_phase: fromStatus,
+        };
+        if (newStatus === 'abandoned') {
+          publishKPIEvent(supabase, { orgId: userInfo.orgId, metricKey: 'claim_abandoned', metadata: baseMeta, claimContext: claimCtx });
+        } else if (newStatus === 'erroneous') {
+          publishKPIEvent(supabase, { orgId: userInfo.orgId, metricKey: 'claim_erroneous', metadata: baseMeta, claimContext: claimCtx });
+        } else {
+          publishKPIEvent(supabase, { orgId: userInfo.orgId, metricKey: 'phase_completed', metadata: { ...baseMeta, to_phase: newStatus }, claimContext: claimCtx });
+        }
+      }
     } catch {
       // Mutations handle their own errors via react-query
     }

@@ -20,7 +20,7 @@ export const STATUS_OPTIONS: OnboardingStatus[] = [
 ];
 
 export const STATUS_LABELS: Record<OnboardingStatus, string> = {
-  'unassigned': 'Unassigned',
+  'unassigned': 'New',
   'new': 'Initial Contact',
   'step_2': '24hr Follow-Up',
   'step_3': '48hr Follow-Up',
@@ -91,19 +91,18 @@ export const TEMPLATE_CONTACTS: { key: string; label: string }[] = [
   { key: "pa", label: "Public Adjuster" },
 ];
 
-// Allowed status transitions
-export const ALLOWED_TRANSITIONS: Record<OnboardingStatus, OnboardingStatus[]> = {
-  'unassigned': ['new', 'on_hold', 'erroneous', 'abandoned'],
-  'new': ['step_2', 'on_hold', 'completed', 'erroneous'],
-  'step_2': ['step_3', 'on_hold', 'completed', 'erroneous', 'revised'],
-  'step_3': ['final_step', 'on_hold', 'completed', 'erroneous', 'revised'],
-  'final_step': ['on_hold', 'completed', 'erroneous', 'revised'],
-  'on_hold': ['new', 'step_2', 'step_3', 'final_step', 'completed', 'erroneous', 'revised'],
-  'completed': [],
-  'erroneous': ['revised'],
-  'revised': ['step_2', 'step_3', 'final_step', 'completed'],
-  'abandoned': [],
-};
+// Allowed status transitions — fully permissive per Frank 2026-04-28: real
+// life doesn't follow the auto-flow. A card might jump straight from 'new'
+// to 'completed' (signed contract first call), or back from 'completed' if
+// it was prematurely closed. Every phase can transition to every other.
+const ALL_STATUSES: OnboardingStatus[] = [
+  'unassigned', 'new', 'step_2', 'step_3', 'final_step', 'on_hold',
+  'completed', 'erroneous', 'revised', 'abandoned',
+];
+export const ALLOWED_TRANSITIONS: Record<OnboardingStatus, OnboardingStatus[]> =
+  Object.fromEntries(
+    ALL_STATUSES.map((from) => [from, ALL_STATUSES.filter((to) => to !== from)]),
+  ) as Record<OnboardingStatus, OnboardingStatus[]>;
 
 // Overdue target hours per stage
 export const STAGE_TARGET_HOURS: Partial<Record<OnboardingStatus, number>> = {
