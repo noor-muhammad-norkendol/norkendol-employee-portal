@@ -4,19 +4,31 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Normalized result from any source table
 export interface ClaimLookupMatch {
-  source_table: 'onboarding_clients' | 'estimates' | 'litigation_files' | 'claim_health_records';
+  source_table:
+    | 'onboarding_clients'
+    | 'estimates'
+    | 'litigation_files'
+    | 'mediations'
+    | 'appraisals'
+    | 'pa_settlements'
+    | 'claim_health_records';
   source_id: string;
-  claim_number?: string | null;
+  // Canonical IDENTIFIERS — present on every spoke after the 2026-04-28 sweep
   file_number?: string | null;
+  claim_number?: string | null;
+  policy_number?: string | null;
   client_name?: string | null;
   loss_address?: string | null;
+  // Canonical CHARACTERISTICS
+  peril?: string | null;
+  peril_other?: string | null;
+  severity?: number | null;
+  // Spoke-specific extras (kept for callers that already use them)
   carrier?: string | null;
   state?: string | null;
-  peril?: string | null;
   loss_date?: string | null;
   referral_source?: string | null;
   referral_representative?: string | null;
-  policy_number?: string | null;
   email?: string | null;
   phone?: string | null;
   property_type?: string | null;
@@ -27,7 +39,12 @@ export interface ClaimLookupMatch {
   contractor_rep_phone?: string | null;
 }
 
-export type LookupField = 'claim_number' | 'file_number' | 'client_name' | 'address';
+export type LookupField =
+  | 'claim_number'
+  | 'file_number'
+  | 'policy_number'
+  | 'client_name'
+  | 'address';
 
 interface UseClaimLookupOptions {
   supabase: SupabaseClient;
@@ -37,17 +54,39 @@ interface UseClaimLookupOptions {
   enabled?: boolean;
 }
 
-// Normalize rows from different tables into a common shape
+// Apply the canonical search filter once; the same 5 fields exist on every spoke.
+function applyCanonicalFilter<Q extends { eq: (col: string, v: string) => Q; ilike: (col: string, v: string) => Q }>(
+  q: Q,
+  field: LookupField,
+  term: string,
+): Q {
+  if (field === 'claim_number')   return q.eq('claim_number', term);
+  if (field === 'file_number')    return q.eq('file_number', term);
+  if (field === 'policy_number')  return q.eq('policy_number', term);
+  if (field === 'client_name')    return q.ilike('client_name', `%${term}%`);
+  return q.ilike('loss_address', `%${term}%`);
+}
+
+// Pull the canonical fields off any spoke row in one place.
+function canonicalFields(row: Record<string, unknown>) {
+  return {
+    file_number:    row.file_number    as string | null,
+    claim_number:   row.claim_number   as string | null,
+    policy_number:  row.policy_number  as string | null,
+    client_name:    row.client_name    as string | null,
+    loss_address:   row.loss_address   as string | null,
+    peril:          row.peril          as string | null,
+    peril_other:    row.peril_other    as string | null,
+    severity:       row.severity       as number | null,
+  };
+}
+
 function normalizeOnboarding(row: Record<string, unknown>): ClaimLookupMatch {
   return {
     source_table: 'onboarding_clients',
     source_id: row.id as string,
-    claim_number: row.claim_number as string | null,
-    file_number: row.file_number as string | null,
-    client_name: row.client_name as string | null,
-    loss_address: row.loss_address as string | null,
+    ...canonicalFields(row),
     state: row.state as string | null,
-    peril: row.peril as string | null,
     loss_date: row.date_of_loss as string | null,
     referral_source: row.referral_source as string | null,
     email: row.email as string | null,
@@ -59,16 +98,12 @@ function normalizeEstimate(row: Record<string, unknown>): ClaimLookupMatch {
   return {
     source_table: 'estimates',
     source_id: row.id as string,
-    claim_number: row.claim_number as string | null,
-    file_number: row.file_number as string | null,
-    client_name: row.client_name as string | null,
+    ...canonicalFields(row),
     carrier: row.carrier as string | null,
     state: row.loss_state as string | null,
-    peril: row.peril as string | null,
     loss_date: row.loss_date as string | null,
     referral_source: row.referral_source as string | null,
     referral_representative: row.referral_representative as string | null,
-    policy_number: row.policy_number as string | null,
     property_type: row.property_type as string | null,
     carrier_adjuster: row.carrier_adjuster as string | null,
     contractor_company: row.contractor_company as string | null,
@@ -82,14 +117,34 @@ function normalizeLitigation(row: Record<string, unknown>): ClaimLookupMatch {
   return {
     source_table: 'litigation_files',
     source_id: row.id as string,
-    file_number: row.file_number as string | null,
-    client_name: row.client_name as string | null,
-    loss_address: row.loss_address as string | null,
+    ...canonicalFields(row),
     state: row.state as string | null,
-    peril: row.peril as string | null,
     referral_source: row.referral_source as string | null,
     referral_representative: row.referral_rep as string | null,
-    policy_number: row.policy_number as string | null,
+  };
+}
+
+function normalizeMediation(row: Record<string, unknown>): ClaimLookupMatch {
+  return {
+    source_table: 'mediations',
+    source_id: row.id as string,
+    ...canonicalFields(row),
+  };
+}
+
+function normalizeAppraisal(row: Record<string, unknown>): ClaimLookupMatch {
+  return {
+    source_table: 'appraisals',
+    source_id: row.id as string,
+    ...canonicalFields(row),
+  };
+}
+
+function normalizePASettlement(row: Record<string, unknown>): ClaimLookupMatch {
+  return {
+    source_table: 'pa_settlements',
+    source_id: row.id as string,
+    ...canonicalFields(row),
   };
 }
 
@@ -97,8 +152,7 @@ function normalizeClaimHealth(row: Record<string, unknown>): ClaimLookupMatch {
   return {
     source_table: 'claim_health_records',
     source_id: row.id as string,
-    file_number: row.file_number as string | null,
-    client_name: row.client_name as string | null,
+    ...canonicalFields(row),
     referral_source: row.referral_source as string | null,
     referral_representative: row.referral_representative as string | null,
   };
@@ -126,61 +180,42 @@ export function useClaimLookup({ supabase, orgId, searchTerm, searchField, enabl
     timerRef.current = setTimeout(async () => {
       const results: ClaimLookupMatch[] = [];
 
-      // Build field-specific queries for each table
-      const isExact = searchField === 'claim_number' || searchField === 'file_number';
+      // Every CRM spoke now carries the full canonical column set
+      // (IDENTIFIERS + CHARACTERISTICS) — see HANDOFF.md "Canonical CRM Spoke
+      // Standard". So one filter shape works for all 7 spokes.
+      const spokes: Array<{
+        table: string;
+        normalize: (row: Record<string, unknown>) => ClaimLookupMatch;
+      }> = [
+        { table: 'onboarding_clients',   normalize: normalizeOnboarding },
+        { table: 'estimates',            normalize: normalizeEstimate },
+        { table: 'litigation_files',     normalize: normalizeLitigation },
+        { table: 'mediations',           normalize: normalizeMediation },
+        { table: 'appraisals',           normalize: normalizeAppraisal },
+        { table: 'pa_settlements',       normalize: normalizePASettlement },
+        { table: 'claim_health_records', normalize: normalizeClaimHealth },
+      ];
 
-      // 1. onboarding_clients
-      try {
-        let q = supabase.from('onboarding_clients').select('*').eq('org_id', orgId);
-        if (searchField === 'claim_number') q = q.eq('claim_number', searchTerm);
-        else if (searchField === 'file_number') q = q.eq('file_number', searchTerm);
-        else if (searchField === 'client_name') q = q.ilike('client_name', `%${searchTerm}%`);
-        else if (searchField === 'address') q = q.ilike('loss_address', `%${searchTerm}%`);
-        const { data } = await q.limit(5);
-        if (data) results.push(...data.map(normalizeOnboarding));
-      } catch { /* skip */ }
+      await Promise.all(
+        spokes.map(async ({ table, normalize }) => {
+          try {
+            let q = supabase.from(table).select('*').eq('org_id', orgId);
+            q = applyCanonicalFilter(q, searchField, searchTerm);
+            // Estimates carry parent/child revisions — newest first so the
+            // current snapshot wins on dedupe below.
+            if (table === 'estimates') {
+              q = q.order('created_at', { ascending: false });
+            }
+            const { data } = await q.limit(5);
+            if (data) results.push(...data.map(normalize));
+          } catch {
+            /* skip spoke on error */
+          }
+        }),
+      );
 
-      // 2. estimates
-      try {
-        let q = supabase.from('estimates').select('*').eq('org_id', orgId);
-        if (searchField === 'claim_number') q = q.eq('claim_number', searchTerm);
-        else if (searchField === 'file_number') q = q.eq('file_number', searchTerm);
-        else if (searchField === 'client_name') q = q.ilike('client_name', `%${searchTerm}%`);
-        else if (searchField === 'address') { setSearching(false); return; } // estimates has no address
-        // Only get the most recent per file_number
-        q = q.order('created_at', { ascending: false });
-        const { data } = await q.limit(5);
-        if (data) results.push(...data.map(normalizeEstimate));
-      } catch { /* skip */ }
-
-      // 3. litigation_files
-      try {
-        let q = supabase.from('litigation_files').select('*').eq('org_id', orgId);
-        if (searchField === 'claim_number') { /* litigation_files has no claim_number — skip */ }
-        else if (searchField === 'file_number') q = q.eq('file_number', searchTerm);
-        else if (searchField === 'client_name') q = q.ilike('client_name', `%${searchTerm}%`);
-        else if (searchField === 'address') q = q.ilike('loss_address', `%${searchTerm}%`);
-
-        if (searchField !== 'claim_number') {
-          const { data } = await q.limit(5);
-          if (data) results.push(...data.map(normalizeLitigation));
-        }
-      } catch { /* skip */ }
-
-      // 4. claim_health_records
-      try {
-        let q = supabase.from('claim_health_records').select('*').eq('org_id', orgId);
-        if (searchField === 'file_number') q = q.eq('file_number', searchTerm);
-        else if (searchField === 'client_name') q = q.ilike('client_name', `%${searchTerm}%`);
-        // CHR has no claim_number or address columns — skip those searches
-
-        if (searchField === 'file_number' || searchField === 'client_name') {
-          const { data } = await q.limit(5);
-          if (data) results.push(...data.map(normalizeClaimHealth));
-        }
-      } catch { /* skip */ }
-
-      // Deduplicate by client_name + claim_number + file_number combo
+      // Deduplicate by canonical identifier combo so a claim that exists in
+      // multiple spokes (typical for an active matter) doesn't show up 5 times.
       const seen = new Set<string>();
       const deduped = results.filter((r) => {
         const key = `${r.client_name || ''}|${r.claim_number || ''}|${r.file_number || ''}|${r.loss_address || ''}`;

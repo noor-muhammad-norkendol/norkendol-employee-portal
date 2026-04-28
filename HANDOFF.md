@@ -4,6 +4,74 @@ Last updated: April 3, 2026 — Session 4 (final)
 
 ---
 
+## Canonical CRM Spoke Standard — READ FIRST IF DOING SCHEMA WORK
+
+**Locked 2026-04-28.** Every CRM spoke table (today's 7 + all future 15-18) must carry both categories below. **This is non-negotiable, applies to current AND all future spokes, and must be enforced at design-time** — when a new spoke is being created, both categories go into the **initial CREATE TABLE migration**, NOT as a follow-up sweep.
+
+### The two categories
+
+```
+┌─────────────────────────────────────┐  ┌─────────────────────────────────────┐
+│  CATEGORY 1 — IDENTIFIERS           │  │  CATEGORY 2 — CHARACTERISTICS       │
+│  (Searchable; cross-spoke lookup)   │  │  (Descriptive; on every Claim Info) │
+│  ───────────────────────────────    │  │  ───────────────────────────────    │
+│  • file_number      (FL-NNNNN-YYYY) │  │  • peril       (lookup-driven)      │
+│  • claim_number     (carrier)       │  │  • peril_other (free text when      │
+│  • policy_number                    │  │                 peril = 'Other')    │
+│  • client_name      (= "client ID") │  │  • severity    (int 1-5, fixed)     │
+│  • loss_address                     │  │  • status      (deferred — TBD)     │
+│                                     │  │                                     │
+│  Surfaced via useClaimLookup        │  │  Display on every claim form        │
+│  (5 fields in the search dropdown)  │  │  consistently. Peril sourced from   │
+│                                     │  │  peril_types lookup (admin-edits).  │
+│  No CHECK constraints — text only   │  │  Severity is fixed CHECK 1-5.       │
+└─────────────────────────────────────┘  └─────────────────────────────────────┘
+```
+
+### Field-by-field spec
+
+**Category 1 — Identifiers:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `file_number` | `text` | Internal CCS-generated ID, format `STATE-NNNNN-YYYY` (e.g., `FL-12345-2026`) |
+| `claim_number` | `text` | Carrier-assigned external claim number |
+| `policy_number` | `text` | Insurance policy number |
+| `client_name` | `text` | The insured / policyholder. Synonym in conversation: "client ID" |
+| `loss_address` | `text` | Property where the loss occurred |
+
+**Category 2 — Characteristics:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `peril` | `text` | Sourced from the `peril_types` lookup table (admin-editable). NO CHECK constraint on the spoke column. UI dropdown queries `peril_types WHERE is_active = true ORDER BY sort_order`. 12 starter perils seeded: Wind/Hail, Wind, Hail, Hurricane, Fire, Lightning, Flood, Smoke, Vandalism, Theft, Water, Other. |
+| `peril_other` | `text` | Free-form text. Populated only when user picks `peril = 'Other'` (e.g., "plane crash"). |
+| `severity` | `int` | `CHECK (severity IS NULL OR severity BETWEEN 1 AND 5)`. UI displays as integers only. NOT a lookup table. Internal text mapping (for documentation only): 1=Light, 2=Minor, 3=Moderate, 4=Severe, 5=Total Loss. |
+| `status` | DEFERRED | Each spoke keeps its own status column for now. Unified-status design is a future decision. |
+
+### Today's 7 spokes (compliance verified 2026-04-28)
+
+`onboarding_clients` · `estimates` · `litigation_files` · `mediations` · `appraisals` · `pa_settlements` · `claim_health_records`
+
+### Rule for new spokes
+
+When designing any new table that holds per-claim records (e.g., `claim_files`, `claim_action_items`, `claim_payments`, `claim_notes`, etc.):
+
+1. **All 9 canonical columns MUST be in the initial CREATE TABLE migration.** No "we'll add them later." No "this spoke doesn't need claim_number." No exceptions.
+2. **Apply the rule at design time** — the first design check on any new spoke migration is: "Does this CREATE TABLE include all 9 canonical columns?"
+3. **The standard scales.** Frank expects 15-18 spokes total. Every new one inherits the standard automatically by following this rule.
+
+### Why this rule exists
+
+Frank's directive (2026-04-28): "everything that's on your onboarding KPI needs to be the same in each of these systems when you add something" + "if I accidentally forget to say these are minimum standards, the MD should speak of this." Drift across spokes (different column names, missing fields, type inconsistencies) compounds into special cases in app code, RLS, and JOINs. Tonight's sweep caught all 7 current spokes; this rule prevents drift from returning.
+
+### Cross-references
+
+- Memory entries (auto-loaded by future Claude sessions): `feedback_canonical_spoke_standard.md`, `feedback_canonical_vocabulary.md`, `feedback_cross_spoke_consistency.md`
+- Decision log: `.planning/CRM-PLAN.md` row dated 2026-04-28
+
+---
+
 ## Current State
 
 Portal has dual sidebars, auth middleware, role-gated accordion navigation with SVG icons and drag-and-drop reordering. Dashboard is fully functional with 5 live sections. Four admin pages wired up with full CRUD. **User Management rebuilt as table layout with 70 real employees seeded. Employee Directory built with grid/list views. Public apply page + pending user approval flow live.**
