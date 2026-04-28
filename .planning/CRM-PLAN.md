@@ -224,7 +224,7 @@ The keystone phase. Nothing else makes sense until this lands.
 
 1. ✅ **DONE 2026-04-27** — Create `claims` table (canonical per-claim record). Applied to live DB (`hkscsovtejeedjebytsv`) via Supabase dashboard SQL editor; captured in `supabase/migrations/20260427_crm_phase1_claims_table.sql`. RLS tightened from day 1 (see Decision Log).
 2. ✅ **DONE 2026-04-27** — Create `claim_personnel_roles` (admin-editable lookup, 23 starter roles seeded) + `claim_personnel` (m2m with polymorphic `user_id` / `external_contact_id` and exactly-one CHECK). Applied to live DB (`hkscsovtejeedjebytsv`) via Supabase dashboard SQL editor; captured in `supabase/migrations/20260427_crm_phase1_step2_personnel_and_roles.sql`. RLS enabled on both tables.
-3. Create `team_memberships` for departmental access (or decide on `users.team_codes` array — Frank to pick)
+3. ✅ **NOOP 2026-04-27** — Department membership shape locked: v1 keeps the existing `users.department` single string column unchanged. No new table, no new column. Multi-department (`user_departments` join table) deferred until operating data justifies it. See Decision Log row "Single department per user for v1; multi-department deferred."
 4. Backfill: every existing `litigation_files` row gets a corresponding `claims` row; same for `onboarding_clients` where status=completed; same for `estimates`, `claim_health_records`
 5. Add `claim_id` foreign keys on existing tables (nullable initially; non-null after backfill)
 6. Update `useClaimLookup` to respect scope — accept `scope: 'mine' | 'global'` param; filter each table query by assignment when `scope=mine`

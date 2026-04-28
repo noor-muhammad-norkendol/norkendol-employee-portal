@@ -383,12 +383,13 @@ src/
 9. **Employee roles need updating** — all seeded users are `role = 'user'`, executives/admins need proper roles assigned.
 10. **Notification recipient picker** — can now use real user list from user management.
 
-## Next Session: CRM Phase 1 Steps 3 + 4 (department decision + backfill)
+## Next Session: CRM Phase 1 Step 4 (backfill claims from the seven spokes)
 
-Steps 1 (`claims` table) and 2 (`claim_personnel_roles` + `claim_personnel`) both landed on 2026-04-27. Next up:
+Steps 1 (`claims`), 2 (`claim_personnel_roles` + `claim_personnel`), and 3 (department-membership shape — closed 2026-04-27 as NOOP, v1 keeps existing `users.department` string column unchanged per Decision Log) all landed/closed on 2026-04-27. Next up:
 
-- **Step 3 — Department membership decision.** Per CRM-PLAN.md decision log (2026-04-27): single department per user for v1, multi-department deferred. Likely a no-migration decision unless something surfaces.
 - **Step 4 — Backfill `claims` from the seven spokes.** Pull existing rows from `onboarding_clients`, `litigation_files`, `estimates`, `mediations`, `appraisals`, `pa_settlements`, `claim_health_records` into `claims`. Use `AL-` prefix on legacy `file_number` (per locked decision). Carries `assigned_adjuster_id` from `onboarding_clients.assigned_user_id` for completed-intake rows; nullable for pre-Onboarder litigation files. BINGO each spoke's backfill SQL chunk-by-chunk.
+
+**Step 4 has real design questions that need a fresh-mind session, not end-of-evening:** dedup logic when the same claim shows up in multiple spokes (e.g., a `litigation_files` row and an `onboarding_clients` row sharing a `file_number`); per-spoke `current_phase` mapping (each spoke has its own status enum that needs to fold into the unified 8-value `claims.current_phase` rollup); status filtering on `onboarding_clients` (only `status = 'completed'` rows backfill, per CRM-PLAN.md). Open the next session by drafting a backfill plan per spoke before any INSERTs.
 
 The bigger picture: Step 5 adds `claim_id` FKs to the seven spokes (with the `mediations` / `appraisals` untracked-schema heads-up captured in HANDOFF + Step 1 session entry). Step 6 reworks `useClaimLookup` to scope queries. Step 7 tightens RLS to use `claim_personnel`. Steps 8–9 finish the access model rollout.
 
