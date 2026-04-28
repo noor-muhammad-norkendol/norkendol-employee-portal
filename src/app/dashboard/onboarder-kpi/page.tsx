@@ -85,19 +85,27 @@ export default function OnboarderKPIPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
 
-  // Slide-out detail panel
-  const [panelClient, setPanelClient] = useState<OnboardingClient | null>(null);
+  // Slide-out detail panel.
+  // Stores the open claim's ID rather than a snapshot of the claim object,
+  // so the derived `panelClient` below picks up fresh data after every
+  // useOnboardingClients refetch. Holding a snapshot caused phase_completed
+  // events to always publish from_phase = the status at panel-open, since
+  // each Move-To click in the panel re-read the same frozen `client.status`.
+  const [panelClientId, setPanelClientId] = useState<string | null>(null);
+  const panelClient = panelClientId
+    ? allClients.find((c) => c.id === panelClientId) ?? null
+    : null;
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelAction, setPanelAction] = useState<PanelAction>(null);
 
   function openPanel(client: OnboardingClient, action: PanelAction) {
-    setPanelClient(client);
+    setPanelClientId(client.id);
     setPanelAction(action);
     setPanelOpen(true);
   }
   function closePanel() {
     setPanelOpen(false);
-    setTimeout(() => { setPanelClient(null); setPanelAction(null); }, 250); // wait for animation
+    setTimeout(() => { setPanelClientId(null); setPanelAction(null); }, 250); // wait for animation
   }
 
   // Auto-generate file number when state is set (new clients only)
