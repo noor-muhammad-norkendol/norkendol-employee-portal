@@ -425,19 +425,53 @@ export default function OnboarderKPIPage() {
   }
 
   function startEdit(client: OnboardingClient) {
+    // Seed the form with EVERY persisted field on the client so Edit doesn't
+    // appear to wipe name/address/contractor/etc. Previously only a subset was
+    // copied which made the Edit modal look empty.
     setForm({
+      ...EMPTY_FORM,
+      // Policyholder
+      client_first_name: client.client_first_name || null,
+      client_last_name: client.client_last_name || null,
       client_name: client.client_name,
-      referral_source: client.referral_source || null,
-      state: client.state || null,
-      peril: client.peril || null,
-      onboard_type: client.onboard_type || null,
+      additional_policyholder_first: client.additional_policyholder_first || null,
+      additional_policyholder_last: client.additional_policyholder_last || null,
+      additional_policyholder_email: client.additional_policyholder_email || null,
+      additional_policyholder_phone: client.additional_policyholder_phone || null,
       email: client.email || null,
       phone: client.phone || null,
+      // Loss info
+      state: client.state || null,
+      date_of_loss: client.date_of_loss || null,
+      peril: client.peril || null,
+      loss_street: client.loss_street || null,
+      loss_line2: client.loss_line2 || null,
+      loss_city: client.loss_city || null,
+      loss_state: client.loss_state || null,
+      loss_zip: client.loss_zip || null,
+      loss_description: client.loss_description || null,
+      loss_address: client.loss_address || null,
+      // Parties
+      contractor_company: client.contractor_company || null,
+      contractor_name: client.contractor_name || null,
+      contractor_email: client.contractor_email || null,
+      contractor_phone: client.contractor_phone || null,
+      referral_source: client.referral_source || null,
+      source_email: client.source_email || null,
+      // Claim & assignment
+      assignment_type: client.assignment_type || null,
+      insurance_company: client.insurance_company || null,
+      policy_number: client.policy_number || null,
+      status_claim: client.status_claim || null,
+      claim_number: client.claim_number || null,
+      file_number: client.file_number || null,
+      supplement_notes: client.supplement_notes || null,
+      // Assignment
       assigned_user_id: client.assigned_user_id || null,
       assigned_user_name: client.assigned_user_name || null,
       assigned_pa_name: client.assigned_pa_name || null,
-      assignment_type: client.assignment_type || null,
-      date_of_loss: client.date_of_loss || null,
+      onboard_type: client.onboard_type || null,
+      // Notes / housekeeping
       initial_hours: client.initial_hours || 0,
       notes: client.notes || null,
     });

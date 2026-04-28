@@ -1,0 +1,160 @@
+# Portal Punch List — Known Gaps & Follow-up Items
+
+**Created:** 2026-04-28
+**Purpose:** Single source of truth for known UX/UI/data gaps, follow-up work, and "we'll fix this later" items found during sessions. Add to it when something is flagged but deferred. Cross off (or move to a Done section) when fixed.
+
+This is NOT a roadmap. It's a punch list — small, specific, fixable items.
+
+---
+
+## UI / UX
+
+### 1. Peril + Peril Other = should be ONE combobox, not two fields
+**Where:** Every form with peril input — Calculator, Estimator, Onboarder, Settlement Tracker (all 4 tracks), Claim Health, TLS detail panel.
+
+**Current:** Two side-by-side controls — a `<select>` for peril (with "Other" as one option) PLUS a separate `<input type="text">` for the "Peril Other" free-text. The second field is grayed out unless peril = 'Other'.
+
+**Frank's call (2026-04-28):** "That whole second box is completely pointless." Right.
+
+**Better:** Single combobox using HTML5 `<input list="...">` + `<datalist>`. User picks from the canonical perils OR types a custom value. On save, the form code splits to populate both DB columns:
+- If entered text matches a canonical peril → `peril='Hurricane'` (etc.), `peril_other=null`
+- Otherwise → `peril='Other'`, `peril_other='whatever they typed'`
+
+Canonical 9-column standard stays intact at the DB level. UI gets one clean field instead of two.
+
+**Effort:** ~10 min per form. Apply consistently across all spoke forms in one focused pass.
+
+---
+
+### 2. Onboarder form missing `severity` input
+**Where:** `src/app/dashboard/onboarder-kpi/components/AddClientForm.tsx`
+
+**Current:** DB column exists (added in 2026-04-28 canonical sweep). Form has no UI input. Saved rows always have `severity = NULL`.
+
+**Fix:** Add a 1-5 number input (or 1-5 dropdown) in the Loss Info section. Match whatever pattern Estimator uses.
+
+---
+
+### 3. Settlement Tracker uses a DROPDOWN for file/claim number, not a typeable search
+**Where:** Settlement Tracker forms (Litigation / Mediation / Appraisal / PA Settlements)
+
+**Frank's call (2026-04-28):** "The file number or claim ID — you can't search that, it's a drop down button. We need to fix this side of things before we can do these tests." Original flag, deferred to focus on TLS spoke build.
+
+**Fix:** Replace dropdown with text input + `useClaimLookup` cross-spoke search banner (same pattern Onboarder, Calculator, and TLS use).
+
+---
+
+### 4. Stale canonical fields on TLS rows
+**Where:** `team_lead_reviews` rows (and any spoke that auto-creates a row from upstream)
+
+**Current:** TLS auto-create is "create-once" — once a row exists for `(org, file, phase)`, it's never updated by upstream changes. Protects TL's review work but means canonical fields (client_name, peril, etc.) go stale if onboarding gets corrected after TLS row exists.
+
+**Example seen 2026-04-28:** Onboarder row's client_name changed from "h h" → "Maria Rodriguez", but TLS row stayed showing "h h".
+
+**Options to consider:**
+- A **"Refresh from Source"** button on the TLS detail panel that pulls latest canonical fields from the upstream spoke (preserves reviewer_id, decision_at, status, notes).
+- A smarter upsert that updates ONLY canonical columns (peril, client_name, etc.) but leaves review state untouched.
+
+Either is fine. Decide when it actually bites someone.
+
+---
+
+## Cross-spoke audit (still owed)
+
+### 5. Walk every spoke page and verify the canonical surfaces match
+**Where:** All 9 spoke pages
+
+**What to check on each page:**
+- Form has UI inputs for all 9 canonical columns (file_number, claim_number, policy_number, client_name, loss_address, peril, peril_other, severity, status)
+- `useClaimLookup` is wired with the latest `LookupField` type (5 search fields including `policy_number`)
+- `handleClaimAccept`-style functions propagate ALL 9 canonical fields, not just the older 4-5
+- Labels say "File Number" not "Claim File", "Claim Number" not "Claim ID", etc. (Frank's canonical vocabulary lock 2026-04-28)
+
+**Pages to audit:**
+- [ ] Onboarder KPI (`/dashboard/onboarder-kpi`)
+- [ ] Estimator KPI (`/dashboard/estimator-kpi`)
+- [ ] Settlement Tracker — Litigation
+- [ ] Settlement Tracker — Mediation
+- [ ] Settlement Tracker — Appraisal
+- [ ] Settlement Tracker — PA Settlements
+- [ ] Claim Health (`/dashboard/claim-health`)
+- [ ] Claim Calculator (`/dashboard/claim-calculator`) — partially audited 2026-04-28
+- [ ] Team Lead Support (`/dashboard/team-lead-support`) — built 2026-04-28
+
+This is the audit Frank wanted to do before the smoke test that got paused for the TLS spoke build.
+
+---
+
+## Workflow chain — missing builds
+
+### 6. Build Scope of Loss spoke
+**Where:** New work — `scope_of_loss` Supabase table + RLS + landing page
+
+**What's in:** Placeholder page exists at `/dashboard/scope-of-loss`. Sidebar nav entry exists. **Backing spoke does NOT exist** (no DB table, no auto-create wiring).
+
+**Next session scope:**
+- DB table with all 9 canonical columns from day 1 per the locked Standard
+- Replace placeholder page with functional landing
+- Auto-create wiring: TLS Phase 1 `status='approved'` → INSERTs a Scope of Loss row
+
+---
+
+### 7. Build Adjuster KPI spoke
+**Where:** New work — `adjuster_reviews` (or similar) Supabase table + RLS + landing page
+
+**What's in:** Placeholder page exists at `/dashboard/adjuster-kpi`. Sidebar nav entry exists. Backing spoke does NOT exist.
+
+**Next session scope:**
+- DB table with all 9 canonical columns from day 1
+- Replace placeholder page
+- Auto-create wiring: TLS Phase 2 `status='approved'` → INSERTs an Adjuster row
+
+Frank also flagged that more trackables come AFTER Adjuster KPI. Those are even later builds.
+
+---
+
+### 8. Wire TLS Phase 1 approval → Scope of Loss row creation
+**Where:** `src/app/dashboard/team-lead-support/page.tsx` — the `approveRow()` function
+
+**Currently:** `approveRow()` flips status to 'approved' and stops. No downstream insert.
+
+**After Scope of Loss spoke exists:** Add an `ensureScopeOfLossRow(supabase, tlsRow)` call inside `approveRow()` for `phase_1` rows. Mirror pattern of Onboarder → TLS auto-create (create-once, idempotent, error-logged).
+
+---
+
+### 9. Wire TLS Phase 2 approval → Adjuster KPI row creation
+**Where:** Same `approveRow()` function in TLS page.
+
+**After Adjuster spoke exists:** Add `ensureAdjusterRow(supabase, tlsRow)` for `phase_2` approvals. Same pattern.
+
+---
+
+## Access control — deferred policies
+
+### 10. "Direct manager sees their reports' TLS reviews"
+**Where:** Supabase RLS — `team_lead_reviews` SELECT policies
+
+**Currently:** Only super_admin sees all rows. Reviewers see their own. No "manager" pattern.
+
+**Blocked on:** Either a `users.manager_id uuid REFERENCES users(id)` column, OR the existing `org_hierarchy` migration getting run in production (per HANDOFF.md it's not yet run — Noor task).
+
+**Once the column exists:** Add a 5th SELECT policy:
+```sql
+CREATE POLICY "Manager sees direct reports' tls reviews"
+  ON team_lead_reviews FOR SELECT
+  USING (
+    reviewer_id IN (
+      SELECT id FROM users WHERE manager_id = auth.uid()
+    )
+    AND auth.uid() IN (SELECT id FROM users WHERE status = 'active')
+  );
+```
+
+Same pattern would extend to `claim_calculator_runs` and any other spoke with reviewer-style access.
+
+---
+
+## Done (recently fixed — keep here as record, prune occasionally)
+
+- ✅ **2026-04-28** — `startEdit` on Onboarder was wiping name/address/contractor/etc. fields when clicking Edit. Fixed by spreading all canonical fields into the form, not just a tiny subset.
+- ✅ **2026-04-28** — TLS auto-create initial implementation used Supabase `upsert(..., onConflict)` which would have wiped reviewer_id/decision_notes/status on every onboarder re-save. Fixed to "create-once" pattern (existence check, then INSERT).

@@ -1,8 +1,70 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useEKSupabase } from './useSupabase';
 import { Estimate, CreateEstimateInput, UpdateEstimateInput } from '@/types/estimator-kpi';
+
+// Spoke #9 auto-create: when an estimate hits status='review', CREATE-ONCE
+// a team_lead_reviews Phase 2 row. 'review' is the natural "estimator done,
+// awaiting TL review before going to carrier" gate per the existing status
+// enum. If a Phase 2 row already exists for this (org, file_number) combo,
+// we do NOT touch it — preserves any review work the TL has done.
+async function ensureTLSPhase2Row(supabase: SupabaseClient, row: Estimate) {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData?.user?.id;
+  if (!userId) {
+    console.warn('[TLS Phase 2] skipped: no signed-in user');
+    return;
+  }
+  if (!row.file_number) {
+    console.warn('[TLS Phase 2] skipped: estimate row has no file_number', { row });
+    return;
+  }
+
+  const { data: existing, error: checkErr } = await supabase
+    .from('team_lead_reviews')
+    .select('id')
+    .eq('org_id', row.org_id)
+    .eq('file_number', row.file_number)
+    .eq('phase', 'phase_2')
+    .maybeSingle();
+  if (checkErr) {
+    console.error('[TLS Phase 2] existence check failed:', checkErr);
+    return;
+  }
+  if (existing) {
+    console.info('[TLS Phase 2] row already exists — skipping', { file_number: row.file_number });
+    return;
+  }
+
+  const r = row as Estimate & {
+    policy_number?: string | null;
+    loss_address?: string | null;
+    peril_other?: string | null;
+    severity?: number | null;
+  };
+  const payload = {
+    org_id: row.org_id,
+    file_number: row.file_number,
+    claim_number: row.claim_number || null,
+    policy_number: r.policy_number || null,
+    client_name: row.client_name || null,
+    loss_address: r.loss_address || null,
+    peril: row.peril || null,
+    peril_other: r.peril_other || null,
+    severity: r.severity ?? null,
+    phase: 'phase_2' as const,
+    status: 'pending' as const,
+    created_by: userId,
+  };
+  const { error: insertErr } = await supabase.from('team_lead_reviews').insert(payload);
+  if (insertErr) {
+    console.error('[TLS Phase 2] INSERT failed:', insertErr, 'payload:', payload);
+    return;
+  }
+  console.info('[TLS Phase 2] row created for', row.file_number);
+}
 
 export function useEstimates() {
   const { supabase, userInfo } = useEKSupabase();
@@ -139,10 +201,23 @@ export function useUpdateEstimate() {
         .select()
         .maybeSingle();
       if (error) throw new Error(`Failed to update estimate: ${error.message}`);
+
+      // Auto-create TLS Phase 2 row when estimate hits 'review' status.
+      // Idempotent — running multiple times is a no-op.
+      if (data && (data as Estimate).status === 'review') {
+        try {
+          await ensureTLSPhase2Row(supabase, data as Estimate);
+        } catch (e) {
+          // Non-fatal: log but don't fail the estimate update.
+          console.error('TLS Phase 2 auto-create failed:', e);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: ['team-lead-reviews'] });
     },
   });
 }

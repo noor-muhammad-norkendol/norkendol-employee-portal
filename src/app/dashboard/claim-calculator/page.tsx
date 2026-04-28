@@ -84,23 +84,48 @@ export default function ClaimCalculatorPage() {
 
   const [claimNumber, setClaimNumber] = useState("");
   const [fileNumber, setFileNumber] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
   const [clientName, setClientName] = useState("");
   const [lossAddress, setLossAddress] = useState("");
 
+  // Canonical CHARACTERISTICS — 9-column standard
+  const [peril, setPeril] = useState("");
+  const [perilOther, setPerilOther] = useState("");
+  const [severity, setSeverity] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
+
+  // peril_types lookup table (admin-editable)
+  const [perilTypes, setPerilTypes] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!orgId) return;
+    supabase.from('peril_types')
+      .select('id, name')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => { if (data) setPerilTypes(data as { id: string; name: string }[]); });
+  }, [supabase, orgId]);
+
   const [ccLookupField, setCcLookupField] = useState<LookupField>('claim_number');
-  const ccLookupTerm = ccLookupField === 'claim_number' ? claimNumber
-    : ccLookupField === 'file_number' ? fileNumber
-    : ccLookupField === 'client_name' ? clientName
-    : lossAddress;
+  const ccLookupTerm =
+    ccLookupField === 'claim_number'  ? claimNumber  :
+    ccLookupField === 'file_number'   ? fileNumber   :
+    ccLookupField === 'policy_number' ? policyNumber :
+    ccLookupField === 'client_name'   ? clientName   :
+    lossAddress;
   const { matches: claimMatches, searching: claimSearching, clear: clearLookup } = useClaimLookup({
     supabase, orgId, searchTerm: ccLookupTerm, searchField: ccLookupField,
   });
 
   function handleCcClaimAccept(match: ClaimLookupMatch) {
-    if (match.claim_number) setClaimNumber(match.claim_number);
-    if (match.file_number) setFileNumber(match.file_number);
-    if (match.client_name) setClientName(match.client_name);
-    if (match.loss_address) setLossAddress(match.loss_address);
+    if (match.claim_number)   setClaimNumber(match.claim_number);
+    if (match.file_number)    setFileNumber(match.file_number);
+    if (match.policy_number)  setPolicyNumber(match.policy_number);
+    if (match.client_name)    setClientName(match.client_name);
+    if (match.loss_address)   setLossAddress(match.loss_address);
+    if (match.peril)          setPeril(match.peril);
+    if (match.peril_other)    setPerilOther(match.peril_other);
+    if (match.severity != null) setSeverity(match.severity);
   }
 
   /* ── open sections ── */
@@ -370,6 +395,162 @@ export default function ClaimCalculatorPage() {
   /* ── add-back for display ── */
   const addBackPriorPayments = priorPaymentsTotal - priorPAFees;
 
+  /* ── Spoke #8 persistence: save / load / list runs ── */
+  type SavedRun = {
+    id: string;
+    status: 'proposed' | 'final';
+    file_number: string | null;
+    claim_number: string | null;
+    policy_number: string | null;
+    client_name: string | null;
+    loss_address: string | null;
+    peril: string | null;
+    peril_other: string | null;
+    severity: number | null;
+    total_coverage: number | null;
+    final_balance: number | null;
+    total_possible_recovered: number | null;
+    notes: string | null;
+    created_at: string;
+    inputs: Record<string, unknown>;
+  };
+  const [savedRuns, setSavedRuns] = useState<SavedRun[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string>("");
+
+  // Fetch existing runs when an identifier is entered
+  useEffect(() => {
+    if (!orgId) return;
+    const hasIdentifier = !!(fileNumber || claimNumber || policyNumber);
+    if (!hasIdentifier) { setSavedRuns([]); return; }
+    const t = setTimeout(async () => {
+      let q = supabase.from('claim_calculator_runs')
+        .select('id, status, file_number, claim_number, policy_number, client_name, loss_address, peril, peril_other, severity, total_coverage, final_balance, total_possible_recovered, notes, created_at, inputs')
+        .eq('org_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (fileNumber)        q = q.eq('file_number', fileNumber);
+      else if (claimNumber)  q = q.eq('claim_number', claimNumber);
+      else if (policyNumber) q = q.eq('policy_number', policyNumber);
+      const { data } = await q;
+      if (data) setSavedRuns(data as SavedRun[]);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [supabase, orgId, fileNumber, claimNumber, policyNumber]);
+
+  // Build the full state snapshot for the inputs jsonb column
+  function buildInputsSnapshot() {
+    return {
+      claimAmount, deductible,
+      coverageA, coverageB, coverageC, coverageD,
+      policyLimitA, policyLimitB, policyLimitC, policyLimitD,
+      customSubLimits,
+      recoverableDepreciationAmount, nonRecoverableDepreciationAmount,
+      paidWhenIncurredAmount, ordinanceLawAmount,
+      customPaymentDeductions,
+      priorPayments,
+      paymentsWithoutFees,
+      coverageAFeePercent, coverageBFeePercent, coverageCFeePercent, coverageDFeePercent,
+      interiorRepairsAmount, exteriorRepairsAmount, fencesAmount, screenEnclosureAmount,
+      customInsuredRepairs,
+      roofSquares, roofTotalCost, additionalRoofSquares, additionalRoofTotalCost,
+      guttersLinearFeet, guttersTotalCost, solarPanels, solarTotalCost,
+      soffitLinearFeet, soffitTotalCost, fasciaLinearFeet, fasciaTotalCost,
+      customContractorRepairs,
+      overageAppliedToDeductible,
+      checkedItems,
+      releaseType, openingStatement,
+    };
+  }
+
+  async function saveRun(status: 'proposed' | 'final') {
+    if (!orgId) { setSaveMsg("No org context — cannot save."); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaveMsg("Not signed in."); return; }
+    setSaving(true);
+    setSaveMsg("");
+    const row = {
+      org_id: orgId,
+      created_by: user.id,
+      status,
+      file_number: fileNumber || null,
+      claim_number: claimNumber || null,
+      policy_number: policyNumber || null,
+      client_name: clientName || null,
+      loss_address: lossAddress || null,
+      peril: peril || null,
+      peril_other: perilOther || null,
+      severity,
+      release_type: releaseType || null,
+      opening_statement: openingStatement || null,
+      notes: notes || null,
+      inputs: buildInputsSnapshot(),
+      total_coverage: totalCoverage,
+      final_balance: finalBalance,
+      total_possible_recovered: totalPossibleRecovered,
+    };
+    const { data, error } = await supabase.from('claim_calculator_runs').insert(row).select().single();
+    setSaving(false);
+    if (error) { setSaveMsg(`Save failed: ${error.message}`); return; }
+    setSaveMsg(`Saved as ${status}.`);
+    if (data) setSavedRuns((prev) => [data as SavedRun, ...prev]);
+  }
+
+  // Pull a saved run back into all the inputs
+  function loadRun(run: SavedRun) {
+    const i = run.inputs || {};
+    const get = <T,>(k: string, fallback: T): T => (i[k] !== undefined ? (i[k] as T) : fallback);
+    setClaimNumber(run.claim_number || "");
+    setFileNumber(run.file_number || "");
+    setPolicyNumber(run.policy_number || "");
+    setClientName(run.client_name || "");
+    setLossAddress(run.loss_address || "");
+    setPeril(run.peril || "");
+    setPerilOther(run.peril_other || "");
+    setSeverity(run.severity);
+    setClaimAmount(get("claimAmount", ""));
+    setDeductible(get("deductible", ""));
+    setCoverageA(get("coverageA", "")); setCoverageB(get("coverageB", ""));
+    setCoverageC(get("coverageC", "")); setCoverageD(get("coverageD", ""));
+    setPolicyLimitA(get("policyLimitA", "")); setPolicyLimitB(get("policyLimitB", ""));
+    setPolicyLimitC(get("policyLimitC", "")); setPolicyLimitD(get("policyLimitD", ""));
+    setCustomSubLimits(get<SubLimit[]>("customSubLimits", []));
+    setRecoverableDepreciationAmount(get("recoverableDepreciationAmount", ""));
+    setNonRecoverableDepreciationAmount(get("nonRecoverableDepreciationAmount", ""));
+    setPaidWhenIncurredAmount(get("paidWhenIncurredAmount", ""));
+    setOrdinanceLawAmount(get("ordinanceLawAmount", ""));
+    setCustomPaymentDeductions(get<CustomDeduction[]>("customPaymentDeductions", []));
+    setPriorPayments(get<PriorPayment[]>("priorPayments", []));
+    setPaymentsWithoutFees(get<PaymentWithoutFee[]>("paymentsWithoutFees", []));
+    setCoverageAFeePercent(get("coverageAFeePercent", "10"));
+    setCoverageBFeePercent(get("coverageBFeePercent", "10"));
+    setCoverageCFeePercent(get("coverageCFeePercent", "10"));
+    setCoverageDFeePercent(get("coverageDFeePercent", "10"));
+    setInteriorRepairsAmount(get("interiorRepairsAmount", ""));
+    setExteriorRepairsAmount(get("exteriorRepairsAmount", ""));
+    setFencesAmount(get("fencesAmount", ""));
+    setScreenEnclosureAmount(get("screenEnclosureAmount", ""));
+    setCustomInsuredRepairs(get<CustomRepair[]>("customInsuredRepairs", []));
+    setRoofSquares(get("roofSquares", "")); setRoofTotalCost(get("roofTotalCost", ""));
+    setAdditionalRoofSquares(get("additionalRoofSquares", "")); setAdditionalRoofTotalCost(get("additionalRoofTotalCost", ""));
+    setGuttersLinearFeet(get("guttersLinearFeet", "")); setGuttersTotalCost(get("guttersTotalCost", ""));
+    setSolarPanels(get("solarPanels", "")); setSolarTotalCost(get("solarTotalCost", ""));
+    setSoffitLinearFeet(get("soffitLinearFeet", "")); setSoffitTotalCost(get("soffitTotalCost", ""));
+    setFasciaLinearFeet(get("fasciaLinearFeet", "")); setFasciaTotalCost(get("fasciaTotalCost", ""));
+    setCustomContractorRepairs(get<CustomRepair[]>("customContractorRepairs", []));
+    setOverageAppliedToDeductible(get<Record<string, boolean>>("overageAppliedToDeductible", { A: false, B: false, C: false, D: false }));
+    setCheckedItems(get<Record<string, boolean>>("checkedItems", {
+      recoverableDepreciation: false, nonRecoverableDepreciation: false,
+      paidWhenIncurred: false, ordinanceLaw: false, priorPayments: false,
+      interiorRepairs: false, exteriorRepairs: false, fences: false, screenEnclosure: false,
+      roof: false, additionalRoof: false, gutters: false, solar: false, soffit: false, fascia: false,
+    }));
+    setReleaseType(get("releaseType", ""));
+    setOpeningStatement(get("openingStatement", ""));
+    setNotes(run.notes || "");
+    setSaveMsg(`Loaded run from ${new Date(run.created_at).toLocaleString()} (${run.status}).`);
+  }
+
   /* ===================================================================
      RENDER
      =================================================================== */
@@ -384,6 +565,7 @@ export default function ClaimCalculatorPage() {
         {/* ── 0. Claim Info ── */}
         <div style={{ ...cardStyle, marginBottom: 16 }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim Info</p>
+          {/* Row 1 — Identifiers */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>Claim Number</label>
@@ -394,18 +576,103 @@ export default function ClaimCalculatorPage() {
               <input style={inputStyle} value={fileNumber} onChange={(e) => { setFileNumber(e.target.value); if (e.target.value.length >= 3) setCcLookupField('file_number'); }} placeholder="File #" />
             </div>
             <div>
-              <label style={labelStyle}>Client Name</label>
-              <input style={inputStyle} value={clientName} onChange={(e) => { setClientName(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber) setCcLookupField('client_name'); }} placeholder="Client name" />
+              <label style={labelStyle}>Policy Number</label>
+              <input style={inputStyle} value={policyNumber} onChange={(e) => { setPolicyNumber(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber) setCcLookupField('policy_number'); }} placeholder="Policy #" />
             </div>
             <div>
-              <label style={labelStyle}>Loss Address</label>
-              <input style={inputStyle} value={lossAddress} onChange={(e) => { setLossAddress(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber) setCcLookupField('address'); }} placeholder="123 Main St" />
+              <label style={labelStyle}>Client Name</label>
+              <input style={inputStyle} value={clientName} onChange={(e) => { setClientName(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber && !policyNumber) setCcLookupField('client_name'); }} placeholder="Client name" />
+            </div>
+          </div>
+          {/* Row 2 — Loss address (full row) */}
+          <div style={{ marginTop: 12 }}>
+            <label style={labelStyle}>Loss Address</label>
+            <input style={inputStyle} value={lossAddress} onChange={(e) => { setLossAddress(e.target.value); if (e.target.value.length >= 3 && !claimNumber && !fileNumber && !policyNumber) setCcLookupField('address'); }} placeholder="123 Main St" />
+          </div>
+          {/* Row 3 — Characteristics */}
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Peril</label>
+              <select style={selectStyle} value={peril} onChange={(e) => { setPeril(e.target.value); if (e.target.value !== 'Other') setPerilOther(""); }}>
+                <option value="">— Select —</option>
+                {perilTypes.map((pt) => (
+                  <option key={pt.id} value={pt.name}>{pt.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Peril Other {peril !== 'Other' && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(only if peril = Other)</span>}</label>
+              <input style={inputStyle} value={perilOther} onChange={(e) => setPerilOther(e.target.value)} placeholder="Free text" disabled={peril !== 'Other'} />
+            </div>
+            <div>
+              <label style={labelStyle}>Severity (1-5)</label>
+              <input
+                style={inputStyle}
+                type="number"
+                min={1}
+                max={5}
+                step={1}
+                value={severity ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") setSeverity(null);
+                  else {
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n) && n >= 1 && n <= 5) setSeverity(n);
+                  }
+                }}
+                placeholder="1-5"
+              />
             </div>
           </div>
           <div style={{ marginTop: 8 }}>
             <ClaimMatchBanner matches={claimMatches} searching={claimSearching} onAccept={handleCcClaimAccept} onDismiss={clearLookup} />
           </div>
         </div>
+
+        {/* ── 0b. Saved Runs (Spoke #8 — versioned per-claim history) ── */}
+        {savedRuns.length > 0 && (
+          <div style={{ ...cardStyle, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Saved Runs ({savedRuns.length}) — click a row to load
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {savedRuns.map((run) => (
+                <button
+                  key={run.id}
+                  onClick={() => loadRun(run)}
+                  style={{
+                    textAlign: "left",
+                    padding: "8px 12px",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 6,
+                    background: "var(--bg-page)",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    display: "grid",
+                    gridTemplateColumns: "100px 1fr 1fr 1fr 1fr",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+                    color: run.status === 'final' ? "#22c55e" : "#fb923c",
+                  }}>{run.status}</span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {new Date(run.created_at).toLocaleDateString()} {new Date(run.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span>Coverage: {run.total_coverage != null ? fmt(Number(run.total_coverage)) : "—"}</span>
+                  <span>Final: {run.final_balance != null ? fmt(Number(run.final_balance)) : "—"}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {run.notes || "—"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── 1. Release Type ── */}
         <div style={{ ...cardStyle, marginBottom: 16 }}>
@@ -848,6 +1115,41 @@ export default function ClaimCalculatorPage() {
           {totalRepairCosts > 0 && (
             <div style={{ fontSize: 12, marginTop: 6, opacity: 0.7 }}>Total Repair Costs: {fmt(totalRepairCosts)}</div>
           )}
+        </div>
+
+        {/* ── 17b. Save Run (Spoke #8) ── */}
+        <div style={{ ...cardStyle, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Save This Run</p>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>Notes (optional)</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder='e.g. "After carrier denied A coverage" or "Pre-supplement estimate"'
+            />
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              style={{ ...btnOutline, opacity: saving ? 0.6 : 1 }}
+              onClick={() => saveRun('proposed')}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save as Proposed"}
+            </button>
+            <button
+              style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}
+              onClick={() => saveRun('final')}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save as Final"}
+            </button>
+            {saveMsg && (
+              <span style={{ fontSize: 13, color: saveMsg.startsWith("Save failed") ? "#ef4444" : "var(--text-secondary)" }}>
+                {saveMsg}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* ── 18. Print Preview ── */}

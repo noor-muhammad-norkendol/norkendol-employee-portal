@@ -49,9 +49,20 @@ Last updated: April 3, 2026 — Session 4 (final)
 | `severity` | `int` | `CHECK (severity IS NULL OR severity BETWEEN 1 AND 5)`. UI displays as integers only. NOT a lookup table. Internal text mapping (for documentation only): 1=Light, 2=Minor, 3=Moderate, 4=Severe, 5=Total Loss. |
 | `status` | DEFERRED | Each spoke keeps its own status column for now. Unified-status design is a future decision. |
 
-### Today's 7 spokes (compliance verified 2026-04-28)
+### Today's 9 spokes (compliance verified 2026-04-28)
 
-`onboarding_clients` · `estimates` · `litigation_files` · `mediations` · `appraisals` · `pa_settlements` · `claim_health_records`
+`onboarding_clients` · `estimates` · `litigation_files` · `mediations` · `appraisals` · `pa_settlements` · `claim_health_records` · `claim_calculator_runs` · `team_lead_reviews`
+
+**Workflow chain (locked 2026-04-28):**
+```
+Onboarding → TLS Phase 1 → Scope of Loss → Estimating → TLS Phase 2 → Adjuster
+```
+Scope of Loss and Adjuster KPI are **placeholder pages only** — backing spokes pending future builds. Calculator (`claim_calculator_runs`) and TLS (`team_lead_reviews`) are full spokes built today.
+
+**Auto-create wiring (app-level, in upstream hook's `onSuccess`):**
+- Onboarder `status='completed'` → upserts `team_lead_reviews` Phase 1 row
+- Estimator `status='review'` → upserts `team_lead_reviews` Phase 2 row
+Idempotent via `(org_id, file_number, phase)` unique constraint. NOT a DB trigger — visible/debuggable.
 
 ### Rule for new spokes
 

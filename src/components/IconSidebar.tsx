@@ -120,6 +120,9 @@ const internalSections: TierSection[] = [
       { label: "Claim Health", slug: "claim-health", paths: icons.compliance },
       { label: "Estimator KPI", slug: "estimator-kpi", paths: icons.leaderboard },
       { label: "Onboarder KPI", slug: "onboarder-kpi", paths: icons.leaderboard },
+      { label: "Team Lead Support", slug: "team-lead-support", paths: icons.leaderboard },
+      { label: "Scope of Loss", slug: "scope-of-loss", paths: icons.leaderboard },
+      { label: "Adjuster KPI", slug: "adjuster-kpi", paths: icons.leaderboard },
     ],
   },
   {

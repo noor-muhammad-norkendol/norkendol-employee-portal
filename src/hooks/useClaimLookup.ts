@@ -11,7 +11,9 @@ export interface ClaimLookupMatch {
     | 'mediations'
     | 'appraisals'
     | 'pa_settlements'
-    | 'claim_health_records';
+    | 'claim_health_records'
+    | 'claim_calculator_runs'
+    | 'team_lead_reviews';
   source_id: string;
   // Canonical IDENTIFIERS — present on every spoke after the 2026-04-28 sweep
   file_number?: string | null;
@@ -158,6 +160,22 @@ function normalizeClaimHealth(row: Record<string, unknown>): ClaimLookupMatch {
   };
 }
 
+function normalizeCalculatorRun(row: Record<string, unknown>): ClaimLookupMatch {
+  return {
+    source_table: 'claim_calculator_runs',
+    source_id: row.id as string,
+    ...canonicalFields(row),
+  };
+}
+
+function normalizeTeamLeadReview(row: Record<string, unknown>): ClaimLookupMatch {
+  return {
+    source_table: 'team_lead_reviews',
+    source_id: row.id as string,
+    ...canonicalFields(row),
+  };
+}
+
 export function useClaimLookup({ supabase, orgId, searchTerm, searchField, enabled = true }: UseClaimLookupOptions) {
   const [matches, setMatches] = useState<ClaimLookupMatch[]>([]);
   const [searching, setSearching] = useState(false);
@@ -182,18 +200,20 @@ export function useClaimLookup({ supabase, orgId, searchTerm, searchField, enabl
 
       // Every CRM spoke now carries the full canonical column set
       // (IDENTIFIERS + CHARACTERISTICS) — see HANDOFF.md "Canonical CRM Spoke
-      // Standard". So one filter shape works for all 7 spokes.
+      // Standard". So one filter shape works for all 9 spokes.
       const spokes: Array<{
         table: string;
         normalize: (row: Record<string, unknown>) => ClaimLookupMatch;
       }> = [
-        { table: 'onboarding_clients',   normalize: normalizeOnboarding },
-        { table: 'estimates',            normalize: normalizeEstimate },
-        { table: 'litigation_files',     normalize: normalizeLitigation },
-        { table: 'mediations',           normalize: normalizeMediation },
-        { table: 'appraisals',           normalize: normalizeAppraisal },
-        { table: 'pa_settlements',       normalize: normalizePASettlement },
-        { table: 'claim_health_records', normalize: normalizeClaimHealth },
+        { table: 'onboarding_clients',    normalize: normalizeOnboarding },
+        { table: 'estimates',             normalize: normalizeEstimate },
+        { table: 'litigation_files',      normalize: normalizeLitigation },
+        { table: 'mediations',            normalize: normalizeMediation },
+        { table: 'appraisals',            normalize: normalizeAppraisal },
+        { table: 'pa_settlements',        normalize: normalizePASettlement },
+        { table: 'claim_health_records',  normalize: normalizeClaimHealth },
+        { table: 'claim_calculator_runs', normalize: normalizeCalculatorRun },
+        { table: 'team_lead_reviews',     normalize: normalizeTeamLeadReview },
       ];
 
       await Promise.all(
