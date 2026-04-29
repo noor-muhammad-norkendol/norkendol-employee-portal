@@ -35,7 +35,7 @@ const SPOKE_PADS: SpokePad[] = [
  * - Supabase project: hkscsovtejeedjebytsv (PostgreSQL connector)
  * ───────────────────────────────────────────────────────────────────── */
 const SPOKE_EMBED_URL: Partial<Record<SpokeKey, string>> = {
-  // onboarder_kpi: "https://app.powerbi.com/reportEmbed?reportId=...",
+  onboarder_kpi: "https://app.powerbi.com/reportEmbed?reportId=00bf4c4e-2cf6-46a3-a859-2bae234ab556&autoAuth=true&ctid=fecc843f-6c9e-41a9-8342-58e0b23ee1c9",
 };
 
 /* ── Components ────────────────────────────────────────── */
