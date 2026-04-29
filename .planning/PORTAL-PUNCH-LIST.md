@@ -255,6 +255,79 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 ---
 
+### 18. Claim Breakdown Calculator — math reconciliation vs Frank's hand worksheet
+
+**Date opened:** 2026-04-29
+**Status:** Investigation complete, no code changed. Decision pending.
+
+**Where:** `src/app/dashboard/claim-calculator/page.tsx`
+
+**Test fixture:** `.planning/claim-calc-test-data/Total Coverage.docx` (Frank's hand-computed worksheet — this is the canonical "what should the calculator say" reference for further smoke tests)
+
+**Inputs in the worksheet (so you can replay the test):**
+- Coverages: A=$10k, B=$10k, C=$10k, D=$10k (limit $5k → over-limit $5k NOT applied to deductible)
+- Endorsement under A (Screen Enclosure): $5,000
+- Deductible: $5,000
+- Deductions ($500): RD/nRD/PWI/O&L/Custom — all $100, all checked
+- Prior Payments ($200): two $100 entries; one carries 10% PA fee = $10 marked "not yet" (owed, not paid)
+- Payments without Fees ($300): Legal $100 / Paid-Incurred $100 / Custom $100
+- PA fee %: 10% on each of A/B/C/D
+- Insured Repairs ($500): all 5 items at $100 (Interior, Exterior, Fences, Screen, Additional)
+- Contractor Repairs ($700): all 7 items at $100 (Roof, Add Roof, Gutters, Solar, Soffit, Fascia, Additional)
+
+**Three-way comparison (worksheet vs old standalone repo vs current portal):**
+
+| Metric | Frank's worksheet | Old `claim-breakdown-calcuator` repo | Current portal | Old vs Frank | New vs Frank |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Total Coverage | $40,000 | $40,000 | $40,000 | ✅ | ✅ |
+| Balance before PA fees | $34,000 | $34,000 | $34,000 | ✅ | ✅ |
+| Current PA fees | $3,400 | $3,400 | $3,400 | ✅ | ✅ |
+| Total PA fees (incl. $10 owed) | $3,410 | $3,410 | $3,410 | ✅ | ✅ |
+| Total Possible Recovered | $36,590 | $36,300 | $36,300 | −$290 | −$290 |
+| Final Balance — printed PDF | $34,590 | **$34,390** | (no separate PDF formula) | **−$200** | — |
+| Final Balance — on screen | $34,590 | $35,000 | $35,000 | +$410 | +$410 |
+
+**The four "running" numbers all match.** The two terminal numbers diverge for two unrelated reasons (see below).
+
+**The 2026-04-05 audit fix `268c7db` — what it actually did:**
+
+Five separate fixes in one commit. Three are pure bug fixes; two are correctness changes that don't materially affect this test case.
+
+1. **Roof checkbox key bug.** State stored under `roofRepairs`; sum-of-repairs code looked for `roof`. Mismatch meant clicking "Roof" never added roof cost to the total. Fix: rename to `roof`.
+2. **Final balance now subtracts owed prior PA fees.** Pre-fix: `balance − currentPAFees`. Post-fix: `balance − currentPAFees − priorPAFeesOwed`. Pre-fix hid PA fees that were owed but not yet paid.
+3. **Total Possible Recovered uses real PA fees, not flat 0.9 multiplier.** Pre-fix: `(balance × 0.9) + …`. Post-fix: `(balance − currentPAFees) + …`. The 0.9 multiplier worked only when every coverage's PA fee was 10%; broke as soon as any coverage had a different rate.
+4. **nRD only subtracted when checkbox is checked.** Pre-fix: `baseAmount = totalPossibleRecovered − nRD` (raw). Post-fix: respects the checkbox. Pre-fix had a phantom deduction.
+5. **`withheldAmount` simplified to `totalDeductions`** (no longer subtracts nRD from itself). Affects the yellow/red traffic-light boundary only, not displayed dollar values.
+
+**The fix did NOT cause the worksheet divergence.** Items 1, 2, 4 are pure bug fixes — reverting them re-breaks behavior. Item 3 only diverges from the old formula when PA fee % is non-10% on some coverage; this test uses 10% everywhere, so old and new give identical answers. Item 5 doesn't move dollar values.
+
+**Where the divergence actually comes from (pre-dates the audit fix):**
+
+- **$200 gap (Final Balance, PDF formula):** Frank's worksheet does a "prior payments add-back" before the final-balance step ($200 back, less $10 old fees = +$190 net). Neither old nor new calculator does this add-back at the headline number.
+- **$210 additional gap (Final Balance, on-screen formula):** the on-screen `finalBalanceAmount` formula adds back recoverable deductions ($500 total deductions − $100 nRD = +$400 net) and treats $10 priorPAFeesOwed differently. That's structural to the formula — it's computing "ceiling of recoverable" rather than "money client takes home this round."
+- **$290 gap (Total Possible Recovered):** Frank adds back $800 = $500 deductions + $300 payments-without-fees. The calculator only adds back $500 (totalDeductions) — payments-without-fees are treated as permanent reductions. (Net Δ shows as $290 because of how the −$10 priorPAFeesOwed nets.)
+
+**Notable historical artifact:** the old standalone repo had **two different "Final Balance" numbers** simultaneously — `finalBalanceAfterRepairs` (= `balancePlusDeductible − repairs` = $34,390 in this test) used only by the print PDF, and `finalBalanceAmount` (= `(totalPossibleRecovered − nRD) − repairs` = $35,000) used on screen. The audit fix retired the PDF formula. The PDF formula was the closer one to Frank's hand math (off by $200, just the prior-payments add-back).
+
+**My recommendation (Claude's, 2026-04-29):**
+
+**Do not revert `268c7db`.** Three of the five fixes are real bug fixes; reverting brings back broken behavior. The audit fix is not the cause of Frank's worksheet divergence.
+
+If we want the calculator to match Frank's hand math, the targeted changes are:
+1. Add prior-payments add-back into the displayed Final Balance: change `finalBalanceAmount` from `baseAmount − totalRepairCosts` to a formula that includes prior payments. Closes ~$200 of the gap.
+2. Decide whether the headline "Final Balance" should be "ceiling of recoverable" (current behavior, $35,000) or "money this round" (Frank's worksheet, $34,590). They're answering different questions; pick one and label it clearly.
+3. Decide whether Payments without Fees should add back into Total Possible Recovered. Frank's worksheet says yes (+$300); calculator says no. Closes the $290 / $410 remaining gap.
+
+These are three small targeted edits, not a revert. Each is independently smoke-testable.
+
+**Hard rule for this item:** smoke tests + Frank's approval BEFORE any code change to `claim-calculator/page.tsx`. Frank stated this explicitly 2026-04-29.
+
+**Test artifacts on Desktop (delete after final smoke test):**
+- `C:\Users\FrankDalton\Desktop\Total Coverage.docx` (now also archived in `.planning/claim-calc-test-data/`)
+- `C:\Users\FrankDalton\Desktop\claim-breakdown-calcuator\` (cloned old standalone repo for comparison)
+
+---
+
 ### 17. Extract `PadCard` / `BackButton` / `ComingSoonPlaceholder` to a shared module
 **Where:** `src\app\dashboard\executive-intelligence\KPIAdminTab.tsx` (originals) + `src\app\dashboard\executive-intelligence\KpiPowerBiTab.tsx` (near-byte-identical duplicates).
 
@@ -274,6 +347,7 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 ## Done (recently fixed — keep here as record, prune occasionally)
 
+- ✅ **2026-04-29** — **Sidebar Vault — per-user "hide tabs I don't use".** Drag any non-Dashboard sidebar item into a new "Vault" group at the bottom of the sidebar to hide it. Vault is collapsed by default, expands inline on click; expanded view lists hidden items as normal nav entries (icon + label + active state + working `<Link>`). Drag back into a tier (or any tier section's empty space) to restore — items always return to their origin tier regardless of where dropped. Persists per-user to new `users.nav_vault` jsonb column (`Record<tier, slug[]>`, mirrors `nav_order`). Single shared `DndContext` spans all tiers + Vault so cross-zone drag works; `TierDropZone` makes empty tier areas droppable. Dashboard is hardcoded un-vaultable. Vault expand/collapse state persists to `localStorage` (`portal-vault-expanded`).
 - ✅ **2026-04-28** — `startEdit` on Onboarder was wiping name/address/contractor/etc. fields when clicking Edit. Fixed by spreading all canonical fields into the form, not just a tiny subset.
 - ✅ **2026-04-28** — TLS auto-create initial implementation used Supabase `upsert(..., onConflict)` which would have wiped reviewer_id/decision_notes/status on every onboarder re-save. Fixed to "create-once" pattern (existence check, then INSERT).
 - ✅ **2026-04-28 PM** — Onboarder KPI `source_module` unified to `'onboarder_kpi'` across producers and consumers. Old `'onboarding'` bucket retired; existing rows migrated. EI Dashboard collapses to one Onboarder section instead of two.

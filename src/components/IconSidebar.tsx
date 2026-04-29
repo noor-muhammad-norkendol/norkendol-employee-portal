@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -76,6 +77,7 @@ const icons = {
   leaderboard: ["M8 21h8", "M12 17v4", "M17 3H7a2 2 0 0 0-2 2v4a7 7 0 0 0 14 0V5a2 2 0 0 0-2-2Z"],
   settlementTracker: ["M12 3L2 8l10 5 10-5-10-5z", "M20 8v7", "M4 8v7", "M12 13v9", "M8 11v6", "M16 11v6"],
   mySettings: ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"],
+  vault: ["M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "M3 11h18", "M8 15h.01", "M12 15h.01", "M16 15h.01"],
 };
 
 function NavIcon({ paths, size = 18 }: { paths: string[]; size?: number }) {
@@ -172,12 +174,21 @@ function SortableNavItem({
   item,
   active: isActivePage,
   expanded,
+  zone,
+  tier,
+  originTier,
 }: {
   item: NavItem;
   active: boolean;
   expanded: boolean;
+  zone: "tier" | "vault";
+  tier?: string;
+  originTier?: string;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.slug });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.slug,
+    data: { zone, tier, originTier },
+  });
   const href = item.slug === "dashboard" ? "/dashboard" : `/dashboard/${item.slug}`;
 
   const style = {
@@ -274,6 +285,116 @@ function SortableNavItem({
   );
 }
 
+// Non-sortable nav item — for items exempt from Vault (Dashboard)
+function PlainNavItem({
+  item,
+  active: isActivePage,
+  expanded,
+}: {
+  item: NavItem;
+  active: boolean;
+  expanded: boolean;
+}) {
+  const href = item.slug === "dashboard" ? "/dashboard" : `/dashboard/${item.slug}`;
+  return (
+    <div style={{ padding: expanded ? "1px 8px" : "1px 6px" }} className="relative group">
+      <div
+        className={`relative rounded-md flex items-center transition-colors w-full h-11 ${
+          expanded ? "px-3 gap-1" : "justify-center"
+        }`}
+        style={{
+          color: isActivePage ? "var(--accent)" : "var(--text-dim)",
+          background: isActivePage
+            ? "color-mix(in srgb, var(--accent) 10%, transparent)"
+            : "transparent",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: isActivePage ? "var(--border-active)" : "transparent",
+          textShadow: isActivePage ? "var(--accent-text-shadow)" : undefined,
+          boxShadow: isActivePage
+            ? "0 0 14px color-mix(in srgb, var(--accent) 18%, transparent)"
+            : undefined,
+        }}
+        onMouseEnter={(e) => {
+          if (!isActivePage) {
+            e.currentTarget.style.background = "var(--pad-elev)";
+            e.currentTarget.style.color = "var(--text)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActivePage) {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--text-dim)";
+          }
+        }}
+      >
+        <Link
+          href={href}
+          className="flex items-center gap-3.5 flex-1 h-full"
+          style={{ textDecoration: "none", color: "inherit", paddingLeft: expanded ? "20px" : 0 }}
+        >
+          <span className="shrink-0 w-5 flex items-center justify-center" style={{ color: "inherit" }}>
+            <NavIcon paths={item.paths} />
+          </span>
+          {expanded && (
+            <span className="text-[15px] font-medium whitespace-nowrap" style={{ fontFamily: "var(--font-ui)" }}>
+              {item.label}
+            </span>
+          )}
+        </Link>
+      </div>
+      {!expanded && (
+        <div
+          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
+          style={{ background: "var(--pad)", color: "var(--text)", border: "1px solid var(--border)" }}
+        >
+          {item.label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Wrapper that makes its children a droppable target for the Vault.
+// Empty/collapsed Vault still accepts drops because the wrapper itself is the drop zone.
+function VaultDropZone({ children }: { children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "vault-drop", data: { zone: "vault" } });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        background: isOver ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
+        borderRadius: "6px",
+        transition: "background 120ms",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Wrapper that makes a tier section's whole area a drop zone — so you can drop a vaulted item
+// anywhere in the tier (not just on a specific existing item) and it will restore.
+function TierDropZone({ tier, children }: { tier: string; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `tier-drop-${tier}`,
+    data: { zone: "tier", tier },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        background: isOver ? "color-mix(in srgb, var(--accent) 6%, transparent)" : "transparent",
+        borderRadius: "6px",
+        transition: "background 120ms",
+        minHeight: "8px",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function SidebarLogo({ expanded }: { expanded: boolean }) {
   const [companyName, setCompanyName] = useState<string | null>(null);
 
@@ -360,6 +481,12 @@ export default function IconSidebar({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   // Custom order per tier — keys are tier codes, values are slug arrays
   const [navOrder, setNavOrder] = useState<Record<string, string[]>>({});
+  // Hidden ("vaulted") items per tier — same shape as navOrder. Items here render in the Vault group, not in their tier.
+  const [navVault, setNavVault] = useState<Record<string, string[]>>({});
+  const [vaultExpanded, setVaultExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("portal-vault-expanded") === "1";
+  });
   const [userId, setUserId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -367,32 +494,48 @@ export default function IconSidebar({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // Load saved nav order from Supabase on mount
+  // Load saved nav layout from Supabase on mount
   useEffect(() => {
-    const loadNavOrder = async () => {
+    const loadNavLayout = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
       const { data } = await supabase
         .from("users")
-        .select("nav_order")
+        .select("nav_order, nav_vault")
         .eq("id", user.id)
         .single();
       if (data?.nav_order && typeof data.nav_order === "object") {
         setNavOrder(data.nav_order as Record<string, string[]>);
       }
+      if (data?.nav_vault && typeof data.nav_vault === "object") {
+        setNavVault(data.nav_vault as Record<string, string[]>);
+      }
     };
-    loadNavOrder();
+    loadNavLayout();
   }, []);
 
-  // Save nav order to Supabase
-  const saveNavOrder = useCallback(async (newOrder: Record<string, string[]>) => {
+  // Save nav layout (order + vault) to Supabase in a single round-trip
+  const saveNavLayout = useCallback(async (
+    next: { navOrder: Record<string, string[]>; navVault: Record<string, string[]> },
+  ) => {
     if (!userId) return;
     await supabase
       .from("users")
-      .update({ nav_order: newOrder })
+      .update({ nav_order: next.navOrder, nav_vault: next.navVault })
       .eq("id", userId);
   }, [userId]);
+
+  // Persist Vault expand/collapse state across page nav
+  const toggleVault = useCallback(() => {
+    setVaultExpanded((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("portal-vault-expanded", next ? "1" : "0");
+      }
+      return next;
+    });
+  }, []);
 
   const toggleSection = (tier: string) => {
     setOpenSections((prev) => ({ ...prev, [tier]: !prev[tier] }));
@@ -405,42 +548,133 @@ export default function IconSidebar({
     return pathname === pagePath || pathname.startsWith(`${pagePath}/`);
   };
 
-  // Get items for a section, sorted by saved order
+  // Get items for a section, sorted by saved order, with vaulted slugs filtered out
   const getOrderedItems = (section: TierSection): NavItem[] => {
     const savedOrder = navOrder[section.tier];
-    if (!savedOrder || savedOrder.length === 0) return section.items;
-    const itemMap = new Map(section.items.map((item) => [item.slug, item]));
-    const ordered: NavItem[] = [];
-    for (const slug of savedOrder) {
-      const item = itemMap.get(slug);
-      if (item) {
+    const vaultedSet = new Set(navVault[section.tier] ?? []);
+    let ordered: NavItem[];
+    if (!savedOrder || savedOrder.length === 0) {
+      ordered = section.items;
+    } else {
+      const itemMap = new Map(section.items.map((item) => [item.slug, item]));
+      ordered = [];
+      for (const slug of savedOrder) {
+        const item = itemMap.get(slug);
+        if (item) {
+          ordered.push(item);
+          itemMap.delete(slug);
+        }
+      }
+      for (const item of itemMap.values()) {
         ordered.push(item);
-        itemMap.delete(slug);
       }
     }
-    // Append any items not in saved order (new items added after user last sorted)
-    for (const item of itemMap.values()) {
-      ordered.push(item);
-    }
-    return ordered;
+    return ordered.filter((item) => !vaultedSet.has(item.slug));
   };
 
-  const handleDragEnd = (tier: string) => (event: DragEndEvent) => {
+  // Get vaulted items across all visible sections (for rendering the Vault group)
+  const getVaultedItems = (): { item: NavItem; originTier: string }[] => {
+    const result: { item: NavItem; originTier: string }[] = [];
+    for (const section of visibleSections) {
+      const slugs = navVault[section.tier] ?? [];
+      const itemMap = new Map(section.items.map((i) => [i.slug, i]));
+      for (const slug of slugs) {
+        const item = itemMap.get(slug);
+        if (item) result.push({ item, originTier: section.tier });
+      }
+    }
+    return result;
+  };
+
+  // Single cross-zone drag handler. Items carry zone metadata stamped via useSortable({ data }).
+  // Routes: tier→tier (reorder), tier→vault (hide), vault→tier (restore to origin tier).
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
-    const section = visibleSections.find((s) => s.tier === tier);
-    if (!section) return;
+    const activeData = active.data.current as { zone?: "tier" | "vault"; tier?: string; originTier?: string } | undefined;
+    const overData = over.data.current as { zone?: "tier" | "vault"; tier?: string; originTier?: string } | undefined;
+    const activeZone = activeData?.zone;
+    const overZone = overData?.zone ?? (over.id === "vault-drop" ? "vault" : undefined);
+    if (!activeZone || !overZone) return;
 
-    const items = getOrderedItems(section);
-    const oldIndex = items.findIndex((i) => i.slug === active.id);
-    const newIndex = items.findIndex((i) => i.slug === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+    // Case 1: tier → tier reorder (only meaningful if same tier)
+    if (activeZone === "tier" && overZone === "tier") {
+      const tier = activeData?.tier;
+      if (!tier || tier !== overData?.tier) return;
+      if (active.id === over.id) return;
 
-    const reordered = arrayMove(items, oldIndex, newIndex);
-    const newOrder = { ...navOrder, [tier]: reordered.map((i) => i.slug) };
-    setNavOrder(newOrder);
-    saveNavOrder(newOrder);
+      const section = visibleSections.find((s) => s.tier === tier);
+      if (!section) return;
+      const items = getOrderedItems(section);
+      const oldIndex = items.findIndex((i) => i.slug === active.id);
+      const newIndex = items.findIndex((i) => i.slug === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reordered = arrayMove(items, oldIndex, newIndex);
+      const newOrder = { ...navOrder, [tier]: reordered.map((i) => i.slug) };
+      setNavOrder(newOrder);
+      saveNavLayout({ navOrder: newOrder, navVault });
+      return;
+    }
+
+    // Case 2: tier → vault (hide the item)
+    if (activeZone === "tier" && overZone === "vault") {
+      const tier = activeData?.tier;
+      if (!tier) return;
+      const slug = String(active.id);
+      // Don't double-add
+      const currentVaulted = navVault[tier] ?? [];
+      if (currentVaulted.includes(slug)) return;
+      const newVault = { ...navVault, [tier]: [...currentVaulted, slug] };
+      // Also strip from navOrder if present (keeps shapes clean)
+      const currentOrder = navOrder[tier];
+      const newOrder = currentOrder
+        ? { ...navOrder, [tier]: currentOrder.filter((s) => s !== slug) }
+        : navOrder;
+      setNavVault(newVault);
+      if (newOrder !== navOrder) setNavOrder(newOrder);
+      saveNavLayout({ navOrder: newOrder, navVault: newVault });
+      return;
+    }
+
+    // Case 3: vault → tier (restore — always to the item's origin tier, regardless of where dropped).
+    // Triggered whether the drop landed on a specific tier item or on the tier's empty drop-zone area.
+    if (activeZone === "vault" && overZone === "tier") {
+      const originTier = activeData?.originTier;
+      if (!originTier) return;
+      const slug = String(active.id);
+
+      // Remove from vault
+      const currentVaulted = navVault[originTier] ?? [];
+      const newVaultArr = currentVaulted.filter((s) => s !== slug);
+      const newVault = { ...navVault, [originTier]: newVaultArr };
+
+      // Restore to origin tier. If the user dropped on a specific tier item in the SAME tier, splice at that index;
+      // if they dropped in empty space (tier drop-zone) or on an item in a different tier, append to the end.
+      const section = visibleSections.find((s) => s.tier === originTier);
+      if (!section) {
+        setNavVault(newVault);
+        saveNavLayout({ navOrder, navVault: newVault });
+        return;
+      }
+      const visible = getOrderedItems(section).map((i) => i.slug);
+      let insertAt = visible.length;
+      const overIsTierItem = !String(over.id).startsWith("tier-drop-");
+      if (overIsTierItem && overData?.tier === originTier) {
+        const idx = visible.indexOf(String(over.id));
+        if (idx !== -1) insertAt = idx;
+      }
+      const restored = [...visible.slice(0, insertAt), slug, ...visible.slice(insertAt)];
+      const newOrder = { ...navOrder, [originTier]: restored };
+
+      setNavVault(newVault);
+      setNavOrder(newOrder);
+      saveNavLayout({ navOrder: newOrder, navVault: newVault });
+      return;
+    }
+
+    // Case 4: vault → vault — internal Vault reorder. Skipped for v1 (would need a separate order column).
   };
 
   return (
@@ -494,88 +728,220 @@ export default function IconSidebar({
       {/* Logo — reads custom branding from localStorage */}
       <SidebarLogo expanded={expanded} />
 
-      {/* Scrollable nav area */}
+      {/* Scrollable nav area — single DndContext spans all tiers + Vault so items can move between zones */}
       <div style={{ overflowY: "auto", overflowX: "hidden", flex: 1 }}>
-        {visibleSections.map((section) => {
-          const isOpen = !!openSections[section.tier];
-          const orderedItems = getOrderedItems(section);
-          return (
-            <div key={section.tier} className="mb-1">
-              {/* Section header — text IS the toggle, with a rule line extending to the right */}
-              <button
-                onClick={() => toggleSection(section.tier)}
-                className="flex items-center w-full cursor-pointer transition-opacity"
-                title={isOpen ? "Collapse section" : "Expand section"}
-                style={{
-                  padding: expanded ? "12px 16px 6px" : "12px 6px 6px",
-                  background: "transparent",
-                  border: "none",
-                  opacity: isOpen ? 1 : 0.85,
-                }}
-              >
-                {expanded ? (
-                  <>
-                    <span
-                      className="section-header text-[12px] font-bold whitespace-nowrap"
-                      style={{
-                        color: "var(--accent)",
-                        textShadow: "var(--accent-text-shadow)",
-                        letterSpacing: "0.16em",
-                        fontFamily: "var(--font-display)",
-                      }}
-                    >
-                      {section.heading.toUpperCase()}
-                    </span>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          {visibleSections.map((section) => {
+            const isOpen = !!openSections[section.tier];
+            const orderedItems = getOrderedItems(section);
+            const dashboardItem = orderedItems.find((i) => i.slug === "dashboard");
+            const sortableItems = orderedItems.filter((i) => i.slug !== "dashboard");
+            return (
+              <div key={section.tier} className="mb-1">
+                {/* Section header — text IS the toggle, with a rule line extending to the right */}
+                <button
+                  onClick={() => toggleSection(section.tier)}
+                  className="flex items-center w-full cursor-pointer transition-opacity"
+                  title={isOpen ? "Collapse section" : "Expand section"}
+                  style={{
+                    padding: expanded ? "12px 16px 6px" : "12px 6px 6px",
+                    background: "transparent",
+                    border: "none",
+                    opacity: isOpen ? 1 : 0.85,
+                  }}
+                >
+                  {expanded ? (
+                    <>
+                      <span
+                        className="section-header text-[12px] font-bold whitespace-nowrap"
+                        style={{
+                          color: "var(--accent)",
+                          textShadow: "var(--accent-text-shadow)",
+                          letterSpacing: "0.16em",
+                          fontFamily: "var(--font-display)",
+                        }}
+                      >
+                        {section.heading.toUpperCase()}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="ml-3 flex-1"
+                        style={{
+                          height: "1px",
+                          background: "var(--border)",
+                        }}
+                      />
+                    </>
+                  ) : (
+                    /* Collapsed: small accent dot to indicate section break + click target */
                     <span
                       aria-hidden
-                      className="ml-3 flex-1"
+                      className="mx-auto block"
                       style={{
+                        width: "20px",
                         height: "1px",
-                        background: "var(--border)",
+                        background: "var(--accent)",
+                        opacity: 0.5,
+                        boxShadow: "var(--accent-text-shadow)",
                       }}
                     />
-                  </>
-                ) : (
-                  /* Collapsed: small accent dot to indicate section break + click target */
-                  <span
-                    aria-hidden
-                    className="mx-auto block"
-                    style={{
-                      width: "20px",
-                      height: "1px",
-                      background: "var(--accent)",
-                      opacity: 0.5,
-                      boxShadow: "var(--accent-text-shadow)",
-                    }}
-                  />
-                )}
-              </button>
+                  )}
+                </button>
 
-              {/* Section items — sortable within this section only */}
-              {isOpen && (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd(section.tier)}
-                >
-                  <SortableContext
-                    items={orderedItems.map((i) => i.slug)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {orderedItems.map((item) => (
-                      <SortableNavItem
-                        key={item.slug}
-                        item={item}
-                        active={isActive(item.slug)}
+                {/* Section items — Dashboard renders non-sortable (un-vaultable); rest are sortable within this tier.
+                    TierDropZone wraps the tier so vaulted items can be dropped into empty space, not just on an existing item. */}
+                {isOpen && (
+                  <TierDropZone tier={section.tier}>
+                    {dashboardItem && (
+                      <PlainNavItem
+                        item={dashboardItem}
+                        active={isActive(dashboardItem.slug)}
                         expanded={expanded}
                       />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              )}
-            </div>
-          );
-        })}
+                    )}
+                    <SortableContext
+                      items={sortableItems.map((i) => i.slug)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {sortableItems.map((item) => (
+                        <SortableNavItem
+                          key={item.slug}
+                          item={item}
+                          active={isActive(item.slug)}
+                          expanded={expanded}
+                          zone="tier"
+                          tier={section.tier}
+                        />
+                      ))}
+                    </SortableContext>
+                  </TierDropZone>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Vault — collapsible group at the bottom holding the user's hidden tabs */}
+          {(() => {
+            const vaulted = getVaultedItems();
+            const count = vaulted.length;
+            return (
+              <div className="mb-1 mt-2">
+                <VaultDropZone>
+                  <button
+                    onClick={toggleVault}
+                    className="flex items-center w-full cursor-pointer transition-opacity"
+                    title={vaultExpanded ? "Collapse Vault" : "Expand Vault"}
+                    style={{
+                      padding: expanded ? "12px 16px 6px" : "12px 6px 6px",
+                      background: "transparent",
+                      border: "none",
+                      opacity: vaultExpanded ? 1 : 0.85,
+                    }}
+                  >
+                    {expanded ? (
+                      <>
+                        <span
+                          className="section-header text-[12px] font-bold whitespace-nowrap flex items-center gap-2"
+                          style={{
+                            color: "var(--accent)",
+                            textShadow: "var(--accent-text-shadow)",
+                            letterSpacing: "0.16em",
+                            fontFamily: "var(--font-display)",
+                          }}
+                        >
+                          <NavIcon paths={icons.vault} size={14} />
+                          VAULT
+                          {count > 0 && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded-full"
+                              style={{
+                                background: "color-mix(in srgb, var(--accent) 18%, transparent)",
+                                color: "var(--accent)",
+                                letterSpacing: "0",
+                              }}
+                            >
+                              {count}
+                            </span>
+                          )}
+                        </span>
+                        <span
+                          aria-hidden
+                          className="ml-3 flex-1"
+                          style={{ height: "1px", background: "var(--border)" }}
+                        />
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          style={{
+                            marginLeft: "8px",
+                            transform: vaultExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                            transition: "transform 200ms",
+                            color: "var(--text-dim)",
+                          }}
+                        >
+                          <path d="M5 3L10 8L5 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </>
+                    ) : (
+                      <span
+                        className="mx-auto flex items-center justify-center relative"
+                        style={{ color: "var(--accent)", opacity: 0.7 }}
+                        title={`Vault${count > 0 ? ` (${count})` : ""}`}
+                      >
+                        <NavIcon paths={icons.vault} size={16} />
+                        {count > 0 && (
+                          <span
+                            className="absolute -top-1 -right-2 text-[9px] font-bold rounded-full px-1"
+                            style={{
+                              background: "var(--accent)",
+                              color: "var(--pad)",
+                              minWidth: "14px",
+                              textAlign: "center",
+                              lineHeight: "14px",
+                            }}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                  {vaultExpanded && count > 0 && (
+                    <SortableContext
+                      items={vaulted.map((v) => v.item.slug)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {vaulted.map(({ item, originTier }) => (
+                        <SortableNavItem
+                          key={`vault-${item.slug}`}
+                          item={item}
+                          active={isActive(item.slug)}
+                          expanded={expanded}
+                          zone="vault"
+                          originTier={originTier}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
+                  {vaultExpanded && count === 0 && expanded && (
+                    <div
+                      className="text-[12px] italic"
+                      style={{
+                        padding: "8px 16px 12px",
+                        color: "var(--text-faint)",
+                        fontFamily: "var(--font-ui)",
+                      }}
+                    >
+                      Drag tabs here to hide them from your sidebar.
+                    </div>
+                  )}
+                </VaultDropZone>
+              </div>
+            );
+          })()}
+        </DndContext>
       </div>
     </div>
   );
