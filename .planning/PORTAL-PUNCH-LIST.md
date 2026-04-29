@@ -255,6 +255,23 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 ---
 
+### 17. Extract `PadCard` / `BackButton` / `ComingSoonPlaceholder` to a shared module
+**Where:** `src\app\dashboard\executive-intelligence\KPIAdminTab.tsx` (originals) + `src\app\dashboard\executive-intelligence\KpiPowerBiTab.tsx` (near-byte-identical duplicates).
+
+**Why:** Surfaced by the 2026-04-29 `/simplify` pass on the new Power BI tab. `PadCard` is byte-identical between the two files; `BackButton` is identical except the Power BI version hardcodes its label while the Admin version takes a `label` prop; `ComingSoonPlaceholder` is duplicated as inline JSX in the Power BI file. The `SpokeKey` type and the canonical 6-spoke list are also duplicated.
+
+**Why deferred and not auto-fixed:** Touching `KPIAdminTab.tsx` carries higher risk than the duplication itself today — that file is the recently-shipped KPI Admin redesign (commit 22cf460) and breaking its pad behavior would be a much bigger problem than two copies of a 30-line component. Doing this as its own focused pass is safer than bundling it into the `/simplify` cleanup.
+
+**Fix:**
+- Create `src\app\dashboard\executive-intelligence\PadGrid.tsx` (or `src\components\PadGrid.tsx` if Settlement Tracker ends up wanting it next — Settlement Tracker's current page is a visual cousin of the pattern but doesn't share the helpers).
+- Export `PadCard`, `BackButton` (the labeled `KPIAdminTab` version — strict superset), `ComingSoonPlaceholder` (with optional `color` prop so the Power BI variant's colored top-border is supported), the `SpokeKey` type, and the canonical `SpokePad` interface.
+- Delete the duplicates from both `KpiPowerBiTab.tsx` and `KPIAdminTab.tsx` and import from the shared module.
+- Smoke-test: open EI → KPI Admin → Templates landing (verify all 6 pads render and click-through still works), then EI → KPI Power BI (verify Onboarder pad still renders the iframe).
+
+**Effort:** ~30 minutes including the smoke test.
+
+---
+
 ## Done (recently fixed — keep here as record, prune occasionally)
 
 - ✅ **2026-04-28** — `startEdit` on Onboarder was wiping name/address/contractor/etc. fields when clicking Edit. Fixed by spreading all canonical fields into the form, not just a tiny subset.

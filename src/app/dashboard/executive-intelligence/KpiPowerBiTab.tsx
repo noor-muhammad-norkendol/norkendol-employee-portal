@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { cardStyle, btnOutline } from "@/lib/styles";
+import { cardStyle } from "@/lib/styles";
 
 /* ── Spoke pad config ──────────────────────────────────── */
 
@@ -14,26 +14,20 @@ interface SpokePad {
   title: string;
   description: string;
   color: string;
-  built: boolean; // true = source view exists and pad is connectable
 }
 
 const SPOKE_PADS: SpokePad[] = [
-  { key: "onboarder_kpi",     title: "Onboarder KPI",       description: "Intake activity, time-in-phase, abandonment trends",  color: "#4ade80", built: true },
-  { key: "estimator_kpi",     title: "Estimator KPI",       description: "Coming soon",                                          color: "#60a5fa", built: false },
-  { key: "claim_health",      title: "Claim Health",        description: "Coming soon",                                          color: "#fbbf24", built: false },
-  { key: "claim_calculator",  title: "Claim Calculator",    description: "Coming soon",                                          color: "#a78bfa", built: false },
-  { key: "team_lead_support", title: "Team Lead Support",   description: "Coming soon",                                          color: "#22d3ee", built: false },
-  { key: "settlement_tracker",title: "Settlement Tracker",  description: "Coming soon",                                          color: "#ef4444", built: false },
+  { key: "onboarder_kpi",     title: "Onboarder KPI",       description: "Intake activity, time-in-phase, abandonment trends", color: "#4ade80" },
+  { key: "estimator_kpi",     title: "Estimator KPI",       description: "Coming soon",                                         color: "#60a5fa" },
+  { key: "claim_health",      title: "Claim Health",        description: "Coming soon",                                         color: "#fbbf24" },
+  { key: "claim_calculator",  title: "Claim Calculator",    description: "Coming soon",                                         color: "#a78bfa" },
+  { key: "team_lead_support", title: "Team Lead Support",   description: "Coming soon",                                         color: "#22d3ee" },
+  { key: "settlement_tracker",title: "Settlement Tracker",  description: "Coming soon",                                         color: "#ef4444" },
 ];
 
-/* ── Per-spoke embed config ────────────────────────────────────────────
- * When a Power BI report is published for a spoke, drop its embed URL into
- * the matching SpokeKey here. Until then the pad shows "Coming soon."
- *
- * Power BI Desktop connection notes (for me, not the user):
- * - onboarder_kpi → source view: public.vw_onboarder_kpi_events
- * - Supabase project: hkscsovtejeedjebytsv (PostgreSQL connector)
- * ───────────────────────────────────────────────────────────────────── */
+/* When a Power BI report is published for a spoke, paste its embed URL here.
+ * Source view for onboarder_kpi: public.vw_onboarder_kpi_events
+ * Supabase project: hkscsovtejeedjebytsv (PostgreSQL connector). */
 const SPOKE_EMBED_URL: Partial<Record<SpokeKey, string>> = {
   onboarder_kpi: "https://app.powerbi.com/reportEmbed?reportId=00bf4c4e-2cf6-46a3-a859-2bae234ab556&autoAuth=true&ctid=fecc843f-6c9e-41a9-8342-58e0b23ee1c9",
 };
@@ -92,6 +86,7 @@ function SpokeView({ spoke }: { spoke: SpokeKey }) {
   if (embedUrl) {
     return (
       <iframe
+        key={spoke}
         src={embedUrl}
         title={`${pad.title} Power BI`}
         style={{ width: "100%", height: "calc(100vh - 280px)", border: "1px solid var(--border-color)", borderRadius: 8 }}
@@ -135,7 +130,7 @@ export default function KpiPowerBiTab() {
             title={p.title}
             description={p.description}
             color={p.color}
-            dim={!p.built}
+            dim={!SPOKE_EMBED_URL[p.key]}
             onClick={() => setActiveSpoke(p.key)}
           />
         ))}
