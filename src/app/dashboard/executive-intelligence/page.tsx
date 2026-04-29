@@ -151,7 +151,7 @@ export default function ExecutiveIntelligencePage() {
   const [supabase] = useState(() => createClient());
 
   const [orgId, setOrgId] = useState("");
-  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis" | "kpi_admin">("hierarchy");
+  const [activeTab, setActiveTab] = useState<"hierarchy" | "features" | "alerts" | "kpis" | "kpi_power_bi" | "kpi_admin">("hierarchy");
 
   // KPI data from kpi_snapshots
   const [kpiSnapshots, setKpiSnapshots] = useState<{ metric_key: string; metric_value: number; metric_unit: string; source_module: string; period_end: string }[]>([]);
@@ -954,6 +954,7 @@ export default function ExecutiveIntelligencePage() {
         <button style={tabStyle(activeTab === "features")} onClick={() => setActiveTab("features")}>Feature Assignments</button>
         <button style={tabStyle(activeTab === "alerts")} onClick={() => setActiveTab("alerts")}>Alert Routing</button>
         <button style={tabStyle(activeTab === "kpis")} onClick={() => setActiveTab("kpis")}>KPI Dashboard</button>
+        <button style={tabStyle(activeTab === "kpi_power_bi")} onClick={() => setActiveTab("kpi_power_bi")}>KPI Power BI</button>
         <button style={tabStyle(activeTab === "kpi_admin")} onClick={() => setActiveTab("kpi_admin")}>KPI Admin</button>
       </div>
 
@@ -1278,6 +1279,27 @@ export default function ExecutiveIntelligencePage() {
                 <button style={btnOutline} onClick={() => setConfirmDelete(null)}>Cancel</button>
                 <button style={btnDanger} onClick={() => handleDeletePerson(confirmDelete)}>Remove</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ KPI POWER BI TAB ═══ */}
+      {activeTab === "kpi_power_bi" && (
+        <div>
+          <div style={{ ...cardStyle, padding: "32px 28px" }}>
+            <h2 style={{ margin: "0 0 8px 0", fontSize: 18, color: "var(--text-primary)" }}>Power BI Dashboards</h2>
+            <p style={{ margin: "0 0 16px 0", fontSize: 13, color: "var(--text-secondary)" }}>
+              Embedded Power BI reports — coming soon. This tab will host the analytical layer over the same kpi_snapshots data the KPI Dashboard tab summarizes — onboarder leaderboards, cross-spoke claim journeys, time-in-phase distributions, carrier/peril/contractor pivots over time.
+            </p>
+            <div style={{ background: "var(--bg-page)", border: "1px dashed var(--border-color)", borderRadius: 8, padding: 24, marginTop: 12 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                <strong style={{ color: "var(--text-secondary)" }}>Status:</strong> placeholder. Prerequisites in progress —
+                read-only Postgres views in Supabase to flatten the metadata jsonb into typed columns,
+                a small set of dimension tables (dim_user, dim_phase, dim_metric_key, dim_date),
+                and a Power BI access posture decision (Service workspace + gateway, vs. read-only service-role key).
+                Tracked as item #11 in <code style={{ color: "var(--accent)" }}>.planning/PORTAL-PUNCH-LIST.md</code>.
+              </p>
             </div>
           </div>
         </div>

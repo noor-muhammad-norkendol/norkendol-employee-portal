@@ -73,9 +73,6 @@ const sectionMenus: Record<string, { group: string; items: string[] }[]> = {
     { group: "ACTIONS", items: ["Add Client"] },
     { group: "MY STATS", items: ["Performance"] },
   ],
-  "claim-calculator-settings": [
-    { group: "CALCULATOR", items: ["Release Types"] },
-  ],
   "system-settings": [
     { group: "SYSTEM", items: ["General", "Security", "Integrations"] },
   ],

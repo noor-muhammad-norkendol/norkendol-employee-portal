@@ -34,7 +34,7 @@ type TLSRow = {
 type UserLite = { id: string; full_name: string | null; email: string | null };
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: "pending", label: "Pending" },
+  { key: "pending", label: "New" },
   { key: "in_review", label: "In Review" },
   { key: "approved", label: "Approved" },
   { key: "kicked_back", label: "Kicked Back" },

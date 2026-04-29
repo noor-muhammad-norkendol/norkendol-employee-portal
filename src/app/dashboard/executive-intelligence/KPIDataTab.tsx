@@ -29,7 +29,15 @@ interface UserLite {
   id: string;
   full_name: string | null;
   email: string | null;
+  department: string | null;
 }
+
+// Module-aware user dropdown: when a module is selected, only show users
+// whose department actually does that work. Onboarder spoke = Intake dept;
+// other spokes get added here as they come online.
+const MODULE_DEPARTMENTS: Record<string, { departments: string[]; userLabel: string }> = {
+  onboarder_kpi: { departments: ['Intake'], userLabel: 'Onboarder' },
+};
 
 const FETCH_LIMIT = 1000;
 
@@ -136,7 +144,7 @@ export default function KPIDataTab() {
       setOrgId((profile as { org_id: string }).org_id);
       const { data: us } = await supabase
         .from("users")
-        .select("id, full_name, email")
+        .select("id, full_name, email, department")
         .eq("org_id", (profile as { org_id: string }).org_id)
         .eq("status", "active")
         .order("full_name", { ascending: true });
@@ -192,6 +200,26 @@ export default function KPIDataTab() {
     const u = users.find((x) => x.id === id);
     return u ? (u.full_name || u.email || "(no name)") : "(unknown)";
   }, [users]);
+
+  // Module-aware user dropdown — narrow to the departments that actually
+  // do this spoke's work. If the module has no mapping yet, fall through
+  // to the full directory.
+  const moduleConfig = MODULE_DEPARTMENTS[moduleFilter];
+  const eligibleUsers = useMemo(() => {
+    if (!moduleConfig) return users;
+    return users.filter(
+      (u) => u.department && moduleConfig.departments.includes(u.department)
+    );
+  }, [users, moduleConfig]);
+
+  // If the active module changes and the previously-picked user is no longer
+  // in the eligible list, clear the user filter so the UI can't show a
+  // hidden-but-active filter that won't match any visible row.
+  useEffect(() => {
+    if (!userFilter) return;
+    const stillEligible = eligibleUsers.some((u) => u.id === userFilter);
+    if (!stillEligible) setUserFilter("");
+  }, [eligibleUsers, userFilter]);
 
   // Available metric_keys from current data — for filter dropdown
   const availableMetrics = useMemo(() => {
@@ -705,10 +733,10 @@ export default function KPIDataTab() {
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Onboarder</label>
+            <label style={labelStyle}>{moduleConfig?.userLabel || "User"}</label>
             <select style={selectStyle} value={userFilter} onChange={(e) => setUserFilter(e.target.value)}>
               <option value="">All</option>
-              {users.map((u) => (
+              {eligibleUsers.map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name || u.email || u.id}</option>
               ))}
             </select>

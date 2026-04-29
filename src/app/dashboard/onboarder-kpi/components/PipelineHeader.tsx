@@ -289,7 +289,7 @@ export default function PipelineHeader({
                   fontFamily: "var(--font-ui)",
                 }}
               >
-                {STATUS_LABELS[s]}
+                {s === "completed" ? "Today's Completed" : STATUS_LABELS[s]}
               </span>
             </button>
           );

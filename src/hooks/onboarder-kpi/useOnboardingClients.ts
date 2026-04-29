@@ -83,13 +83,24 @@ export function useOnboardingClients(statusFilter?: OnboardingStatus) {
         .eq('org_id', userInfo.orgId)
         .order('created_at', { ascending: false });
 
+      // Once a claim is marked completed it's TLS Phase 1's responsibility,
+      // not the onboarder's. Hide older completions; keep today's so the
+      // "Today's Completed" tally bubble has data to show. Applies in both
+      // the default view AND when the user clicks the Today's Completed
+      // bubble (which sets statusFilter='completed').
+      const startOfTodayLocalISO = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+
       if (statusFilter) {
         query = query.eq('status', statusFilter);
+        if (statusFilter === 'completed') {
+          query = query.gte('completed_at', startOfTodayLocalISO);
+        }
       } else {
         // Default view excludes archival statuses (erroneous/abandoned/revised).
         // Those are soft-deleted from the dashboard; their data lives in
         // kpi_snapshots for KPI reporting via the EI Data tab.
         query = query.not('status', 'in', '("erroneous","abandoned","revised")');
+        query = query.or(`status.neq.completed,completed_at.gte.${startOfTodayLocalISO}`);
       }
 
       const { data, error } = await query;

@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase";
 import { TEMPLATE_STAGES as STAGES, TEMPLATE_CONTACTS as CONTACTS } from "@/types/onboarder-kpi";
 import { cardStyle, inputStyle } from "@/lib/styles";
 import KPIDataTab from "./KPIDataTab";
+import ClaimCalculatorSettings from "@/app/dashboard/claim-calculator-settings/page";
+import TlsTemplatesAdmin from "./TlsTemplatesAdmin";
 
 /* ── Types ── */
 interface Template {
@@ -29,7 +31,7 @@ const sectionLabel: React.CSSProperties = {
 type AdminSubTab = "templates" | "data";
 
 export default function KPIAdminTab() {
-  const [subTab, setSubTab] = useState<AdminSubTab>("templates");
+  const [subTab, setSubTab] = useState<AdminSubTab>("data");
 
   const subTabStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
@@ -41,12 +43,207 @@ export default function KPIAdminTab() {
     <div>
       {/* Sub-tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border-color)", marginBottom: 20 }}>
-        <button style={subTabStyle(subTab === "templates")} onClick={() => setSubTab("templates")}>Templates</button>
         <button style={subTabStyle(subTab === "data")} onClick={() => setSubTab("data")}>Data</button>
+        <button style={subTabStyle(subTab === "templates")} onClick={() => setSubTab("templates")}>Templates</button>
       </div>
 
-      {subTab === "templates" && <OnboardingTemplatesAdmin />}
+      {subTab === "templates" && <TemplatesLanding />}
       {subTab === "data" && <KPIDataTab />}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/* ── Templates Landing — Settlement-Tracker-style pad grid ── */
+/* ════════════════════════════════════════════════════════════ */
+
+type SpokeKey =
+  | "onboarder_kpi" | "estimator_kpi" | "claim_health"
+  | "claim_calculator" | "team_lead_support" | "settlement_tracker";
+
+type SettlementTrack = "pa_settlements" | "mediation" | "appraisal" | "litigation";
+
+interface SpokePad {
+  key: SpokeKey;
+  title: string;
+  description: string;
+  color: string;
+  built: boolean; // true = has real templates wired, false = placeholder
+}
+
+const SPOKE_PADS: SpokePad[] = [
+  { key: "onboarder_kpi",     title: "Onboarder KPI",       description: "Email & text scripts per phase × contact target", color: "#4ade80", built: true },
+  { key: "estimator_kpi",     title: "Estimator KPI",       description: "Templates coming soon",                            color: "#60a5fa", built: false },
+  { key: "claim_health",      title: "Claim Health",        description: "Templates coming soon",                            color: "#fbbf24", built: false },
+  { key: "claim_calculator",  title: "Claim Calculator",    description: "Release type templates & opening statements",      color: "#a78bfa", built: true },
+  { key: "team_lead_support", title: "Team Lead Support",   description: "Phase 1 / 2 procedural templates per contractor",  color: "#22d3ee", built: true },
+  { key: "settlement_tracker",title: "Settlement Tracker",  description: "Templates per dispute resolution track",           color: "#ef4444", built: false },
+];
+
+interface SettlementSubPad {
+  key: SettlementTrack;
+  title: string;
+  description: string;
+  color: string;
+}
+
+const SETTLEMENT_SUB_PADS: SettlementSubPad[] = [
+  { key: "pa_settlements", title: "PA Settlements",       description: "Public adjuster direct settlement templates",  color: "#4ade80" },
+  { key: "mediation",      title: "Mediation / Arbitration", description: "ADR proceeding templates",                  color: "#a78bfa" },
+  { key: "appraisal",      title: "Appraisal",            description: "Appraisal dispute templates",                  color: "#fbbf24" },
+  { key: "litigation",     title: "Litigation",           description: "Attorney-managed legal dispute templates",     color: "#ef4444" },
+];
+
+function PadCard({
+  title, description, color, onClick, dim = false,
+}: { title: string; description: string; color: string; onClick: () => void; dim?: boolean }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-color)",
+        borderTop: `3px solid ${color}`,
+        borderRadius: 8,
+        padding: "20px 22px",
+        cursor: "pointer",
+        opacity: dim ? 0.65 : 1,
+        transition: "transform 120ms ease, box-shadow 120ms ease",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 16px ${color}33`; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
+    >
+      <h3 style={{ margin: "0 0 6px 0", fontSize: 16, color, fontWeight: 700 }}>{title}</h3>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{description}</p>
+    </div>
+  );
+}
+
+function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: "transparent",
+        border: "1px solid var(--border-color)",
+        color: "var(--text-secondary)",
+        padding: "6px 12px",
+        borderRadius: 6,
+        fontSize: 12,
+        cursor: "pointer",
+        marginBottom: 16,
+      }}
+    >
+      ← {label}
+    </button>
+  );
+}
+
+function ComingSoonPlaceholder({ title }: { title: string }) {
+  return (
+    <div style={{ ...cardStyle, padding: "32px 28px", textAlign: "center" }}>
+      <h3 style={{ margin: "0 0 8px 0", fontSize: 16, color: "var(--text-primary)" }}>{title}</h3>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Coming soon.</p>
+    </div>
+  );
+}
+
+function TemplatesLanding() {
+  const [activeSpoke, setActiveSpoke] = useState<SpokeKey | null>(null);
+  const [activeTrack, setActiveTrack] = useState<SettlementTrack | null>(null);
+
+  // ── Inside Onboarder pad: real templates ──
+  if (activeSpoke === "onboarder_kpi") {
+    return (
+      <div>
+        <BackButton label="Back to Templates" onClick={() => setActiveSpoke(null)} />
+        <OnboardingTemplatesAdmin />
+      </div>
+    );
+  }
+
+  // ── Inside Claim Calculator pad: release type templates ──
+  // (Was previously a top-level Super Admin sidebar tab; relocated here so
+  // every spoke's settings live under its own Templates pad.)
+  if (activeSpoke === "claim_calculator") {
+    return (
+      <div>
+        <BackButton label="Back to Templates" onClick={() => setActiveSpoke(null)} />
+        <ClaimCalculatorSettings />
+      </div>
+    );
+  }
+
+  // ── Inside Team Lead Support pad: phase-aware procedural templates ──
+  if (activeSpoke === "team_lead_support") {
+    return (
+      <div>
+        <BackButton label="Back to Templates" onClick={() => setActiveSpoke(null)} />
+        <TlsTemplatesAdmin />
+      </div>
+    );
+  }
+
+  // ── Inside Settlement Tracker pad: 4 sub-pads ──
+  if (activeSpoke === "settlement_tracker") {
+    if (activeTrack) {
+      const track = SETTLEMENT_SUB_PADS.find((t) => t.key === activeTrack);
+      return (
+        <div>
+          <BackButton label="Back to Settlement Tracker" onClick={() => setActiveTrack(null)} />
+          <ComingSoonPlaceholder title={`${track?.title ?? "Track"} Templates`} />
+        </div>
+      );
+    }
+    return (
+      <div>
+        <BackButton label="Back to Templates" onClick={() => setActiveSpoke(null)} />
+        <h2 style={{ margin: "0 0 4px 0", fontSize: 18, color: "var(--text-primary)" }}>Settlement Tracker Templates</h2>
+        <p style={{ margin: "0 0 20px 0", fontSize: 13, color: "var(--text-muted)" }}>Pick a dispute resolution track.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {SETTLEMENT_SUB_PADS.map((p) => (
+            <PadCard
+              key={p.key}
+              title={p.title}
+              description={p.description}
+              color={p.color}
+              dim
+              onClick={() => setActiveTrack(p.key)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Inside any other (placeholder) spoke pad ──
+  if (activeSpoke) {
+    const pad = SPOKE_PADS.find((p) => p.key === activeSpoke);
+    return (
+      <div>
+        <BackButton label="Back to Templates" onClick={() => setActiveSpoke(null)} />
+        <ComingSoonPlaceholder title={`${pad?.title ?? "Spoke"} Templates`} />
+      </div>
+    );
+  }
+
+  // ── Root pad grid ──
+  return (
+    <div>
+      <h2 style={{ margin: "0 0 4px 0", fontSize: 18, color: "var(--text-primary)" }}>Templates</h2>
+      <p style={{ margin: "0 0 20px 0", fontSize: 13, color: "var(--text-muted)" }}>Pick a spoke to manage its templates and settings.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        {SPOKE_PADS.map((p) => (
+          <PadCard
+            key={p.key}
+            title={p.title}
+            description={p.description}
+            color={p.color}
+            dim={!p.built}
+            onClick={() => { setActiveSpoke(p.key); setActiveTrack(null); }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
