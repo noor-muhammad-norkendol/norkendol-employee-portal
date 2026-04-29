@@ -181,7 +181,7 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 **Effort:** prerequisites are a half-day of SQL views; first dashboard ~1-2 hours after that; mature multi-spoke environment is a couple of days; adding new spokes later is trivial because the schema is uniform.
 
-**Status:** Frank flagged 2026-04-28. Picking back up next session in dedicated time.
+**Status (2026-04-29):** Foundation shipped. `vw_onboarder_kpi_events` exists in Supabase with `security_invoker = true`. Power BI Desktop connects via Session pooler (cert fix: uncheck Encrypt connections in Edit Permissions). First report `Onboarder KPI.pbix` published to Frank's Power BI Service "My workspace" under PPU license, embedded inline in EI → KPI Power BI tab via auto-auth iframe. **Remaining:** views for the other 5 spokes when they mature, dim tables, RLS posture, scheduled refresh. Visual report design tracked separately as item #16.
 
 ---
 
@@ -218,6 +218,40 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 **Where:** `src/app/dashboard/claim-calculator-settings/page.tsx` + the directory.
 
 **Currently:** the page is now embedded in EI → KPI Admin → Templates → Claim Calculator pad. The standalone URL still works (we removed it from the sidebar but didn't delete the file). Once you've confirmed the embedded version covers all your use cases, the standalone page can go.
+
+---
+
+### 16. Power BI report design deep-dive (Onboarder KPI v1)
+**Where:** External — `Onboarder KPI.pbix` in Frank's Power BI Service My workspace.
+
+**Why this is its own item, separate from #11:** The plumbing in #11 is done — Supabase view → PPU license → Power BI Desktop → Service → embedded iframe → portal. What's missing is the actual *report*. Today's report is one ugly dot chart on a white square. Frank's words: "underwhelming would be a statement... I'd like to see a larger panel that shows me a chart of trends so I can look for flat lines and decreases."
+
+**The design library Frank already owns:** ~100 BiFlex `.pbix` templates purchased ~2025. Frank shared the catalog 2026-04-29.
+
+**Templates to evaluate first (highest structural match for Onboarder KPI):**
+1. **Performance Tracker Demo Report** *(Personal Performance & Tracking)* — purpose-built for the use case.
+2. **Marketing KPI Dashboard** *(Marketing & Advertising)* — universal exec KPI pattern.
+3. **HR Analytics Dashboard** + **HR Analytics** *(HR & Recruitment)* — per-employee leaderboards, time-based metrics. Maps directly to ranking onboarders (Reyniel vs Ardee).
+4. **Sales Performance Dashboard** + **Sales Performance Analysis** *(Sales & E-commerce)* — intake → contract is structurally a sales funnel.
+5. **Customer Churn Analysis** *(Customer Behavior)* — abandonment = churn ("claims that started but never finished").
+
+**Reality check on `.pbix` templates:** BiFlex says "100% customizable" but their templates are bound to fields like `Total_Sales`, `Region`, `Quarter`. Our data has `file_number`, `metric_key`, `time_in_phase`, `source_module`. Each visual on each template page has to be re-bound by hand — ~30-60 min per template if everything goes well. So the realistic play is: **use templates as design reference**, then build a clean version against our data, not literally swap the data source.
+
+**What "deep dive" looks like as a session:**
+1. Open the 6 candidate templates above in Power BI Desktop. Screenshot each layout.
+2. Frank picks the visual structure he wants. Likely candidate layout based on the BiFlex cover page screenshot: left-sidebar nav + 4 KPI cards top + bar chart mid-right + trend line lower-right + sortable data table bottom-left.
+3. Decide the 4-5 questions the report answers at a glance. Working list:
+   - Top onboarder this week / month
+   - Slowest claims (find the 7-hour outliers)
+   - Abandonment trend (line chart over last 30 days)
+   - Today's intake count
+   - Conversion funnel: started → contract signed → completed
+4. Build a fresh `.pbix` against `vw_onboarder_kpi_events` mirroring the chosen layout.
+5. Republish. The portal iframe updates automatically — no code changes needed.
+
+**Effort:** half a session for evaluation + template selection; one full session for the v1 build.
+
+**Status:** Deferred 2026-04-29. Frank wants to live with the foundation working before tackling visual design.
 
 ---
 
