@@ -4,6 +4,7 @@ import { useState } from "react";
 import IconSidebar from "./IconSidebar";
 import TextSidebar from "./TextSidebar";
 import TopBar from "./TopBar";
+import TronTraffic from "./effects/TronTraffic";
 import { usePathname } from "next/navigation";
 
 // Pages where the secondary TextSidebar is hidden.
@@ -46,7 +47,8 @@ export default function PortalShell({ children }: { children: React.ReactNode })
       )}
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 relative">
+          <TronTraffic />
           {children}
         </main>
       </div>

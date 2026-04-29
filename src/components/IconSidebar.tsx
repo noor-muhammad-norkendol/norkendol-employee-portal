@@ -483,11 +483,17 @@ export default function IconSidebar({
   const [navOrder, setNavOrder] = useState<Record<string, string[]>>({});
   // Hidden ("vaulted") items per tier — same shape as navOrder. Items here render in the Vault group, not in their tier.
   const [navVault, setNavVault] = useState<Record<string, string[]>>({});
-  const [vaultExpanded, setVaultExpanded] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("portal-vault-expanded") === "1";
-  });
+  // Always start false so server and client agree on first paint; rehydrate from localStorage in an effect below.
+  const [vaultExpanded, setVaultExpanded] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // After mount, restore the user's saved Vault open/closed state from localStorage.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem("portal-vault-expanded") === "1") {
+      setVaultExpanded(true);
+    }
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

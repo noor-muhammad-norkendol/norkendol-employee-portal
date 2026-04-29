@@ -18,6 +18,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { StartRaceButton } from "@/components/effects/TronTraffic";
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -845,7 +846,10 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <DashboardLogo />
+        <div className="flex items-center gap-4">
+          <StartRaceButton />
+          <DashboardLogo />
+        </div>
       </ThemedCard>
 
       {/* ── Draggable Panels ───────────────────────────── */}
