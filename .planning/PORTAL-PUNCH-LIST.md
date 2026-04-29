@@ -185,7 +185,54 @@ Same pattern would extend to `claim_calculator_runs` and any other spoke with re
 
 ---
 
+## TLS workflow (next session)
+
+### 12. Redesign TLS Phase 1 review page to consume the procedural templates
+**Where:** `src/app/dashboard/team-lead-support/page.tsx`
+
+**What's in (locked 2026-04-28 PM):** the Templates side is built — `tls_phase_templates` + `tls_phase_template_steps` schema with RLS, and the admin UI in EI → KPI Admin → Templates → Team Lead Support pad. Phase 1 / Phase 2 sub-tabs, four domain sections, full CRUD. Frank's exec team can populate templates immediately.
+
+**What's NOT in:** the actual TLS Phase 1 review page does not yet consume those templates. Today's review panel is a single status-toggle UI (pending → in_review → approved / kicked_back).
+
+**Next-session scope:**
+- Redesign the TLS Phase 1 review for one claim as a multi-pad workspace: Contractor pad / Insurance Company pad / Coastal Requirements pad / Complete pad.
+- Each pad pulls the matching `tls_phase_templates` row(s) for the claim's `firm_id` (with "Homeowner Direct" fallback when there's no firm) and renders the steps as a checklist.
+- Per-claim, per-step completion state goes on the existing `team_lead_reviews` row as jsonb (no third table per the architecture call).
+- "Complete" pad's final action sends the closing email and flips status to `approved`, which auto-creates the next-step row (Scope of Loss once that spoke exists, or Phase 2 once Estimator approval routing is wired).
+
+### 13. Apply Today's-Completed pattern to other spokes as they mature
+**Where:** Estimator KPI workboard, Claim Health workboard, eventually Scope of Loss / Adjuster KPI when those exist.
+
+**Pattern:** when a claim hits a terminal state in a spoke (estimator marks `review`, etc.), filter older terminations out of that spoke's workboard query and relabel the corresponding pipeline bubble to "Today's [Action]" so it acts as a daily-tally counter rather than an accumulating bucket. The actual record stays in the DB and flows to `kpi_snapshots` for analytical rollups; only the workboard UI changes.
+
+**Why deferred:** wait until each spoke has enough terminal-state UX wired to know the exact bubble label and date-cutoff semantics. Don't apply preemptively.
+
+### 14. Customer-portal mortgage statement upload (future)
+**What's in:** today CCS calls / emails the insured asking for the most recent mortgage statement during TLS Phase 1.
+
+**Future state:** email the insured a self-service link → they upload the doc directly → it lands attached to the claim and the relevant TLS Phase 1 step auto-ticks as complete.
+
+**Scope when we get there:** secure tokenized link (no auth required), upload-only landing page, file storage (Supabase Storage bucket), webhook back to flip a step on `team_lead_reviews`. Same pattern would extend to other documents (carrier docs, ID, etc.) and other spokes.
+
+### 15. Delete the standalone `/dashboard/claim-calculator-settings` page
+**Where:** `src/app/dashboard/claim-calculator-settings/page.tsx` + the directory.
+
+**Currently:** the page is now embedded in EI → KPI Admin → Templates → Claim Calculator pad. The standalone URL still works (we removed it from the sidebar but didn't delete the file). Once you've confirmed the embedded version covers all your use cases, the standalone page can go.
+
+---
+
 ## Done (recently fixed — keep here as record, prune occasionally)
 
 - ✅ **2026-04-28** — `startEdit` on Onboarder was wiping name/address/contractor/etc. fields when clicking Edit. Fixed by spreading all canonical fields into the form, not just a tiny subset.
 - ✅ **2026-04-28** — TLS auto-create initial implementation used Supabase `upsert(..., onConflict)` which would have wiped reviewer_id/decision_notes/status on every onboarder re-save. Fixed to "create-once" pattern (existence check, then INSERT).
+- ✅ **2026-04-28 PM** — Onboarder KPI `source_module` unified to `'onboarder_kpi'` across producers and consumers. Old `'onboarding'` bucket retired; existing rows migrated. EI Dashboard collapses to one Onboarder section instead of two.
+- ✅ **2026-04-28 PM** — `KPIDataTab` Module dropdown cleanup: dead `'onboarding'` option removed, `(legacy)` suffix stripped from `onboarder_kpi`/`estimator_kpi` (those buckets are canonical, not legacy), default flipped to `onboarder_kpi`.
+- ✅ **2026-04-28 PM** — EI Data tab redesign: 7-column main table (parent/claim row), expand-to-15-column sub-table with full per-event detail. Org-level aggregate rows hidden from Data tab. Header text brightened from `text-muted` to `text-primary`. Onboarder email column dropped from main table + CSV.
+- ✅ **2026-04-28 PM** — Two-sheet xlsx export replaces flat CSV: outlined Activity sheet (parent/child mirroring screen) + flat Claims Summary sheet with aggregates (`Total Time`, `Current Phase` humanized via STATUS_LABELS, `Outcome`).
+- ✅ **2026-04-28 PM** — Stale `panelClient` snapshot fix: every Move-To click in the slide-out detail panel was reading the same frozen `client.status` captured at panel-open, so `phase_completed` events always published the original status as `from_phase`. Now the page stores the panel's claim ID and derives `panelClient` from the live `useOnboardingClients` query so each click sees fresh data.
+- ✅ **2026-04-28 PM** — KPI Admin redesigned: Data tab is now the default sub-tab (Templates demoted), Templates is a Settlement-Tracker-style pad grid (one pad per spoke). Onboarder Templates and Claim Calculator Settings embedded under their respective pads (Claim Calculator's standalone Super Admin sidebar entry removed).
+- ✅ **2026-04-28 PM** — Module-aware user dropdown on Data tab: when `module='onboarder_kpi'`, the dropdown narrows to `users.department='Intake'` instead of dumping all 75 users. Driven by `MODULE_DEPARTMENTS` map; trivial to extend per spoke.
+- ✅ **2026-04-28 PM** — Onboarder workboard "Today's Completed" model: 7th pipeline bubble relabeled, completed claims older than today's local midnight drop out of the workboard query (still queryable via Data tab / Power BI). TLS Phase 1 auto-create on completion is unchanged.
+- ✅ **2026-04-28 PM** — TLS Phase 1 filter button label "Pending" → "New" (DB value `pending` unchanged so existing onboarder→TLS auto-create still slots rows in).
+- ✅ **2026-04-28 PM** — TLS procedural templates schema + admin UI shipped (`tls_phase_templates` + `tls_phase_template_steps` tables with RLS). Phase 1 / Phase 2 templates organized by domain (Contractor / Insurance / Coastal / Complete), Contractor templates anchor to `firms.id` from TPN. Review-page consumption is item #12 on this list.
+- ✅ **2026-04-28 PM** — `KPI Power BI` placeholder tab added between KPI Dashboard and KPI Admin — reserved for the analytical layer once the Supabase flattening views land (item #11).

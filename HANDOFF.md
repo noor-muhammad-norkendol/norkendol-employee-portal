@@ -66,7 +66,7 @@ Idempotent via `(org_id, file_number, phase)` unique constraint. NOT a DB trigge
 
 ### Onboarder KPI event publishing (locked 2026-04-28)
 
-The Onboarder publishes 5 metric_keys to `kpi_snapshots` (`source_module='onboarding'`) so KPI questions can be answered without hand-querying. Event helper at `src/hooks/onboarder-kpi/publishKPIEvent.ts` — fire-and-forget (errors logged, never thrown).
+The Onboarder publishes 5 metric_keys to `kpi_snapshots` (`source_module='onboarder_kpi'` — unified 2026-04-28 PM, was `'onboarding'`) so KPI questions can be answered without hand-querying. Event helper at `src/hooks/onboarder-kpi/publishKPIEvent.ts` — fire-and-forget (errors logged, never thrown).
 
 | metric_key | when fires | metadata |
 |---|---|---|
@@ -79,6 +79,24 @@ The Onboarder publishes 5 metric_keys to `kpi_snapshots` (`source_module='onboar
 **EI Data tab** (`/dashboard/executive-intelligence` → KPI Admin tab → Data sub-tab) is the flat event-log viewer over kpi_snapshots: filter by date range / module / metric / user, sortable columns, CSV export. No EI tables (org_hierarchy etc.) needed — Data tab is independent of the deferred `20260405_executive_intelligence.sql` migration.
 
 **Soft-delete on Onboarder:** clicking Mark Erroneous / Mark Abandoned shows a confirm prompt, sets the status accordingly, publishes the kpi event, and auto-closes the panel. The dashboard query in `useOnboardingClients` excludes `erroneous`/`abandoned`/`revised` from the default view — those rows still exist in `onboarding_clients` (queryable from the EI Data tab) but never appear in the user-facing UI.
+
+**Today's-Completed model on Onboarder (locked 2026-04-28 PM):** Once a claim hits `status='completed'` it's TLS Phase 1's responsibility, not the onboarder's. The 7-bubble pipeline still has a Completed bubble but it's relabeled "Today's Completed" and its data source is filtered to `completed_at >= start_of_today_local`. Older completions drop out of the workboard query entirely (still queryable via EI Data tab and Power BI). Click the bubble → workboard shows just today's completions for the daily-tally feel; auto-create of the TLS Phase 1 row is unchanged. Pattern intended to replicate on other spokes (Estimator → Adjuster, etc.) when those spokes mature.
+
+**EI redesign (locked 2026-04-28 PM):**
+- KPI Admin sub-tabs reordered: Data first, Templates second.
+- Templates is now a Settlement-Tracker-style pad grid (one pad per spoke). Onboarder Templates → existing email/text scripts UI. Claim Calculator → the release-types editor that used to live as a top-level Super Admin sidebar entry (sidebar entry removed; URL still works). Team Lead Support → new procedural-templates admin (see TLS Templates section below). Settlement Tracker pad drills into 4 sub-pads (PA / Mediation / Appraisal / Litigation) — all stubs for now. Estimator KPI / Claim Health remain dim "Coming soon" stubs.
+- Data tab (`KPIDataTab`) Module dropdown now uses the canonical `'onboarder_kpi'` value across producers and consumers. The user dropdown is module-aware: when `module='onboarder_kpi'` the dropdown narrows to `users.department='Intake'` instead of dumping the full directory. Add a row to `MODULE_DEPARTMENTS` to extend per-spoke as new spokes come online.
+- New `KPI Power BI` tab placeholder lives between KPI Dashboard and KPI Admin — reserved for the analytical layer once the Supabase flattening views land (see PORTAL-PUNCH-LIST item #11).
+
+### TLS procedural templates (new 2026-04-28 PM)
+
+**Tables:** `tls_phase_templates` + `tls_phase_template_steps`. Templates are partitioned by `phase` (`phase_1`/`phase_2`) and `domain` (`contractor`/`insurance`/`coastal`/`complete`). Contractor templates anchor to a `firm_id` (FK to TPN's `firms` table); insurance can optionally pin to a `carrier_name`; coastal/complete are universal. Steps live as ordered child rows so the eventual TLS Phase 1 review page can render them as a checklist with per-step completion state.
+
+**RLS:** any active org member can SELECT (TLs need to read templates during reviews); only admin / super_admin / system_admin can INSERT/UPDATE/DELETE (operational config is locked).
+
+**Admin UI:** `EI → KPI Admin → Templates → Team Lead Support pad → TlsTemplatesAdmin component`. Phase 1 / Phase 2 sub-tabs, four domain sections per phase, Add/Edit/Delete per template. Steps editor is a newline-delimited textarea (one step per line); reordering is just rearranging the lines. Save replaces all steps wholesale rather than diffing — fine for admin-config volume.
+
+**Architectural intent:** the actual TLS Phase 1 review page (`/dashboard/team-lead-support`) does NOT consume these templates yet. Next session redesigns that review page to surface the matching templates per claim — the screen will be a multi-pad workspace (Contractor pad pulls the firm-specific template, Insurance / Coastal / Complete pull universal templates) where the TL ticks off steps as they go. Per-claim completion state goes on `team_lead_reviews` as jsonb (no third table).
 
 ### Rule for new spokes
 
