@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import ThemePicker from "@/components/ThemePicker";
+import { StartRaceButton } from "@/components/effects/TronTraffic";
 
 function pageLabelFromPath(pathname: string): string {
   // /dashboard               → Dashboard
@@ -144,8 +145,11 @@ export default function TopBar() {
         </span>
       </div>
 
-      {/* Right cluster: clock + search + bell + avatar */}
+      {/* Right cluster: start-race + clock + search + bell + avatar */}
       <div className="flex items-center gap-3">
+        {/* Start Race — Throwback-only easter egg trigger */}
+        <StartRaceButton />
+
         {/* Digital clock pill */}
         <div
           className="px-3 py-1.5 text-sm font-mono tabular-nums tracking-wider"
