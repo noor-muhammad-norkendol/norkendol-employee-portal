@@ -345,6 +345,23 @@ These are three small targeted edits, not a revert. Each is independently smoke-
 
 ---
 
+### 19. TLS KPI side panel — needs a full rework
+**Where:** `src/app/dashboard/team-lead-support/page.tsx` — the slide-out side panel that opens when a row is clicked.
+
+**Frank's call (2026-04-30):** "The page is good but when we click on the client the pad that opens needs a tremendous amount of work."
+
+**Status:** Page chrome (header, phase buttons, stat tiles, workboard table) was migrated to spec on 2026-04-30 and is solid. Side panel was widened to 60vw and basic spec tokens applied (themed Claim Info card, spec inputs, semantic Approve/Kick Back/Save Notes buttons). Functional but not where it needs to be — this is where the Team Lead actually does their work, so it has to be a real workspace, not a thin sidebar.
+
+**To define before doing the work:**
+- What information does the TL need that isn't there today? (history, prior decisions on the same file, upstream onboarder notes, attachments, related claims, etc.)
+- Should the procedural templates from punch list #12 (`tls_phase_templates`) live in this panel or separately?
+- Does the panel become a full-page detail view instead of a slide-out for the deeper workflow?
+- How is the read-only Claim Info section structured — collapsed by default, tabs, sections?
+
+**Effort:** TBD — needs a BINGO design pass first.
+
+---
+
 ## Done (recently fixed — keep here as record, prune occasionally)
 
 - ✅ **2026-04-29** — **Tron Race v2 — full race-session model.** Major upgrade to the Tron Traffic easter egg. Click `▶ Start Race` in the TopBar and a 4-minute race session kicks off with three bikes lined up at the same starting spot (center of the dashboard grid): one cyan player + one orange + one red. They leap off together (zero stagger when starting from the player anchor) and race in the player's direction along parallel grid lanes — Tron Ares parallel-track style. The player bike auto-runs from spawn, hits walls and auto-turns 90° toward whichever side has more open space; pressing any arrow key takes manual control for the rest of the race (90°-only turns; reversing 180° is blocked). Drive off the grid → derez (voxel scatter) and one life per race, no respawn. AI bikes derez randomly (~30% chance per bike) for drama, with 10–14 small voxels scattering on the path point computed via a hidden `<svg>` + `getPointAtLength()`. Wave cadence escalates: idle starts at 8–12s and tightens linearly to 1–4s in the final minute. Overlay was moved from a viewport-fixed layer to a main-relative `position: absolute` overlay with a `ResizeObserver` so bikes never overflow into the sidebar / topbar / chrome — they only ride the grid arena. Ambient mode (no race active) still runs at the new 0–45s cadence with mixed orange/red bikes. The `<StartRaceButton />` is now a tri-state control: `▶ Start Race` (cyan, clickable), `● Racing 02:34` (amber, live MM:SS countdown, click is no-op), `▷ Race Ended` (gray, slow pulse, click restarts). Singleton broadcasts `tron-session-state` window events that the button subscribes to. Button moved from the dashboard welcome banner into the TopBar's right cluster (first item before the clock), so it shows on every page. Player-bike state machine uses a ref as source of truth for the rAF position loop — earlier bug where the ref-syncing useEffect could overwrite a fresh ref with stale committed React state was removed. Files touched: `src/components/effects/TronTraffic.tsx` (rewrite), `src/components/TopBar.tsx` (mount StartRaceButton), `src/app/dashboard/page.tsx` (remove old StartRaceButton mount from welcome banner).

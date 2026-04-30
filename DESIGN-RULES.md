@@ -432,6 +432,7 @@ Legacy tokens are still aliased in every cell, so the old code still renders. Ne
 - `src/app/dashboard/onboarder-kpi/page.tsx` + `components/PipelineHeader.tsx` + `components/UrgencyBanner.tsx` + `components/WorkboardTable.tsx` — KPI-with-pipeline pattern (REFERENCE for any future pipeline/stage page)
 - `src/app/dashboard/estimator-kpi/page.tsx` — KPI-with-status-tiles pattern (REFERENCE for any future status-tiles page)
 - `src/app/dashboard/university/page.tsx` — course-grid pattern with category filter (REFERENCE for any future "library/catalog" page)
+- `src/app/dashboard/team-lead-support/page.tsx` — workboard-with-side-panel pattern; renamed "TLS KPI" in sidebar. **Side panel rework deferred** — see PORTAL-PUNCH-LIST item #19.
 - `src/components/IconSidebar.tsx` — sidebar pattern
 - `src/components/TopBar.tsx` — chrome pattern
 

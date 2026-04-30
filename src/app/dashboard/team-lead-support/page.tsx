@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { cardStyle, inputStyle, labelStyle, btnPrimary, btnOutline } from "@/lib/styles";
 
 type Phase = "phase_1" | "phase_2";
 type ReviewStatus = "pending" | "in_review" | "approved" | "kicked_back";
@@ -33,20 +32,80 @@ type TLSRow = {
 
 type UserLite = { id: string; full_name: string | null; email: string | null };
 
-const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: "pending", label: "New" },
-  { key: "in_review", label: "In Review" },
-  { key: "approved", label: "Approved" },
-  { key: "kicked_back", label: "Kicked Back" },
-  { key: "all", label: "All" },
+const STATUS_TILES: { key: StatusFilter; label: string; token: string }[] = [
+  { key: "pending", label: "New", token: "--info" },
+  { key: "in_review", label: "In Review", token: "--violet" },
+  { key: "approved", label: "Approved", token: "--green" },
+  { key: "kicked_back", label: "Kicked Back", token: "--red" },
+  { key: "all", label: "All", token: "--accent" },
 ];
 
-const STATUS_COLORS: Record<ReviewStatus, string> = {
-  pending: "#fb923c",
-  in_review: "#60a5fa",
-  approved: "#22c55e",
-  kicked_back: "#ef4444",
+const STATUS_TOKEN: Record<ReviewStatus, string> = {
+  pending: "--info",
+  in_review: "--violet",
+  approved: "--green",
+  kicked_back: "--red",
 };
+
+function StatusBadge({ status }: { status: ReviewStatus }) {
+  const token = STATUS_TOKEN[status];
+  const label = status.replace("_", " ");
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 10px",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        fontFamily: "var(--font-ui)",
+        background: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+        color: `var(${token})`,
+        border: `1px solid color-mix(in srgb, var(${token}) 40%, transparent)`,
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function initialsOf(name: string | null): string {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("") || "—";
+}
+
+function ClientChip({ name }: { name: string | null }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className="shrink-0 inline-flex items-center justify-center text-[12px] font-bold"
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 7,
+          background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--border-active)",
+          color: "var(--accent)",
+          textShadow: "var(--accent-text-shadow)",
+          fontFamily: "var(--font-display)",
+        }}
+      >
+        {initialsOf(name)}
+      </span>
+      <span
+        className="text-[14px]"
+        style={{ fontWeight: 600, color: "var(--text)" }}
+      >
+        {name || "—"}
+      </span>
+    </div>
+  );
+}
 
 export default function TeamLeadSupportPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -55,6 +114,7 @@ export default function TeamLeadSupportPage() {
   const [phase, setPhase] = useState<Phase>("phase_1");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [rows, setRows] = useState<TLSRow[]>([]);
+  const [allRows, setAllRows] = useState<TLSRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserLite[]>([]);
 
@@ -71,44 +131,68 @@ export default function TeamLeadSupportPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       setCurrentUserId(user.id);
-      supabase.from("users").select("org_id").eq("id", user.id).single()
-        .then(({ data }) => { if (data) setOrgId((data as { org_id: string }).org_id); });
+      supabase
+        .from("users")
+        .select("org_id")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setOrgId((data as { org_id: string }).org_id);
+        });
     });
   }, [supabase]);
 
   // Load active internal users for reviewer picker
   useEffect(() => {
     if (!orgId) return;
-    supabase.from("users")
+    supabase
+      .from("users")
       .select("id, full_name, email")
       .eq("org_id", orgId)
       .eq("user_type", "internal")
       .eq("status", "active")
       .order("full_name", { ascending: true })
-      .then(({ data }) => { if (data) setUsers(data as UserLite[]); });
+      .then(({ data }) => {
+        if (data) setUsers(data as UserLite[]);
+      });
   }, [supabase, orgId]);
 
-  // Load rows for current phase + filter
+  // Load ALL rows for current phase (for tile counts)
   useEffect(() => {
     if (!orgId) return;
     setLoading(true);
-    let q = supabase.from("team_lead_reviews")
+    supabase
+      .from("team_lead_reviews")
       .select("*")
       .eq("org_id", orgId)
       .eq("phase", phase)
-      .order("created_at", { ascending: false });
-    if (statusFilter !== "all") q = q.eq("status", statusFilter);
-    q.then(({ data, error }) => {
-      setLoading(false);
-      if (error) { console.error(error); return; }
-      if (data) setRows(data as TLSRow[]);
-    });
-  }, [supabase, orgId, phase, statusFilter]);
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        setLoading(false);
+        if (error) {
+          console.error(error);
+          return;
+        }
+        setAllRows((data as TLSRow[]) ?? []);
+      });
+  }, [supabase, orgId, phase]);
+
+  // Filter rows for table view
+  useEffect(() => {
+    if (statusFilter === "all") setRows(allRows);
+    else setRows(allRows.filter((r) => r.status === statusFilter));
+  }, [allRows, statusFilter]);
 
   const counts = useMemo(() => {
-    const total = rows.length;
-    return { total };
-  }, [rows]);
+    const out: Record<ReviewStatus, number> = {
+      pending: 0,
+      in_review: 0,
+      approved: 0,
+      kicked_back: 0,
+    };
+    for (const r of allRows) out[r.status]++;
+    return out;
+  }, [allRows]);
 
   function openPanel(row: TLSRow) {
     setSelected(row);
@@ -137,7 +221,10 @@ export default function TeamLeadSupportPage() {
       .select()
       .single();
     setSaving(false);
-    if (error) { setPanelMsg(`Save failed: ${error.message}`); return null; }
+    if (error) {
+      setPanelMsg(`Save failed: ${error.message}`);
+      return null;
+    }
     return data as TLSRow;
   }
 
@@ -148,7 +235,7 @@ export default function TeamLeadSupportPage() {
       kick_back_reason: draftKickBackReason || null,
     });
     if (updated) {
-      setRows((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+      setAllRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setSelected(updated);
       setPanelMsg("Saved.");
     }
@@ -162,7 +249,7 @@ export default function TeamLeadSupportPage() {
       decision_notes: draftDecisionNotes || null,
     });
     if (updated) {
-      setRows((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+      setAllRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setSelected(updated);
       setPanelMsg("Approved.");
     }
@@ -181,7 +268,7 @@ export default function TeamLeadSupportPage() {
       kick_back_reason: draftKickBackReason,
     });
     if (updated) {
-      setRows((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+      setAllRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setSelected(updated);
       setPanelMsg("Kicked back.");
     }
@@ -191,258 +278,653 @@ export default function TeamLeadSupportPage() {
   const reviewerName = (id: string | null) => {
     if (!id) return "—";
     const u = users.find((x) => x.id === id);
-    return u ? (u.full_name || u.email || "(unnamed)") : "(unknown)";
+    return u ? u.full_name || u.email || "(unnamed)" : "(unknown)";
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-        Team Lead Support
-      </h1>
-      <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
-        Phase 1 sits between Onboarding and Scope of Loss · Phase 2 sits between Estimating and Adjuster
-      </p>
-
-      {/* Phase tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: "1px solid var(--border-color)" }}>
-        {([
-          { key: "phase_1", label: "Phase 1 — Pre-Estimating" },
-          { key: "phase_2", label: "Phase 2 — Post-Estimating" },
-        ] as const).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => { setPhase(tab.key); setSelected(null); }}
-            style={{
-              padding: "10px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: phase === tab.key ? "2px solid var(--accent)" : "2px solid transparent",
-              color: phase === tab.key ? "var(--accent)" : "var(--text-secondary)",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+    <div className="space-y-6">
+      {/* ── Page header ────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <h1
+            className="page-title text-5xl leading-none tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
           >
-            {tab.label}
-          </button>
-        ))}
+            <span
+              style={{
+                color: "var(--accent)",
+                textShadow: "var(--accent-text-shadow)",
+                fontWeight: 800,
+              }}
+            >
+              TLS
+            </span>{" "}
+            <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+              KPI
+            </span>
+          </h1>
+        </div>
       </div>
 
-      {/* Status filter pills */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setStatusFilter(f.key)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: "1px solid var(--border-color)",
-              background: statusFilter === f.key ? "var(--accent)" : "var(--bg-surface)",
-              color: statusFilter === f.key ? "var(--bg-page)" : "var(--text-secondary)",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
-        <span style={{ marginLeft: "auto", alignSelf: "center", fontSize: 12, color: "var(--text-muted)" }}>
-          {loading ? "Loading…" : `${counts.total} row${counts.total === 1 ? "" : "s"}`}
-        </span>
+      {/* ── Phase segmented toggle ─────────────────────────── */}
+      <div className="flex flex-wrap gap-3">
+        {(
+          [
+            { key: "phase_1", label: "Phase 1 — Pre-Estimating" },
+            { key: "phase_2", label: "Phase 2 — Post-Estimating" },
+          ] as const
+        ).map((tab) => {
+          const active = phase === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setPhase(tab.key);
+                setSelected(null);
+              }}
+              className="px-7 py-3.5 text-[14px] font-bold uppercase cursor-pointer transition-all"
+              style={{
+                background: active
+                  ? "color-mix(in srgb, var(--accent) 14%, var(--bg))"
+                  : "var(--bg)",
+                color: "var(--accent)",
+                borderWidth: "2px",
+                borderStyle: "solid",
+                borderColor: "var(--accent)",
+                borderRadius: 8,
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.10em",
+                textShadow: active ? "var(--accent-text-shadow)" : undefined,
+                boxShadow: active
+                  ? "0 0 16px color-mix(in srgb, var(--accent) 30%, transparent)"
+                  : "none",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Rows table */}
-      <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+      {/* ── Stat tiles (also act as status filter) ─────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {STATUS_TILES.map((tile) => {
+          const tokenVar = `var(${tile.token})`;
+          const count =
+            tile.key === "all"
+              ? allRows.length
+              : counts[tile.key as ReviewStatus];
+          const active = statusFilter === tile.key;
+          return (
+            <button
+              key={tile.key}
+              onClick={() => setStatusFilter(tile.key)}
+              className="relative overflow-hidden p-4 text-left flex flex-col gap-2 cursor-pointer transition-all"
+              style={{
+                background: active
+                  ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`
+                  : "var(--pad)",
+                borderWidth: "1.5px",
+                borderStyle: "solid",
+                borderColor: active ? tokenVar : "var(--border)",
+                borderRadius: "var(--radius-card)",
+                boxShadow: active
+                  ? `0 0 0 1px ${tokenVar} inset, 0 0 24px color-mix(in srgb, ${tokenVar} 55%, transparent), 0 0 48px color-mix(in srgb, ${tokenVar} 22%, transparent)`
+                  : "var(--card-shadow)",
+              }}
+            >
+              <span
+                className="absolute left-0 right-0 top-0 h-[2px]"
+                style={{
+                  background: active ? tokenVar : "var(--card-stripe-bg)",
+                  boxShadow: active
+                    ? `0 0 14px ${tokenVar}`
+                    : "var(--card-stripe-shadow)",
+                }}
+              />
+              <span
+                className="text-3xl font-extrabold"
+                style={{
+                  color: tokenVar,
+                  opacity: count > 0 ? 1 : 0.55,
+                  textShadow:
+                    count > 0 && active
+                      ? `0 0 18px color-mix(in srgb, ${tokenVar} 70%, transparent)`
+                      : undefined,
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                {count}
+              </span>
+              <span
+                className="text-[11px] font-semibold uppercase tracking-widest"
+                style={{
+                  color: tokenVar,
+                  opacity: active ? 1 : 0.78,
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
+                {tile.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Workboard table ───────────────────────────────── */}
+      <div className="themed-card p-5">
+        <div className="themed-card-stripe" aria-hidden />
+
+        <div className="flex items-center gap-3 mb-4">
+          <h2
+            className="page-title text-xl font-semibold"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Reviews <span className="themed-accent">Workboard</span>
+          </h2>
+          <span
+            className="text-[12px]"
+            style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}
+          >
+            {rows.length}
+          </span>
+          <div
+            className="flex-1 h-px"
+            style={{ background: "var(--border)" }}
+          />
+        </div>
+
         {rows.length === 0 ? (
-          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+          <div
+            style={{
+              padding: "32px 24px",
+              textAlign: "center",
+              color: "var(--text-dim)",
+              fontSize: 13,
+            }}
+          >
             {loading ? "Loading…" : "No rows match this filter."}
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "var(--bg-page)", color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>File #</th>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>Client</th>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>Peril</th>
-                <th style={{ textAlign: "center", padding: "10px 16px", fontWeight: 600 }}>Sev</th>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>Created</th>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>Reviewer</th>
-                <th style={{ textAlign: "left", padding: "10px 16px", fontWeight: 600 }}>Status</th>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                {[
+                  { label: "File #", align: "left" as const },
+                  { label: "Client", align: "left" as const },
+                  { label: "Peril", align: "left" as const },
+                  { label: "Severity", align: "center" as const },
+                  { label: "Created", align: "left" as const },
+                  { label: "Reviewer", align: "left" as const },
+                  { label: "Status", align: "left" as const },
+                ].map((h) => (
+                  <th
+                    key={h.label}
+                    style={{
+                      padding: "12px",
+                      textAlign: h.align,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--text-faint)",
+                      fontFamily: "var(--font-ui)",
+                    }}
+                  >
+                    {h.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.id}
-                  onClick={() => openPanel(r)}
-                  style={{
-                    cursor: "pointer",
-                    borderTop: "1px solid var(--border-color)",
-                    background: selected?.id === r.id ? "rgba(96,165,250,0.08)" : "transparent",
-                  }}
-                >
-                  <td style={{ padding: "10px 16px", color: "var(--text-primary)", fontWeight: 600 }}>{r.file_number || "—"}</td>
-                  <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{r.client_name || "—"}</td>
-                  <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{r.peril || "—"}</td>
-                  <td style={{ padding: "10px 16px", textAlign: "center", color: "var(--text-secondary)" }}>{r.severity ?? "—"}</td>
-                  <td style={{ padding: "10px 16px", color: "var(--text-muted)" }}>{new Date(r.created_at).toLocaleDateString()}</td>
-                  <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{reviewerName(r.reviewer_id)}</td>
-                  <td style={{ padding: "10px 16px" }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                      color: STATUS_COLORS[r.status],
-                      letterSpacing: 0.5,
-                    }}>{r.status.replace("_", " ")}</span>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const isSelected = selected?.id === r.id;
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => openPanel(r)}
+                    className="cursor-pointer transition-colors"
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      background: isSelected
+                        ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                        : "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected)
+                        e.currentTarget.style.background = "var(--pad-elev)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected)
+                        e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                        fontSize: 13,
+                        color: "var(--text)",
+                        fontWeight: 600,
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {r.file_number || "—"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      <ClientChip name={r.client_name} />
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                        fontSize: 13,
+                        color: "var(--text-dim)",
+                      }}
+                    >
+                      {r.peril || "—"}
+                      {r.peril_other ? (
+                        <span
+                          style={{
+                            color: "var(--text-faint)",
+                            marginLeft: 6,
+                          }}
+                        >
+                          ({r.peril_other})
+                        </span>
+                      ) : null}
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                        textAlign: "center",
+                        fontSize: 13,
+                        color: "var(--text)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {r.severity ?? "—"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                        fontSize: 13,
+                        color: "var(--text-dim)",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                    >
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                        fontSize: 13,
+                        color: "var(--text-dim)",
+                      }}
+                    >
+                      {reviewerName(r.reviewer_id)}
+                    </td>
+                    <td
+                      style={{
+                        padding: "14px 12px",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      <StatusBadge status={r.status} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
 
-      {/* Side panel */}
+      {/* ── Side panel ────────────────────────────────────── */}
       {selected && (
         <>
-          {/* Backdrop */}
           <div
             onClick={closePanel}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 998 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              zIndex: 998,
+            }}
           />
-          {/* Panel */}
-          <div style={{
-            position: "fixed", top: 0, right: 0, bottom: 0,
-            width: "min(560px, 95vw)",
-            background: "var(--bg-surface)",
-            borderLeft: "1px solid var(--border-color)",
-            zIndex: 999,
-            overflowY: "auto",
-            padding: 24,
-            boxShadow: "-12px 0 24px rgba(0,0,0,0.3)",
-          }}>
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: "min(60vw, 95vw)",
+              minWidth: 560,
+              background: "var(--pad)",
+              borderLeft: "1px solid var(--border)",
+              zIndex: 999,
+              overflowY: "auto",
+              padding: 24,
+              boxShadow: "-12px 0 32px rgba(0,0,0,0.45)",
+            }}
+          >
             {/* Panel header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-                {selected.file_number || "(no file #)"} — {phase === "phase_1" ? "Phase 1 Review" : "Phase 2 Review"}
+            <div className="flex items-center justify-between mb-4">
+              <h2
+                className="page-title text-xl font-semibold"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  color: "var(--text)",
+                }}
+              >
+                <span
+                  style={{
+                    color: "var(--accent)",
+                    textShadow: "var(--accent-text-shadow)",
+                  }}
+                >
+                  {selected.file_number || "(no file #)"}
+                </span>{" "}
+                <span style={{ color: "var(--text)", fontWeight: 500 }}>
+                  {phase === "phase_1" ? "Phase 1 Review" : "Phase 2 Review"}
+                </span>
               </h2>
-              <button onClick={closePanel} style={{ background: "none", border: "none", color: "var(--text-secondary)", fontSize: 24, cursor: "pointer", lineHeight: 1, padding: 0 }}>×</button>
+              <button
+                onClick={closePanel}
+                className="cursor-pointer"
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-dim)",
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
             </div>
 
-            {/* Status badge */}
-            <div style={{ marginBottom: 16 }}>
-              <span style={{
-                display: "inline-block",
-                fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                color: STATUS_COLORS[selected.status],
-                background: `${STATUS_COLORS[selected.status]}1a`,
-                border: `1px solid ${STATUS_COLORS[selected.status]}`,
-                padding: "3px 10px", borderRadius: 6, letterSpacing: 0.5,
-              }}>{selected.status.replace("_", " ")}</span>
+            {/* Status row */}
+            <div className="mb-4 flex items-center gap-3 flex-wrap">
+              <StatusBadge status={selected.status} />
               {selected.decision_at && (
-                <span style={{ marginLeft: 12, fontSize: 12, color: "var(--text-muted)" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-faint)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
                   Decided {new Date(selected.decision_at).toLocaleString()}
                 </span>
               )}
             </div>
 
-            {/* Read-only canonical claim info */}
-            <div style={{ ...cardStyle, marginBottom: 16, padding: "12px 16px" }}>
-              <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim Info</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", fontSize: 13 }}>
-                <div><span style={{ color: "var(--text-muted)" }}>File #:</span> {selected.file_number || "—"}</div>
-                <div><span style={{ color: "var(--text-muted)" }}>Claim #:</span> {selected.claim_number || "—"}</div>
-                <div><span style={{ color: "var(--text-muted)" }}>Policy #:</span> {selected.policy_number || "—"}</div>
-                <div><span style={{ color: "var(--text-muted)" }}>Client:</span> {selected.client_name || "—"}</div>
-                <div style={{ gridColumn: "1 / -1" }}><span style={{ color: "var(--text-muted)" }}>Loss Address:</span> {selected.loss_address || "—"}</div>
-                <div><span style={{ color: "var(--text-muted)" }}>Peril:</span> {selected.peril || "—"}{selected.peril_other ? ` (${selected.peril_other})` : ""}</div>
-                <div><span style={{ color: "var(--text-muted)" }}>Severity:</span> {selected.severity ?? "—"}</div>
+            {/* Claim Info card */}
+            <div className="themed-card p-4 mb-4">
+              <div className="themed-card-stripe" aria-hidden />
+              <p
+                className="section-header text-[11px] font-semibold mb-3"
+                style={{
+                  color: "var(--text-faint)",
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
+                Claim Info
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px 16px",
+                  fontSize: 13,
+                }}
+              >
+                <ClaimField label="File #" value={selected.file_number} mono />
+                <ClaimField label="Claim #" value={selected.claim_number} mono />
+                <ClaimField label="Policy #" value={selected.policy_number} mono />
+                <ClaimField label="Client" value={selected.client_name} />
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <ClaimField
+                    label="Loss Address"
+                    value={selected.loss_address}
+                  />
+                </div>
+                <ClaimField
+                  label="Peril"
+                  value={
+                    selected.peril
+                      ? selected.peril +
+                        (selected.peril_other ? ` (${selected.peril_other})` : "")
+                      : null
+                  }
+                />
+                <ClaimField
+                  label="Severity"
+                  value={selected.severity != null ? String(selected.severity) : null}
+                  mono
+                />
               </div>
             </div>
 
-            {/* Editable review fields */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Reviewer</label>
+            {/* Reviewer */}
+            <div className="mb-4">
+              <FieldLabel>Reviewer</FieldLabel>
               <select
-                style={inputStyle}
                 value={draftReviewerId}
                 onChange={(e) => setDraftReviewerId(e.target.value)}
+                style={fieldInputStyle}
               >
                 <option value="">— Unassigned —</option>
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.full_name || u.email || u.id}</option>
+                  <option key={u.id} value={u.id}>
+                    {u.full_name || u.email || u.id}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Decision Notes</label>
+            {/* Decision Notes */}
+            <div className="mb-4">
+              <FieldLabel>Decision Notes</FieldLabel>
               <textarea
-                style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
                 value={draftDecisionNotes}
                 onChange={(e) => setDraftDecisionNotes(e.target.value)}
                 placeholder="Handoff context, what was reviewed, any caveats…"
+                style={{ ...fieldInputStyle, minHeight: 80, resize: "vertical" }}
               />
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Kick Back Reason {selected.status !== "kicked_back" && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(required only when kicking back)</span>}</label>
+            {/* Kick Back Reason */}
+            <div className="mb-5">
+              <FieldLabel>
+                Kick Back Reason{" "}
+                {selected.status !== "kicked_back" && (
+                  <span
+                    style={{
+                      color: "var(--text-faint)",
+                      fontWeight: 400,
+                      textTransform: "none",
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    (required only when kicking back)
+                  </span>
+                )}
+              </FieldLabel>
               <textarea
-                style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
                 value={draftKickBackReason}
                 onChange={(e) => setDraftKickBackReason(e.target.value)}
                 placeholder='e.g., "Missing carrier adjuster contact info" or "Wrong peril selected"'
+                style={{ ...fieldInputStyle, minHeight: 70, resize: "vertical" }}
               />
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            {/* Actions */}
+            <div className="flex gap-2 flex-wrap mb-3">
               <button
                 onClick={approveRow}
                 disabled={saving}
+                className="cursor-pointer transition-all"
                 style={{
-                  ...btnPrimary,
-                  background: "#22c55e",
-                  borderColor: "#22c55e",
+                  padding: "12px 22px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.10em",
+                  borderRadius: 8,
+                  background: "var(--green)",
+                  color: "#FFFFFF",
+                  border: "none",
+                  fontFamily: "var(--font-display)",
                   opacity: saving ? 0.6 : 1,
+                  boxShadow:
+                    "0 0 22px color-mix(in srgb, var(--green) 45%, transparent), 0 4px 14px rgba(0,0,0,0.30)",
                 }}
               >
                 {saving ? "Saving…" : "Approve"}
               </button>
+
               <button
                 onClick={kickBackRow}
                 disabled={saving}
+                className="cursor-pointer transition-all"
                 style={{
-                  ...btnPrimary,
-                  background: "#ef4444",
-                  borderColor: "#ef4444",
+                  padding: "12px 22px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.10em",
+                  borderRadius: 8,
+                  background: "var(--bg)",
+                  color: "var(--red)",
+                  borderWidth: "2px",
+                  borderStyle: "solid",
+                  borderColor: "var(--red)",
+                  fontFamily: "var(--font-display)",
                   opacity: saving ? 0.6 : 1,
+                  boxShadow:
+                    "0 0 14px color-mix(in srgb, var(--red) 28%, transparent)",
                 }}
               >
                 {saving ? "Saving…" : "Kick Back"}
               </button>
+
               <button
                 onClick={saveDraftOnly}
                 disabled={saving}
-                style={{ ...btnOutline, opacity: saving ? 0.6 : 1 }}
+                className="cursor-pointer transition-all"
+                style={{
+                  padding: "12px 22px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.10em",
+                  borderRadius: 8,
+                  background: "var(--bg)",
+                  color: "var(--accent)",
+                  borderWidth: "2px",
+                  borderStyle: "solid",
+                  borderColor: "var(--accent)",
+                  fontFamily: "var(--font-display)",
+                  opacity: saving ? 0.6 : 1,
+                }}
               >
-                {saving ? "Saving…" : "Save Notes Only"}
+                {saving ? "Saving…" : "Save Notes"}
               </button>
             </div>
 
             {panelMsg && (
-              <div style={{
-                fontSize: 13,
-                color: panelMsg.startsWith("Save failed") || panelMsg.startsWith("Kick Back reason") ? "#ef4444" : "var(--text-secondary)",
-                padding: "8px 0",
-              }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color:
+                    panelMsg.startsWith("Save failed") ||
+                    panelMsg.startsWith("Kick Back reason")
+                      ? "var(--red)"
+                      : "var(--text-dim)",
+                  padding: "8px 0",
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
                 {panelMsg}
               </div>
             )}
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ── small panel helpers (kept inline so the page is self-contained) ── */
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label
+      style={{
+        display: "block",
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "var(--text-dim)",
+        marginBottom: 6,
+        fontFamily: "var(--font-ui)",
+      }}
+    >
+      {children}
+    </label>
+  );
+}
+
+const fieldInputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "var(--pad-input)",
+  borderWidth: "1px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  borderRadius: 8,
+  padding: "10px 12px",
+  fontSize: 13,
+  color: "var(--text)",
+  fontFamily: "var(--font-body)",
+  outline: "none",
+};
+
+function ClaimField({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string | null;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <span style={{ color: "var(--text-faint)", marginRight: 6 }}>{label}:</span>
+      <span
+        style={{
+          color: "var(--text)",
+          fontFamily: mono ? "var(--font-mono)" : undefined,
+        }}
+      >
+        {value || "—"}
+      </span>
     </div>
   );
 }
