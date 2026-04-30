@@ -11,6 +11,8 @@ export const cardStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "18px 22px",
   border: "1px solid var(--border-color)",
+  position: "relative",
+  zIndex: 1,
 };
 
 export const inputStyle: React.CSSProperties = {

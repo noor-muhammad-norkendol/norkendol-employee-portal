@@ -365,7 +365,7 @@ export default function ComplianceAdminPage() {
   }
 
   /* ── styles ─────────────────────────────────────────── */
-  const cardStyle: React.CSSProperties = { background: "var(--bg-surface)", borderRadius: 10, padding: 16, border: "1px solid var(--border)" };
+  const cardStyle: React.CSSProperties = { background: "var(--bg-surface)", borderRadius: 10, padding: 16, border: "1px solid var(--border)", position: "relative", zIndex: 1 };
   const inputStyle: React.CSSProperties = { background: "var(--bg-input, #1a1a1a)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px", color: "var(--text-primary)", fontSize: 13, width: "100%" };
   const btnPrimary: React.CSSProperties = { background: "var(--accent, #3b82f6)", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
   const btnGhost: React.CSSProperties = { background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 14px", fontSize: 13, cursor: "pointer" };

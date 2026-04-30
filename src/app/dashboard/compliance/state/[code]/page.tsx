@@ -149,6 +149,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "20px 22px",
   border: "1px solid var(--border-color)",
+  position: "relative",
+  zIndex: 1,
 };
 
 /* ── Page ──────────────────────────────────────────────── */
