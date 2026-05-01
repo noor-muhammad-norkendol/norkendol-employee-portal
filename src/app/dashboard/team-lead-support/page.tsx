@@ -34,11 +34,18 @@ type UserLite = { id: string; full_name: string | null; email: string | null };
 
 const STATUS_TILES: { key: StatusFilter; label: string; token: string }[] = [
   { key: "pending", label: "New", token: "--info" },
-  { key: "in_review", label: "In Review", token: "--violet" },
-  { key: "approved", label: "Approved", token: "--green" },
-  { key: "kicked_back", label: "Kicked Back", token: "--red" },
-  { key: "all", label: "All", token: "--accent" },
+  { key: "in_review", label: "In Progress", token: "--violet" },
+  { key: "approved", label: "On Hold", token: "--green" },
+  { key: "kicked_back", label: "Rejected to PA", token: "--red" },
+  { key: "all", label: "Completed", token: "--accent" },
 ];
+
+const STATUS_LABEL: Record<ReviewStatus, string> = {
+  pending: "New",
+  in_review: "In Progress",
+  approved: "On Hold",
+  kicked_back: "Rejected to PA",
+};
 
 const STATUS_TOKEN: Record<ReviewStatus, string> = {
   pending: "--info",
@@ -49,7 +56,7 @@ const STATUS_TOKEN: Record<ReviewStatus, string> = {
 
 function StatusBadge({ status }: { status: ReviewStatus }) {
   const token = STATUS_TOKEN[status];
-  const label = status.replace("_", " ");
+  const label = STATUS_LABEL[status];
   return (
     <span
       style={{

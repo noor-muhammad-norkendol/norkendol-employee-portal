@@ -329,6 +329,14 @@ Applied to `body` in `globals.css` via two `linear-gradient` background-image la
 
 **TopBar exception:** `<TopBar>` root sets `background: var(--bg)` solid — same color as page bg, but blocks the grid in the top 60px strip. This matches the Throwback Onboarder KPI mock where the top reads as a clean band before the grid kicks in.
 
+## Tron bike layer — pads always elevated above bikes (locked 2026-04-30)
+
+The `TronTraffic` light-cycle effect (Throwback only, ambient grid traffic + race mode) is mounted inside `<main>` in `PortalShell.tsx` at `z-index: 0`. Bikes ride **on the grid**, never **across pads**.
+
+**Systemic fix:** `PortalShell` wraps every page's `{children}` in a `position: relative; z-index: 1` div. Every page's content automatically sits above the bike layer regardless of how individual containers style themselves. `.themed-card` in `globals.css` also includes `z-index: 1` as belt-and-suspenders, but the wrapper is the source of truth.
+
+**Implication for new pages:** you do NOT need to add `position: relative; z-index: 1` to every pad-colored container anymore. The wrapper covers it. Only add explicit z-index when a sibling overlay (modal, popover) needs to layer above the page content layer (use z-index 50+ for those, matching the spec's z-index scale).
+
 ## `<ThemedCard>` component pattern
 
 Defined in `src/app/dashboard/page.tsx`. Lift to `src/components/ThemedCard.tsx` when used by a third page.
@@ -433,6 +441,15 @@ Legacy tokens are still aliased in every cell, so the old code still renders. Ne
 - `src/app/dashboard/estimator-kpi/page.tsx` — KPI-with-status-tiles pattern (REFERENCE for any future status-tiles page)
 - `src/app/dashboard/university/page.tsx` — course-grid pattern with category filter (REFERENCE for any future "library/catalog" page)
 - `src/app/dashboard/team-lead-support/page.tsx` — workboard-with-side-panel pattern; renamed "TLS KPI" in sidebar. **Side panel rework deferred** — see PORTAL-PUNCH-LIST item #19.
+- `src/app/dashboard/claim-calculator/page.tsx` — long form with collapsible sections + status banners + final-balance traffic-light card + print modal (REFERENCE for any future calculator/form-heavy page)
+- `src/app/dashboard/compliance/page.tsx` + `state/[code]/page.tsx` — My/Org/State views, stoplight grid, knowledge silos with SVG icons (no emojis)
+- `src/app/dashboard/directory/page.tsx` — grid/list view toggle pattern with AG-style accent-tinted avatar fallbacks
+- `src/app/dashboard/teams-chat/page.tsx` + `calendar/page.tsx` — provider chooser with localStorage preference + auto-launch landing card (REFERENCE for any future external-tool launcher page)
+- `src/app/dashboard/documents/page.tsx` + `src/components/DocumentUploadModal.tsx` — document repository spoke (uploads, dept filter pills, role-gated downloads). Backed by `documents` + `departments` tables and `portal-documents` storage bucket — see `supabase/migrations/20260430_documents.sql`.
+- `src/app/dashboard/ai/page.tsx` — placeholder (spec H1 only)
+- `src/app/dashboard/talent-partner-network/page.tsx` — large multi-tab page (Internal/External/Analytics) with 3 modals + side detail panel
+- `src/app/dashboard/claim-health/page.tsx` — KPI rollup with print-only paper view
+- `src/app/dashboard/user-management/page.tsx` — segmented-button tabs (each tab in its own semantic color), full stat-tile filter pill row, role/status badge mapping, red action icons
 - `src/components/IconSidebar.tsx` — sidebar pattern
 - `src/components/TopBar.tsx` — chrome pattern
 

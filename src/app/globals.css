@@ -402,6 +402,7 @@ body {
   border-radius: var(--radius-card);
   box-shadow: var(--card-shadow);
   position: relative;
+  z-index: 1; /* elevate above the page-bg grid + Tron bike layer */
   overflow: hidden;
   transition: border-color var(--transition-base), transform var(--transition-base);
 }

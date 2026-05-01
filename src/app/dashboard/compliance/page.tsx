@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { formatDate, formatCurrency } from "@/lib/formatters";
 import Link from "next/link";
+
+/* ── local spec-token styles (replaces @/lib/styles cardStyle) ── */
+const cardStyle: React.CSSProperties = {
+  background: "var(--pad)",
+  borderRadius: "var(--radius-card)",
+  padding: "18px 22px",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  boxShadow: "var(--card-shadow)",
+  position: "relative",
+  zIndex: 1,
+};
 
 /* ── types ─────────────────────────────────────────────── */
 
@@ -76,12 +89,12 @@ function daysUntilExpiry(expiryDate: string | null): string {
   return `${diff} days remaining`;
 }
 
-const STATUS_CONFIG: Record<ComplianceStatus, { label: string; bg: string; text: string }> = {
-  active: { label: "Active", bg: "#1a3a2a", text: "#4ade80" },
-  expiring_90: { label: "Expiring in 90 days", bg: "#3a3520", text: "#facc15" },
-  expiring_30: { label: "Expiring in 30 days", bg: "#4a2a10", text: "#fb923c" },
-  expired: { label: "Expired", bg: "#4a1a1a", text: "#ef4444" },
-  no_date: { label: "No expiry set", bg: "#2a2a2a", text: "#888888" },
+const STATUS_CONFIG: Record<ComplianceStatus, { label: string; token: string }> = {
+  active: { label: "Active", token: "--green" },
+  expiring_90: { label: "Expiring in 90 days", token: "--amber" },
+  expiring_30: { label: "Expiring in 30 days", token: "--orange" },
+  expired: { label: "Expired", token: "--red" },
+  no_date: { label: "No expiry set", token: "--text-faint" },
 };
 
 const ADMIN_ROLES = ["admin", "super_admin", "system_admin"];
@@ -90,36 +103,49 @@ const ADMIN_ROLES = ["admin", "super_admin", "system_admin"];
 
 function StatusBadge({ status }: { status: ComplianceStatus }) {
   const c = STATUS_CONFIG[status];
+  const tokenVar = `var(${c.token})`;
   return (
     <span
-      className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
-      style={{ background: c.bg, color: c.text }}
+      style={{
+        display: "inline-block",
+        padding: "3px 10px",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        fontFamily: "var(--font-ui)",
+        textTransform: "uppercase",
+        background: `color-mix(in srgb, ${tokenVar} 12%, transparent)`,
+        color: tokenVar,
+        border: `1px solid color-mix(in srgb, ${tokenVar} 40%, transparent)`,
+        whiteSpace: "nowrap",
+      }}
     >
       {c.label}
     </span>
   );
 }
 
-
-import { cardStyle } from "@/lib/styles";
-
-/* ── shared styles (local overrides) ─────────────────── */
+/* ── shared table styles (spec tokens) ─────────────────── */
 
 const thStyle: React.CSSProperties = {
-  padding: "10px 14px",
+  padding: "12px 14px",
   textAlign: "left",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 600,
-  color: "var(--text-secondary)",
-  borderBottom: "1px solid var(--border-color)",
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--text-faint)",
+  borderBottom: "1px solid var(--border)",
   whiteSpace: "nowrap",
+  fontFamily: "var(--font-ui)",
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: "10px 14px",
+  padding: "14px 14px",
   fontSize: 13,
-  color: "var(--text-primary)",
-  borderBottom: "1px solid var(--border-color)",
+  color: "var(--text)",
+  borderBottom: "1px solid var(--border)",
 };
 
 /* ================================================================
@@ -151,12 +177,31 @@ export default function CompliancePage() {
   const isAdmin = currentUser ? ADMIN_ROLES.includes(currentUser.role) : false;
 
   if (loading) {
-    return <div className="p-8 text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>;
+    return <div className="p-8 text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>;
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">Compliance</h1>
+    <div className="space-y-6">
+      <h1
+        className="page-title"
+        style={{
+          fontSize: "3rem",
+          lineHeight: 1,
+          letterSpacing: "-0.01em",
+          fontFamily: "var(--font-display)",
+          marginBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            color: "var(--accent)",
+            textShadow: "var(--accent-text-shadow)",
+            fontWeight: 800,
+          }}
+        >
+          Compliance
+        </span>
+      </h1>
 
       {/* ── View toggle ─────────────────────────────────── */}
       <div className="flex gap-1 mb-6">
@@ -164,8 +209,8 @@ export default function CompliancePage() {
           onClick={() => setView("my")}
           className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           style={{
-            background: view === "my" ? "var(--accent)" : "var(--bg-surface)",
-            color: view === "my" ? "#fff" : "var(--text-secondary)",
+            background: view === "my" ? "var(--accent)" : "var(--pad)",
+            color: view === "my" ? "var(--cta-text)" : "var(--text-dim)",
           }}
         >
           My Compliance
@@ -175,8 +220,8 @@ export default function CompliancePage() {
             onClick={() => setView("org")}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
-              background: view === "org" ? "var(--accent)" : "var(--bg-surface)",
-              color: view === "org" ? "#fff" : "var(--text-secondary)",
+              background: view === "org" ? "var(--accent)" : "var(--pad)",
+              color: view === "org" ? "var(--cta-text)" : "var(--text-dim)",
             }}
           >
             Org Overview
@@ -186,8 +231,8 @@ export default function CompliancePage() {
           onClick={() => setView("state")}
           className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
           style={{
-            background: view === "state" ? "var(--accent)" : "var(--bg-surface)",
-            color: view === "state" ? "#fff" : "var(--text-secondary)",
+            background: view === "state" ? "var(--accent)" : "var(--pad)",
+            color: view === "state" ? "var(--cta-text)" : "var(--text-dim)",
           }}
         >
           State Compliance
@@ -303,20 +348,20 @@ function MyComplianceView({ user }: { user: UserProfile }) {
       {/* ── My summary cards ──────────────────────────── */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>My Licenses</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>My Licenses</div>
           <div className="text-3xl font-bold mt-1">{stats.totalLicenses}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>My Bonds</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>My Bonds</div>
           <div className="text-3xl font-bold mt-1">{stats.totalBonds}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Expiring Soon</div>
-          <div className="text-3xl font-bold mt-1" style={{ color: "#fb923c" }}>{stats.expiring}</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Expiring Soon</div>
+          <div className="text-3xl font-bold mt-1" style={{ color: "var(--orange)" }}>{stats.expiring}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Expired</div>
-          <div className="text-3xl font-bold mt-1" style={{ color: "#ef4444" }}>{stats.expired}</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Expired</div>
+          <div className="text-3xl font-bold mt-1" style={{ color: "var(--red)" }}>{stats.expired}</div>
         </div>
       </div>
 
@@ -328,8 +373,8 @@ function MyComplianceView({ user }: { user: UserProfile }) {
             onClick={() => { setSubTab(tab); setExpandedId(null); }}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
-              background: subTab === tab ? "var(--accent)" : "var(--bg-surface)",
-              color: subTab === tab ? "#fff" : "var(--text-secondary)",
+              background: subTab === tab ? "var(--accent)" : "var(--pad)",
+              color: subTab === tab ? "var(--cta-text)" : "var(--text-dim)",
             }}
           >
             {tab === "licenses" ? "Licenses" : tab === "bonds" ? "Bonds" : "CE Credits"}
@@ -346,8 +391,8 @@ function MyComplianceView({ user }: { user: UserProfile }) {
       {/* ── CE placeholder ────────────────────────────── */}
       {subTab === "ce" && (
         <div style={{ ...cardStyle, textAlign: "center", padding: "60px 22px" }}>
-          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>CE Credits Tracking</div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Coming soon — continuing education requirements and tracking will appear here.</p>
+          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-dim)" }}>CE Credits Tracking</div>
+          <p className="text-sm" style={{ color: "var(--text-faint)" }}>Coming soon — continuing education requirements and tracking will appear here.</p>
         </div>
       )}
 
@@ -355,13 +400,13 @@ function MyComplianceView({ user }: { user: UserProfile }) {
       {subTab === "licenses" && (
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
           {loading ? (
-            <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>
+            <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>
           ) : licenses.length === 0 ? (
-            <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>No licenses on file.</div>
+            <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>No licenses on file.</div>
           ) : (
             <table className="w-full" style={{ borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: "var(--bg-secondary)" }}>
+                <tr style={{ background: "var(--pad-elev)" }}>
                   <th style={thStyle}>State</th>
                   <th style={thStyle}>License #</th>
                   <th style={thStyle}>Type</th>
@@ -397,13 +442,13 @@ function MyComplianceView({ user }: { user: UserProfile }) {
       {subTab === "bonds" && (
         <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
           {loading ? (
-            <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>
+            <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>
           ) : bonds.length === 0 ? (
-            <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>No bonds on file.</div>
+            <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>No bonds on file.</div>
           ) : (
             <table className="w-full" style={{ borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: "var(--bg-secondary)" }}>
+                <tr style={{ background: "var(--pad-elev)" }}>
                   <th style={thStyle}>State</th>
                   <th style={thStyle}>Bond #</th>
                   <th style={thStyle}>Type</th>
@@ -452,7 +497,7 @@ function LicenseExpandableRow({
   onDownload: () => void;
   uploading: boolean;
 }) {
-  const rowBg = status === "expired" ? "#1a0a0a" : status === "expiring_30" ? "#1a1508" : undefined;
+  const rowBg = status === "expired" ? "color-mix(in srgb, var(--red) 8%, transparent)" : status === "expiring_30" ? "color-mix(in srgb, var(--orange) 8%, transparent)" : undefined;
 
   return (
     <>
@@ -467,13 +512,13 @@ function LicenseExpandableRow({
         <td style={tdStyle}>{formatDate(lic.expiry_date)}</td>
         <td style={tdStyle}><StatusBadge status={status} /></td>
         <td style={tdStyle}>
-          <span style={{ color: "var(--text-muted)", fontSize: 14 }}>{isExpanded ? "▲" : "▼"}</span>
+          <span style={{ color: "var(--text-faint)", fontSize: 14 }}>{isExpanded ? "▲" : "▼"}</span>
         </td>
       </tr>
       {isExpanded && (
         <tr>
           <td colSpan={6} style={{ padding: 0 }}>
-            <div style={{ background: "var(--bg-secondary)", padding: "16px 20px", borderBottom: "1px solid var(--border-color)" }}>
+            <div style={{ background: "var(--pad-elev)", padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <DetailField label="Issuer" value={lic.issuer || "—"} />
                 <DetailField label="Issue Date" value={formatDate(lic.issue_date)} />
@@ -509,7 +554,7 @@ function BondExpandableRow({
   onDownload: () => void;
   uploading: boolean;
 }) {
-  const rowBg = status === "expired" ? "#1a0a0a" : status === "expiring_30" ? "#1a1508" : undefined;
+  const rowBg = status === "expired" ? "color-mix(in srgb, var(--red) 8%, transparent)" : status === "expiring_30" ? "color-mix(in srgb, var(--orange) 8%, transparent)" : undefined;
 
   return (
     <>
@@ -525,13 +570,13 @@ function BondExpandableRow({
         <td style={tdStyle}>{formatDate(bond.expiry_date)}</td>
         <td style={tdStyle}><StatusBadge status={status} /></td>
         <td style={tdStyle}>
-          <span style={{ color: "var(--text-muted)", fontSize: 14 }}>{isExpanded ? "▲" : "▼"}</span>
+          <span style={{ color: "var(--text-faint)", fontSize: 14 }}>{isExpanded ? "▲" : "▼"}</span>
         </td>
       </tr>
       {isExpanded && (
         <tr>
           <td colSpan={7} style={{ padding: 0 }}>
-            <div style={{ background: "var(--bg-secondary)", padding: "16px 20px", borderBottom: "1px solid var(--border-color)" }}>
+            <div style={{ background: "var(--pad-elev)", padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <DetailField label="Issuer" value={bond.issuer || "—"} />
                 <DetailField label="Amount" value={formatCurrency(bond.amount)} />
@@ -559,8 +604,8 @@ function BondExpandableRow({
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{label}</div>
-      <div className="text-sm" style={{ color: "var(--text-primary)" }}>{value}</div>
+      <div className="text-[11px] font-medium mb-1" style={{ color: "var(--text-faint)" }}>{label}</div>
+      <div className="text-sm" style={{ color: "var(--text)" }}>{value}</div>
     </div>
   );
 }
@@ -580,15 +625,15 @@ function DocumentControls({
     fontWeight: 600,
     padding: "6px 14px",
     borderRadius: 6,
-    border: "1px solid var(--border-color)",
-    background: "var(--bg-surface)",
-    color: "var(--text-primary)",
+    border: "1px solid var(--border)",
+    background: "var(--pad)",
+    color: "var(--text)",
     cursor: "pointer",
   };
 
   return (
-    <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
-      <div className="text-[11px] font-medium mb-2" style={{ color: "var(--text-muted)" }}>Document</div>
+    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+      <div className="text-[11px] font-medium mb-2" style={{ color: "var(--text-faint)" }}>Document</div>
       <div className="flex gap-3 items-center">
         {documentUrl ? (
           <>
@@ -598,7 +643,7 @@ function DocumentControls({
             </button>
           </>
         ) : (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>No document uploaded</span>
+          <span className="text-xs" style={{ color: "var(--text-faint)" }}>No document uploaded</span>
         )}
         <label style={{ ...btnStyle, display: "inline-flex", alignItems: "center", gap: 4 }}>
           {uploading ? "Uploading..." : documentUrl ? "Replace" : "Upload"}
@@ -708,20 +753,20 @@ function OrgComplianceView() {
       {/* ── Org summary cards ─────────────────────────── */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Total Licenses</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Total Licenses</div>
           <div className="text-3xl font-bold mt-1">{stats.totalLicenses}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Total Bonds</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Total Bonds</div>
           <div className="text-3xl font-bold mt-1">{stats.totalBonds}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Expiring Soon</div>
-          <div className="text-3xl font-bold mt-1" style={{ color: "#fb923c" }}>{stats.expiring}</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Expiring Soon</div>
+          <div className="text-3xl font-bold mt-1" style={{ color: "var(--orange)" }}>{stats.expiring}</div>
         </div>
         <div style={cardStyle}>
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>Expired</div>
-          <div className="text-3xl font-bold mt-1" style={{ color: "#ef4444" }}>{stats.expired}</div>
+          <div className="text-sm" style={{ color: "var(--text-dim)" }}>Expired</div>
+          <div className="text-3xl font-bold mt-1" style={{ color: "var(--red)" }}>{stats.expired}</div>
         </div>
       </div>
 
@@ -733,8 +778,8 @@ function OrgComplianceView() {
             onClick={() => switchTab(tab)}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
             style={{
-              background: activeTab === tab ? "var(--accent)" : "var(--bg-surface)",
-              color: activeTab === tab ? "#fff" : "var(--text-secondary)",
+              background: activeTab === tab ? "var(--accent)" : "var(--pad)",
+              color: activeTab === tab ? "var(--cta-text)" : "var(--text-dim)",
             }}
           >
             {tab === "licenses" ? "Licenses" : tab === "bonds" ? "Bonds" : "CE Credits"}
@@ -746,8 +791,8 @@ function OrgComplianceView() {
 
       {activeTab === "ce" && (
         <div style={{ ...cardStyle, textAlign: "center", padding: "60px 22px" }}>
-          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>CE Credits Tracking</div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Coming soon.</p>
+          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-dim)" }}>CE Credits Tracking</div>
+          <p className="text-sm" style={{ color: "var(--text-faint)" }}>Coming soon.</p>
         </div>
       )}
 
@@ -761,13 +806,13 @@ function OrgComplianceView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="text-sm px-3 py-2 rounded-lg border outline-none"
-              style={{ background: "var(--bg-surface)", borderColor: "var(--border-color)", color: "var(--text-primary)", width: 240 }}
+              style={{ background: "var(--pad)", borderColor: "var(--border)", color: "var(--text)", width: 240 }}
             />
             <select
               value={filterState}
               onChange={(e) => setFilterState(e.target.value)}
               className="text-sm px-3 py-2 rounded-lg border outline-none"
-              style={{ background: "var(--bg-surface)", borderColor: "var(--border-color)", color: "var(--text-primary)" }}
+              style={{ background: "var(--pad)", borderColor: "var(--border)", color: "var(--text)" }}
             >
               <option value="all">All States</option>
               {allStates.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -778,9 +823,9 @@ function OrgComplianceView() {
                 onClick={() => setFilterStatus(s)}
                 className="text-xs px-3 py-1.5 rounded-full font-medium capitalize transition-colors"
                 style={{
-                  background: filterStatus === s ? "var(--accent)" : "var(--bg-surface)",
-                  color: filterStatus === s ? "#fff" : "var(--text-secondary)",
-                  border: `1px solid ${filterStatus === s ? "var(--accent)" : "var(--border-color)"}`,
+                  background: filterStatus === s ? "var(--accent)" : "var(--pad)",
+                  color: filterStatus === s ? "var(--cta-text)" : "var(--text-dim)",
+                  border: `1px solid ${filterStatus === s ? "var(--accent)" : "var(--border)"}`,
                 }}
               >
                 {s}
@@ -790,7 +835,7 @@ function OrgComplianceView() {
               <button
                 onClick={() => { setSearch(""); setFilterState("all"); setFilterStatus("all"); }}
                 className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--text-faint)" }}
               >
                 Clear filters
               </button>
@@ -801,15 +846,15 @@ function OrgComplianceView() {
           {activeTab === "licenses" && (
             <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
               {loading ? (
-                <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>
+                <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>
               ) : filteredLicenses.length === 0 ? (
-                <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>
                   {licenses.length === 0 ? "No licenses on file." : "No licenses match your filters."}
                 </div>
               ) : (
                 <table className="w-full" style={{ borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ background: "var(--bg-secondary)" }}>
+                    <tr style={{ background: "var(--pad-elev)" }}>
                       <th style={thStyle}>Employee</th>
                       <th style={thStyle}>State</th>
                       <th style={thStyle}>License #</th>
@@ -825,7 +870,7 @@ function OrgComplianceView() {
                       const u = userMap[lic.user_id];
                       const status = calcStatus(lic.expiry_date);
                       return (
-                        <tr key={lic.id} style={{ background: status === "expired" ? "#1a0a0a" : status === "expiring_30" ? "#1a1508" : undefined }}>
+                        <tr key={lic.id} style={{ background: status === "expired" ? "color-mix(in srgb, var(--red) 8%, transparent)" : status === "expiring_30" ? "color-mix(in srgb, var(--orange) 8%, transparent)" : undefined }}>
                           <td style={tdStyle}>
                             <Link href={`/dashboard/user-management?edit=${lic.user_id}&tab=licenses`} className="font-medium hover:underline" style={{ color: "var(--accent)" }}>
                               {u?.full_name ?? "Unknown"}
@@ -851,15 +896,15 @@ function OrgComplianceView() {
           {activeTab === "bonds" && (
             <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
               {loading ? (
-                <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>
+                <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>
               ) : filteredBonds.length === 0 ? (
-                <div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                <div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>
                   {bonds.length === 0 ? "No bonds on file." : "No bonds match your filters."}
                 </div>
               ) : (
                 <table className="w-full" style={{ borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ background: "var(--bg-secondary)" }}>
+                    <tr style={{ background: "var(--pad-elev)" }}>
                       <th style={thStyle}>Employee</th>
                       <th style={thStyle}>State</th>
                       <th style={thStyle}>Bond #</th>
@@ -876,7 +921,7 @@ function OrgComplianceView() {
                       const u = userMap[bond.user_id];
                       const status = calcStatus(bond.expiry_date);
                       return (
-                        <tr key={bond.id} style={{ background: status === "expired" ? "#1a0a0a" : status === "expiring_30" ? "#1a1508" : undefined }}>
+                        <tr key={bond.id} style={{ background: status === "expired" ? "color-mix(in srgb, var(--red) 8%, transparent)" : status === "expiring_30" ? "color-mix(in srgb, var(--orange) 8%, transparent)" : undefined }}>
                           <td style={tdStyle}>
                             <Link href={`/dashboard/user-management?edit=${bond.user_id}&tab=bonds`} className="font-medium hover:underline" style={{ color: "var(--accent)" }}>
                               {u?.full_name ?? "Unknown"}
@@ -972,12 +1017,21 @@ const ALL_STATES: StateEntry[] = [
   { code: "PR", name: "Puerto Rico", status: "gray", type: "territory" },
 ];
 
-const STOPLIGHT: Record<StateStatus, { dot: string; ring: string; hover: string }> = {
-  green:  { dot: "#22c55e", ring: "rgba(34,197,94,0.25)",  hover: "rgba(34,197,94,0.15)" },
-  yellow: { dot: "#eab308", ring: "rgba(234,179,8,0.25)",  hover: "rgba(234,179,8,0.15)" },
-  red:    { dot: "#ef4444", ring: "rgba(239,68,68,0.25)",  hover: "rgba(239,68,68,0.15)" },
-  gray:   { dot: "#6b7280", ring: "rgba(107,114,128,0.2)", hover: "rgba(107,114,128,0.1)" },
+const STOPLIGHT_TOKEN: Record<StateStatus, string> = {
+  green:  "--green",
+  yellow: "--amber",
+  red:    "--red",
+  gray:   "--text-faint",
 };
+function stoplightColors(status: StateStatus) {
+  const tokenVar = `var(${STOPLIGHT_TOKEN[status]})`;
+  return {
+    dot: tokenVar,
+    ring: `color-mix(in srgb, ${tokenVar} 28%, transparent)`,
+    hover: `color-mix(in srgb, ${tokenVar} 14%, transparent)`,
+    glow: `color-mix(in srgb, ${tokenVar} 60%, transparent)`,
+  };
+}
 
 function StateComplianceView() {
   const [search, setSearch] = useState("");
@@ -1002,29 +1056,33 @@ function StateComplianceView() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="text-sm px-3 py-2 rounded-lg border outline-none w-full"
-          style={{ background: "var(--bg-surface)", borderColor: "var(--border-color)", color: "var(--text-primary)" }}
+          style={{ background: "var(--pad)", borderColor: "var(--border)", color: "var(--text)" }}
         />
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-5 mb-5" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+      <div className="flex items-center gap-5 mb-5" style={{ fontSize: 12, color: "var(--text-faint)" }}>
         {([
           ["green", "Licensed & Active"],
           ["yellow", "Caution — Seek Management"],
           ["red", "PA Prohibited"],
           ["gray", "Not Licensed"],
-        ] as [StateStatus, string][]).map(([status, label]) => (
-          <span key={status} className="flex items-center gap-1.5">
-            <span
-              style={{
-                width: 10, height: 10, borderRadius: "50%",
-                background: STOPLIGHT[status].dot,
-                display: "inline-block",
-              }}
-            />
-            {label}
-          </span>
-        ))}
+        ] as [StateStatus, string][]).map(([status, label]) => {
+          const sl = stoplightColors(status);
+          return (
+            <span key={status} className="flex items-center gap-1.5">
+              <span
+                style={{
+                  width: 10, height: 10, borderRadius: "50%",
+                  background: sl.dot,
+                  display: "inline-block",
+                  boxShadow: `0 0 6px ${sl.glow}`,
+                }}
+              />
+              {label}
+            </span>
+          );
+        })}
       </div>
 
       {/* States grid */}
@@ -1041,7 +1099,7 @@ function StateComplianceView() {
       </div>
 
       {filteredStates.length === 0 && (
-        <div className="text-center py-8" style={{ color: "var(--text-muted)", fontSize: 13 }}>
+        <div className="text-center py-8" style={{ color: "var(--text-faint)", fontSize: 13 }}>
           No states match your search.
         </div>
       )}
@@ -1049,7 +1107,7 @@ function StateComplianceView() {
       {/* Territories section */}
       {filteredTerritories.length > 0 && (
         <>
-          <div className="mt-6 mb-3" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          <div className="mt-6 mb-3" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
             U.S. Territories
           </div>
           <div
@@ -1070,7 +1128,7 @@ function StateComplianceView() {
 }
 
 function StateTile({ state }: { state: StateEntry }) {
-  const sl = STOPLIGHT[state.status];
+  const sl = stoplightColors(state.status);
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -1080,31 +1138,34 @@ function StateTile({ state }: { state: StateEntry }) {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "10px 14px",
+        padding: "12px 14px",
         borderRadius: 8,
-        border: `1px solid ${hovered ? sl.dot : "var(--border-color)"}`,
-        background: hovered ? sl.hover : "var(--bg-surface)",
+        borderWidth: "1.5px",
+        borderStyle: "solid",
+        borderColor: hovered ? sl.dot : "var(--border)",
+        background: hovered ? sl.hover : "var(--pad)",
         cursor: "pointer",
         transition: "all 0.15s ease",
         textDecoration: "none",
+        boxShadow: hovered ? `0 0 16px ${sl.ring}` : "var(--card-shadow)",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Stoplight dot with ring */}
+      {/* Stoplight dot with ring + glow */}
       <span
         style={{
           width: 12, height: 12, borderRadius: "50%", flexShrink: 0,
           background: sl.dot,
-          boxShadow: `0 0 0 4px ${sl.ring}`,
+          boxShadow: `0 0 0 4px ${sl.ring}, 0 0 10px ${sl.glow}`,
         }}
       />
       {/* State name + code */}
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "var(--font-display)" }}>
           {state.name}
         </div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        <div style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
           {state.code}
         </div>
       </div>

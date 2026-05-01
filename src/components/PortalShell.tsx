@@ -21,7 +21,22 @@ const HIDE_TEXT_SIDEBAR_ON: Set<string> = new Set([
   "/dashboard/scope-of-loss",
   "/dashboard/adjuster-kpi",
   "/dashboard/claim-calculator",
+  "/dashboard/compliance",
+  "/dashboard/directory",
+  "/dashboard/teams-chat",
+  "/dashboard/calendar",
+  "/dashboard/documents",
+  "/dashboard/ai",
+  "/dashboard/talent-partner-network",
+  "/dashboard/claim-health",
+  "/dashboard/user-management",
 ]);
+
+// Path prefixes that also hide the secondary sidebar — covers dynamic sub-routes
+// like /dashboard/compliance/state/[code].
+const HIDE_TEXT_SIDEBAR_PREFIXES: string[] = [
+  "/dashboard/compliance/",
+];
 
 export default function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -30,7 +45,9 @@ export default function PortalShell({ children }: { children: React.ReactNode })
 
   const segments = pathname.split("/").filter(Boolean);
   const activeSection = segments[1] || "dashboard";
-  const showTextSidebar = !HIDE_TEXT_SIDEBAR_ON.has(pathname);
+  const showTextSidebar =
+    !HIDE_TEXT_SIDEBAR_ON.has(pathname) &&
+    !HIDE_TEXT_SIDEBAR_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
     <div className="flex h-full">
@@ -48,8 +65,13 @@ export default function PortalShell({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-y-auto p-8 relative">
+          {/* Tron bikes ride at the bottom layer (z-index: 0). All page content
+              sits in the wrapper below at z-index: 1 so bikes can never bleed
+              over a pad regardless of how the page styles its containers. */}
           <TronTraffic />
-          {children}
+          <div className="relative" style={{ zIndex: 1 }}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

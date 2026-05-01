@@ -69,12 +69,22 @@ const STATES: Record<string, StateEntry> = {
   PR: { code: "PR", name: "Puerto Rico", status: "gray", statusLabel: "Not Licensed" },
 };
 
-const STOPLIGHT_COLORS: Record<StateStatus, { dot: string; bg: string; text: string }> = {
-  green:  { dot: "#22c55e", bg: "#0a1f12", text: "#4ade80" },
-  yellow: { dot: "#eab308", bg: "#1a1508", text: "#facc15" },
-  red:    { dot: "#ef4444", bg: "#1a0a0a", text: "#ef4444" },
-  gray:   { dot: "#6b7280", bg: "#1a1a1a", text: "#9ca3af" },
+const STOPLIGHT_TOKEN: Record<StateStatus, string> = {
+  green:  "--green",
+  yellow: "--amber",
+  red:    "--red",
+  gray:   "--text-faint",
 };
+function stoplightColors(status: StateStatus) {
+  const tokenVar = `var(${STOPLIGHT_TOKEN[status]})`;
+  return {
+    dot: tokenVar,
+    bg: `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`,
+    text: tokenVar,
+    glow: `color-mix(in srgb, ${tokenVar} 60%, transparent)`,
+    ring: `color-mix(in srgb, ${tokenVar} 28%, transparent)`,
+  };
+}
 
 /* ── Silo definitions ─────────────────────────────────── */
 
@@ -87,12 +97,45 @@ interface Silo {
   questions: string[];
 }
 
-const SILOS: Silo[] = [
+interface SiloDef {
+  key: string;
+  title: string;
+  token: string;
+  description: string;
+  questions: string[];
+  icon: React.ReactNode;
+}
+
+/* simple SVG icons (no emoji per spec) */
+const ICON = {
+  pa_laws: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 21h18M5 21V10M19 21V10M3 10l9-6 9 6M9 21v-7M15 21v-7M9 14h6" />
+    </svg>
+  ),
+  insurance: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z" />
+    </svg>
+  ),
+  construction: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 21h16M5 21V8h14v13M9 8V5a3 3 0 0 1 6 0v3M3 13h18" />
+    </svg>
+  ),
+  legal: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3v18M5 21h14M5 8l-2 5a4 4 0 0 0 8 0l-2-5M19 8l-2 5a4 4 0 0 0 8 0l-2-5M5 8l7-3 7 3" />
+    </svg>
+  ),
+};
+
+const SILOS: SiloDef[] = [
   {
     key: "pa_laws",
     title: "Public Adjusting Laws",
-    icon: "🏛️",
-    color: "#3b82f6",
+    icon: ICON.pa_laws,
+    token: "--info",
     description: "License requirements, fee limitations, contract compliance, and solicitation rules for public adjusters.",
     questions: [
       "What are the licensing requirements?",
@@ -104,8 +147,8 @@ const SILOS: Silo[] = [
   {
     key: "insurance",
     title: "Insurance Laws",
-    icon: "🏢",
-    color: "#22c55e",
+    icon: ICON.insurance,
+    token: "--green",
     description: "Payment deadlines, communication requirements, breach detection, and prompt pay rule violations.",
     questions: [
       "What are the payment deadlines?",
@@ -117,8 +160,8 @@ const SILOS: Silo[] = [
   {
     key: "construction",
     title: "Construction Laws",
-    icon: "🏗️",
-    color: "#f97316",
+    icon: ICON.construction,
+    token: "--orange",
     description: "Material matching requirements, building code compliance, contractor licensing, and construction defect claims.",
     questions: [
       "What are material matching rules?",
@@ -130,8 +173,8 @@ const SILOS: Silo[] = [
   {
     key: "legal",
     title: "Legal Leverage",
-    icon: "⚖️",
-    color: "#a855f7",
+    icon: ICON.legal,
+    token: "--violet",
     description: "Fee shifting opportunities, bad faith elements, attorney fee recovery, and litigation leverage strategies.",
     questions: [
       "Are attorney fees recoverable?",
@@ -142,13 +185,18 @@ const SILOS: Silo[] = [
   },
 ];
 
-/* ── Styles ────────────────────────────────────────────── */
+type Silo = SiloDef;
+
+/* ── Styles (spec tokens) ────────────────────────────────────────────── */
 
 const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  borderRadius: 10,
+  background: "var(--pad)",
+  borderRadius: "var(--radius-card)",
   padding: "20px 22px",
-  border: "1px solid var(--border-color)",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  boxShadow: "var(--card-shadow)",
   position: "relative",
   zIndex: 1,
 };
@@ -171,43 +219,91 @@ export default function StateDetailPage() {
           ← Back to State Compliance
         </button>
         <div style={{ ...cardStyle, textAlign: "center", padding: "60px 22px" }}>
-          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>State Not Found</div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data for state code "{code}".</p>
+          <div className="text-lg font-semibold mb-2" style={{ color: "var(--text-dim)" }}>State Not Found</div>
+          <p className="text-sm" style={{ color: "var(--text-faint)" }}>No data for state code "{code}".</p>
         </div>
       </div>
     );
   }
 
-  const sl = STOPLIGHT_COLORS[state.status];
+  const sl = stoplightColors(state.status);
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Back link */}
       <button
         onClick={() => router.push("/dashboard/compliance")}
-        style={{ fontSize: 13, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", marginBottom: 20, padding: 0 }}
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+          color: "var(--accent)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+          fontFamily: "var(--font-display)",
+        }}
       >
         ← Back to State Compliance
       </button>
 
       {/* State header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-5">
         <div
           style={{
-            width: 48, height: 48, borderRadius: 10,
+            width: 64, height: 64, borderRadius: "var(--radius-card)",
             background: sl.bg,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, fontWeight: 700, color: sl.text,
-            border: `1px solid ${sl.dot}33`,
+            fontSize: 22, fontWeight: 800, color: sl.text,
+            borderWidth: "1.5px",
+            borderStyle: "solid",
+            borderColor: sl.ring,
+            boxShadow: `0 0 18px ${sl.ring}`,
+            fontFamily: "var(--font-display)",
+            textShadow: `0 0 12px ${sl.glow}`,
           }}
         >
           {state.code}
         </div>
         <div>
-          <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>{state.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: sl.dot, display: "inline-block" }} />
-            <span style={{ fontSize: 13, color: sl.text, fontWeight: 500 }}>{state.statusLabel}</span>
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "2.5rem",
+              lineHeight: 1,
+              fontFamily: "var(--font-display)",
+              color: "var(--text)",
+              fontWeight: 800,
+              margin: 0,
+            }}
+          >
+            <span style={{ color: "var(--accent)", textShadow: "var(--accent-text-shadow)" }}>{state.name}</span>
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            <span
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                background: sl.dot,
+                display: "inline-block",
+                boxShadow: `0 0 8px ${sl.glow}`,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 12,
+                color: sl.text,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                fontFamily: "var(--font-ui)",
+              }}
+            >
+              {state.statusLabel}
+            </span>
           </div>
         </div>
       </div>
@@ -221,8 +317,8 @@ export default function StateDetailPage() {
 
       {/* Documents section */}
       <div style={{ ...cardStyle, textAlign: "center", padding: "48px 22px" }}>
-        <div className="text-base font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>Document Repository</div>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        <div className="text-base font-semibold mb-2" style={{ color: "var(--text-dim)" }}>Document Repository</div>
+        <p className="text-sm" style={{ color: "var(--text-faint)" }}>
           State-specific documents, filings, and reference materials will appear here.
         </p>
       </div>
@@ -232,42 +328,88 @@ export default function StateDetailPage() {
 
 /* ── Silo Card ─────────────────────────────────────────── */
 
-function SiloCard({ silo, stateCode, stateName }: { silo: Silo; stateCode: string; stateName: string }) {
+function SiloCard({ silo, stateName }: { silo: Silo; stateCode: string; stateName: string }) {
   const [hovered, setHovered] = useState(false);
+  const tokenVar = `var(${silo.token})`;
 
   return (
     <div
+      className="themed-card"
       style={{
-        ...cardStyle,
-        borderColor: hovered ? `${silo.color}44` : "var(--border-color)",
-        transition: "border-color 0.15s ease",
+        padding: "20px 22px",
+        borderColor: hovered
+          ? `color-mix(in srgb, ${tokenVar} 55%, transparent)`
+          : "var(--border)",
+        boxShadow: hovered
+          ? `0 0 24px color-mix(in srgb, ${tokenVar} 22%, transparent), var(--card-shadow)`
+          : "var(--card-shadow)",
+        transition: "all 0.15s ease",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      <div className="themed-card-stripe" aria-hidden />
+
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <span style={{ fontSize: 24 }}>{silo.icon}</span>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`,
+            color: tokenVar,
+            border: `1px solid color-mix(in srgb, ${tokenVar} 35%, transparent)`,
+            filter: `drop-shadow(0 0 6px color-mix(in srgb, ${tokenVar} 50%, transparent))`,
+          }}
+        >
+          {silo.icon}
+        </span>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{silo.title}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{stateName}</div>
+          <div
+            className="page-title"
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--text)",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            {silo.title}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{stateName}</div>
         </div>
       </div>
 
       {/* Description */}
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 14 }}>
+      <p style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.5, marginBottom: 14 }}>
         {silo.description}
       </p>
 
       {/* Quick questions */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>Quick Questions</div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--text-faint)",
+            marginBottom: 8,
+            fontFamily: "var(--font-ui)",
+          }}
+        >
+          Quick Questions
+        </div>
         {silo.questions.map((q, i) => (
           <div
             key={i}
             style={{
               fontSize: 12,
-              color: "var(--accent)",
+              color: tokenVar,
               padding: "4px 0",
               cursor: "pointer",
             }}
@@ -281,16 +423,26 @@ function SiloCard({ silo, stateCode, stateName }: { silo: Silo; stateCode: strin
       <button
         style={{
           width: "100%",
-          padding: "10px 16px",
+          padding: "12px 16px",
           borderRadius: 8,
-          border: "none",
-          background: silo.color,
-          color: "#fff",
-          fontSize: 13,
-          fontWeight: 600,
+          borderWidth: "2px",
+          borderStyle: "solid",
+          borderColor: tokenVar,
+          background: hovered
+            ? `color-mix(in srgb, ${tokenVar} 18%, var(--bg))`
+            : "var(--bg)",
+          color: tokenVar,
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
           cursor: "pointer",
-          transition: "opacity 0.15s",
-          opacity: hovered ? 1 : 0.85,
+          transition: "all 0.15s",
+          fontFamily: "var(--font-display)",
+          textShadow: `0 0 8px color-mix(in srgb, ${tokenVar} 60%, transparent)`,
+          boxShadow: hovered
+            ? `0 0 18px color-mix(in srgb, ${tokenVar} 40%, transparent)`
+            : `0 0 12px color-mix(in srgb, ${tokenVar} 22%, transparent)`,
         }}
       >
         Ask {stateName} AI — {silo.title}

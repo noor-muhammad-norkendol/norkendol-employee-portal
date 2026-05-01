@@ -152,16 +152,16 @@ const TAB_LABELS: Record<Tab, string> = {
 };
 
 const AVAILABILITY_COLORS: Record<string, { bg: string; text: string }> = {
-  available: { bg: "#1a3a2a", text: "#4ade80" },
-  busy: { bg: "#3a3520", text: "#facc15" },
-  unavailable: { bg: "#2a2a2a", text: "#888888" },
+  available: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  busy: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  unavailable: { bg: "var(--pad-elev)", text: "var(--text-faint)" },
 };
 
 const LICENSE_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  approved: { bg: "#1a3a2a", text: "#4ade80" },
-  pending: { bg: "#3a3520", text: "#facc15" },
-  rejected: { bg: "#4a1a1a", text: "#ef4444" },
-  expired: { bg: "#4a1a1a", text: "#ef4444" },
+  approved: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  pending: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  rejected: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
+  expired: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
 };
 
 function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
@@ -215,16 +215,24 @@ const SUPER_ADMIN_ROLES = ["super_admin", "system_admin"];
 const SOFT_CAP = 200;
 
 const cardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  borderRadius: 10,
+  background: "var(--pad)",
+  borderRadius: "var(--radius-card)",
   padding: "20px 22px",
-  border: "1px solid var(--border-color)",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  boxShadow: "var(--card-shadow)",
+  position: "relative",
+  zIndex: 1,
 };
 
 const inputStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border-color)",
-  color: "var(--text-primary)",
+  background: "var(--pad-input)",
+  borderWidth: "1px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  color: "var(--text)",
+  fontFamily: "var(--font-body)",
 };
 
 const US_STATES = [
@@ -799,14 +807,36 @@ export default function TalentPartnerNetworkPage() {
     <div>
       {/* Success toast */}
       {successMessage && (
-        <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium" style={{ background: "#1a3a2a", color: "#4ade80", border: "1px solid #2a5a3a" }}>
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" }}>
           {successMessage}
         </div>
       )}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Talent Partner Network</h1>
+        <h1
+          className="page-title"
+          style={{
+            fontSize: "3rem",
+            lineHeight: 1,
+            letterSpacing: "-0.01em",
+            fontFamily: "var(--font-display)",
+            margin: 0,
+          }}
+        >
+          <span
+            style={{
+              color: "var(--accent)",
+              textShadow: "var(--accent-text-shadow)",
+              fontWeight: 800,
+            }}
+          >
+            Talent
+          </span>{" "}
+          <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+            Partner Network
+          </span>
+        </h1>
         <div className="flex items-center gap-2">
           {tab === "internal" && (
             <button
@@ -817,9 +847,9 @@ export default function TalentPartnerNetworkPage() {
                 setTimeout(() => setCopiedLink(null), 2000);
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+              style={{ background: "var(--pad-elev)", color: "var(--text-dim)", border: "1px solid var(--border)" }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -838,9 +868,9 @@ export default function TalentPartnerNetworkPage() {
                   setTimeout(() => setCopiedLink(null), 2000);
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+                style={{ background: "var(--pad-elev)", color: "var(--text-dim)", border: "1px solid var(--border)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -851,9 +881,9 @@ export default function TalentPartnerNetworkPage() {
               <button
                 onClick={openAddFirm}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                style={{ background: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
+                style={{ background: "var(--pad-elev)", color: "var(--text-dim)", border: "1px solid var(--border)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <rect x="2" y="7" width="20" height="14" rx="2" />
@@ -864,7 +894,7 @@ export default function TalentPartnerNetworkPage() {
               <button
                 onClick={openAddExternal}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                style={{ background: "var(--accent)", color: "#000" }}
+                style={{ background: "var(--accent)", color: "var(--cta-text)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
               >
@@ -883,8 +913,8 @@ export default function TalentPartnerNetworkPage() {
             onClick={() => setTab(t)}
             className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
             style={{
-              background: tab === t ? "var(--bg-hover)" : "transparent",
-              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              background: tab === t ? "var(--pad-elev)" : "transparent",
+              color: tab === t ? "var(--text)" : "var(--text-faint)",
             }}
           >
             {TAB_LABELS[t]}
@@ -911,12 +941,12 @@ export default function TalentPartnerNetworkPage() {
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
               style={{ ...inputStyle, minWidth: 120 }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8">
                 <circle cx="12" cy="10" r="3" />
                 <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
               </svg>
               {internalStateFilter.length > 0 ? `${internalStateFilter.length} state${internalStateFilter.length > 1 ? "s" : ""}` : "States"}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
@@ -987,12 +1017,12 @@ export default function TalentPartnerNetworkPage() {
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer"
               style={{ ...inputStyle, minWidth: 120 }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8">
                 <circle cx="12" cy="10" r="3" />
                 <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
               </svg>
               {externalStateFilter.length > 0 ? `${externalStateFilter.length} state${externalStateFilter.length > 1 ? "s" : ""}` : "States"}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
@@ -1046,7 +1076,7 @@ export default function TalentPartnerNetworkPage() {
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--text-dim)" }}>Loading...</p>
       ) : (
         <>
           {/* ── Overview Tab ───────────────────────────────── */}
@@ -1095,12 +1125,12 @@ export default function TalentPartnerNetworkPage() {
                           style={cardStyle}
                           onClick={() => router.push(`/dashboard/user-management?user=${member.id}`)}
                           onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                         >
                           <div className="flex items-start gap-3">
                             <div
                               className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold"
-                              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                              style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}
                             >
                               {member.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                             </div>
@@ -1110,7 +1140,7 @@ export default function TalentPartnerNetworkPage() {
                                 <h3 className="text-sm font-semibold truncate">{member.full_name}</h3>
                                 <Badge label={avail} colors={AVAILABILITY_COLORS[avail] ?? AVAILABILITY_COLORS.unavailable} />
                               </div>
-                              <div className="flex items-center gap-3 mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                              <div className="flex items-center gap-3 mt-0.5 text-[11px]" style={{ color: "var(--text-faint)" }}>
                                 {member.position && <span>{member.position}</span>}
                                 {member.department && <span>{member.department}</span>}
                                 {member.location && <span>{member.location}</span>}
@@ -1122,7 +1152,7 @@ export default function TalentPartnerNetworkPage() {
                                     <span
                                       key={s}
                                       className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                                      style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                                      style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}
                                     >
                                       {s}
                                     </span>
@@ -1136,18 +1166,18 @@ export default function TalentPartnerNetworkPage() {
                                     <Badge label={`${summary.active} active`} colors={LICENSE_STATUS_COLORS.approved} />
                                   )}
                                   {summary.expiring > 0 && (
-                                    <Badge label={`${summary.expiring} expiring`} colors={{ bg: "#3a3520", text: "#facc15" }} />
+                                    <Badge label={`${summary.expiring} expiring`} colors={{ bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" }} />
                                   )}
                                   {summary.expired > 0 && (
                                     <Badge label={`${summary.expired} expired`} colors={LICENSE_STATUS_COLORS.expired} />
                                   )}
-                                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                                  <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
                                     {member.licenses.length} license{member.licenses.length !== 1 ? "s" : ""}
                                   </span>
                                 </div>
                               )}
                               {member.licenses.length === 0 && (
-                                <span className="text-[11px] mt-1 inline-block" style={{ color: "var(--text-muted)" }}>
+                                <span className="text-[11px] mt-1 inline-block" style={{ color: "var(--text-faint)" }}>
                                   No licenses on file
                                 </span>
                               )}
@@ -1163,7 +1193,7 @@ export default function TalentPartnerNetworkPage() {
                       <button
                         onClick={() => setInternalShowAll(true)}
                         className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors"
-                        style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                        style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}
                       >
                         Load more ({filteredInternal.length - SOFT_CAP} remaining)
                       </button>
@@ -1198,14 +1228,14 @@ export default function TalentPartnerNetworkPage() {
                                 <h3 className="text-sm font-semibold truncate">{contact.name}</h3>
                                 <span
                                   className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                                  style={{ background: "#2d1b4e", color: "#a78bfa" }}
+                                  style={{ background: "color-mix(in srgb, var(--violet) 14%, var(--pad))", color: "var(--violet)" }}
                                 >
                                   {displaySpecialty}
                                 </span>
                               </div>
 
                               {contact.firm_name && (
-                                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>
                                   {contact.firm_id ? (
                                     <button
                                       onClick={() => setFirmDetailId(contact.firm_id)}
@@ -1226,22 +1256,22 @@ export default function TalentPartnerNetworkPage() {
                                   {contact.hierarchy_level_id && (() => {
                                     const level = allHierarchyLevels.find((l) => l.id === contact.hierarchy_level_id);
                                     return level ? (
-                                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>{level.label}</span>
+                                      <span className="font-medium" style={{ color: "var(--text)" }}>{level.label}</span>
                                     ) : null;
                                   })()}
                                   {contact.reports_to_name && (
-                                    <span style={{ color: "var(--text-muted)" }}>↳ {contact.reports_to_name}</span>
+                                    <span style={{ color: "var(--text-faint)" }}>↳ {contact.reports_to_name}</span>
                                   )}
                                   {contact.region && (
-                                    <span style={{ color: "var(--text-muted)" }}>{contact.region}</span>
+                                    <span style={{ color: "var(--text-faint)" }}>{contact.region}</span>
                                   )}
                                   {contact.market && (
-                                    <span style={{ color: "var(--text-muted)" }}>{contact.market}</span>
+                                    <span style={{ color: "var(--text-faint)" }}>{contact.market}</span>
                                   )}
                                 </div>
                               )}
 
-                              <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                              <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: "var(--text-dim)" }}>
                                 {contact.email && (
                                   <a href={`mailto:${contact.email}`} onClick={(e) => e.stopPropagation()} style={{ color: "var(--accent)" }}>
                                     {contact.email}
@@ -1256,7 +1286,7 @@ export default function TalentPartnerNetworkPage() {
                                     <span
                                       key={s}
                                       className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                                      style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                                      style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}
                                     >
                                       {s}
                                     </span>
@@ -1270,7 +1300,7 @@ export default function TalentPartnerNetworkPage() {
                               {contact.user_id ? (
                                 <span
                                   className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full mr-1"
-                                  style={{ background: "#1a3a2a", color: "#4ade80" }}
+                                  style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)" }}
                                   title="Has portal access"
                                 >
                                   PORTAL
@@ -1279,9 +1309,9 @@ export default function TalentPartnerNetworkPage() {
                                 <button
                                   onClick={() => setPromoteContact(contact)}
                                   className="text-[10px] font-medium px-2 py-1 rounded-lg mr-1 cursor-pointer transition-colors"
-                                  style={{ background: "#1e3a5f", color: "#60a5fa", border: "1px solid #2d4a6f" }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#264a73")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = "#1e3a5f")}
+                                  style={{ background: "color-mix(in srgb, var(--info) 18%, var(--pad))", color: "var(--info)", border: "1px solid color-mix(in srgb, var(--info) 35%, transparent)" }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--info) 30%, var(--pad))")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--info) 18%, var(--pad))")}
                                   title="Grant portal access"
                                 >
                                   Grant Access
@@ -1291,10 +1321,10 @@ export default function TalentPartnerNetworkPage() {
                               {isSuperAdmin && (
                                 <button
                                   onClick={() => openEditExternal(contact)}
-                                  className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                                  className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]"
                                   title="Edit"
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                   </svg>
@@ -1306,14 +1336,14 @@ export default function TalentPartnerNetworkPage() {
                                     <button
                                       onClick={() => handleDeactivateExternal(contact.id)}
                                       className="px-2 py-1 rounded text-xs font-medium cursor-pointer"
-                                      style={{ background: "#4a1a1a", color: "#ef4444" }}
+                                      style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}
                                     >
                                       Remove
                                     </button>
                                     <button
                                       onClick={() => setDeactivateConfirm(null)}
                                       className="px-2 py-1 rounded text-xs cursor-pointer"
-                                      style={{ color: "var(--text-muted)" }}
+                                      style={{ color: "var(--text-faint)" }}
                                     >
                                       No
                                     </button>
@@ -1321,10 +1351,10 @@ export default function TalentPartnerNetworkPage() {
                                 ) : (
                                   <button
                                     onClick={() => setDeactivateConfirm(contact.id)}
-                                    className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                                    className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]"
                                     title="Remove"
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.8">
                                       <circle cx="12" cy="12" r="10" />
                                       <line x1="15" y1="9" x2="9" y2="15" />
                                       <line x1="9" y1="9" x2="15" y2="15" />
@@ -1343,7 +1373,7 @@ export default function TalentPartnerNetworkPage() {
                       <button
                         onClick={() => setExternalShowAll(true)}
                         className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors"
-                        style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                        style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}
                       >
                         Load more ({filteredExternal.length - SOFT_CAP} remaining)
                       </button>
@@ -1362,11 +1392,11 @@ export default function TalentPartnerNetworkPage() {
                 <div style={cardStyle}>
                   <h3 className="text-sm font-semibold mb-4">License Status Breakdown</h3>
                   <div className="space-y-3">
-                    <AnalyticsBar label="Active" count={licenseAlerts.active} total={licenseAlerts.total} color="#4ade80" />
-                    <AnalyticsBar label="Expiring (90 days)" count={licenseAlerts.expiring} total={licenseAlerts.total} color="#facc15" />
-                    <AnalyticsBar label="Expired" count={licenseAlerts.expired} total={licenseAlerts.total} color="#ef4444" />
+                    <AnalyticsBar label="Active" count={licenseAlerts.active} total={licenseAlerts.total} color="var(--green)" />
+                    <AnalyticsBar label="Expiring (90 days)" count={licenseAlerts.expiring} total={licenseAlerts.total} color="var(--amber)" />
+                    <AnalyticsBar label="Expired" count={licenseAlerts.expired} total={licenseAlerts.total} color="var(--red)" />
                   </div>
-                  <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-[11px] mt-3" style={{ color: "var(--text-faint)" }}>
                     {licenseAlerts.total} total licenses across {internalUsers.length} team members
                   </p>
                 </div>
@@ -1374,11 +1404,11 @@ export default function TalentPartnerNetworkPage() {
                 <div style={cardStyle}>
                   <h3 className="text-sm font-semibold mb-4">Team Availability</h3>
                   <div className="space-y-3">
-                    <AnalyticsBar label="Available" count={availableCounts.available} total={internalUsers.length} color="#4ade80" />
-                    <AnalyticsBar label="Busy" count={availableCounts.busy} total={internalUsers.length} color="#facc15" />
-                    <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={internalUsers.length} color="#888888" />
+                    <AnalyticsBar label="Available" count={availableCounts.available} total={internalUsers.length} color="var(--green)" />
+                    <AnalyticsBar label="Busy" count={availableCounts.busy} total={internalUsers.length} color="var(--amber)" />
+                    <AnalyticsBar label="Unavailable" count={availableCounts.unavailable} total={internalUsers.length} color="var(--text-faint)" />
                   </div>
-                  <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-[11px] mt-3" style={{ color: "var(--text-faint)" }}>
                     {internalUsers.length} team members total
                   </p>
                 </div>
@@ -1393,21 +1423,21 @@ export default function TalentPartnerNetworkPage() {
                     const hasExternal = externalCoverageStates.has(s);
                     const hasBoth = hasTeam && hasExternal;
 
-                    let bg = "var(--bg-hover)";
-                    let text = "var(--text-muted)";
+                    let bg = "var(--pad-elev)";
+                    let text = "var(--text-faint)";
                     let title = `${s}: No coverage`;
 
                     if (hasBoth) {
-                      bg = "#1a3a2a";
-                      text = "#4ade80";
+                      bg = "color-mix(in srgb, var(--green) 14%, var(--pad))";
+                      text = "var(--green)";
                       title = `${s}: Internal + External coverage`;
                     } else if (hasTeam) {
-                      bg = "#1a2a3a";
-                      text = "#60a5fa";
+                      bg = "color-mix(in srgb, var(--info) 14%, var(--pad))";
+                      text = "var(--info)";
                       title = `${s}: Internal licensed`;
                     } else if (hasExternal) {
-                      bg = "#2d1b4e";
-                      text = "#a78bfa";
+                      bg = "color-mix(in srgb, var(--violet) 14%, var(--pad))";
+                      text = "var(--violet)";
                       title = `${s}: External coverage`;
                     }
 
@@ -1425,20 +1455,20 @@ export default function TalentPartnerNetworkPage() {
                 </div>
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ background: "#1a3a2a" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Both</span>
+                    <span className="w-3 h-3 rounded" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>Both</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ background: "#1a2a3a" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Internal only</span>
+                    <span className="w-3 h-3 rounded" style={{ background: "color-mix(in srgb, var(--info) 14%, var(--pad))" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>Internal only</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ background: "#2d1b4e" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>External only</span>
+                    <span className="w-3 h-3 rounded" style={{ background: "color-mix(in srgb, var(--violet) 14%, var(--pad))" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>External only</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded" style={{ background: "var(--bg-hover)" }} />
-                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>No coverage</span>
+                    <span className="w-3 h-3 rounded" style={{ background: "var(--pad-elev)" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>No coverage</span>
                   </div>
                 </div>
               </div>
@@ -1448,7 +1478,7 @@ export default function TalentPartnerNetworkPage() {
                 <div style={cardStyle}>
                   <h3 className="text-sm font-semibold mb-4">External Specialty Breakdown</h3>
                   {externalContacts.length === 0 ? (
-                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No external contacts yet.</p>
+                    <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>No external contacts yet.</p>
                   ) : (
                     <div className="space-y-3">
                       {SPECIALTIES.map((spec) => {
@@ -1457,7 +1487,7 @@ export default function TalentPartnerNetworkPage() {
                         ).length;
                         if (count === 0) return null;
                         return (
-                          <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="#a78bfa" />
+                          <AnalyticsBar key={spec} label={spec} count={count} total={externalContacts.length} color="var(--violet)" />
                         );
                       })}
                     </div>
@@ -1474,13 +1504,13 @@ export default function TalentPartnerNetworkPage() {
                     const noFirm = externalContacts.filter((c) => !c.firm_id).length;
                     return (
                       <div className="space-y-3">
-                        <AnalyticsBar label="Portal Access" count={withPortal} total={externalContacts.length} color="#4ade80" />
-                        <AnalyticsBar label="Has Email (no portal)" count={withEmail} total={externalContacts.length} color="#60a5fa" />
-                        <AnalyticsBar label="No Email" count={noEmail} total={externalContacts.length} color="#888888" />
-                        <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-                          <AnalyticsBar label="Linked to Firm" count={withFirm} total={externalContacts.length} color="#a78bfa" />
+                        <AnalyticsBar label="Portal Access" count={withPortal} total={externalContacts.length} color="var(--green)" />
+                        <AnalyticsBar label="Has Email (no portal)" count={withEmail} total={externalContacts.length} color="var(--info)" />
+                        <AnalyticsBar label="No Email" count={noEmail} total={externalContacts.length} color="var(--text-faint)" />
+                        <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                          <AnalyticsBar label="Linked to Firm" count={withFirm} total={externalContacts.length} color="var(--violet)" />
                           <div className="mt-3">
-                            <AnalyticsBar label="Standalone" count={noFirm} total={externalContacts.length} color="#888888" />
+                            <AnalyticsBar label="Standalone" count={noFirm} total={externalContacts.length} color="var(--text-faint)" />
                           </div>
                         </div>
                       </div>
@@ -1498,13 +1528,13 @@ export default function TalentPartnerNetworkPage() {
                       const count = externalContacts.filter((c) => c.firm_id === f.id).length;
                       if (count === 0) return null;
                       return (
-                        <AnalyticsBar key={f.id} label={f.name} count={count} total={externalContacts.length} color="#60a5fa" />
+                        <AnalyticsBar key={f.id} label={f.name} count={count} total={externalContacts.length} color="var(--info)" />
                       );
                     })}
                     {(() => {
                       const unlinked = externalContacts.filter((c) => !c.firm_id).length;
                       if (unlinked === 0) return null;
-                      return <AnalyticsBar label="No Firm" count={unlinked} total={externalContacts.length} color="#888888" />;
+                      return <AnalyticsBar label="No Firm" count={unlinked} total={externalContacts.length} color="var(--text-faint)" />;
                     })()}
                   </div>
                 </div>
@@ -1523,21 +1553,21 @@ export default function TalentPartnerNetworkPage() {
         >
           <div
             className="rounded-xl p-6 w-full max-w-md"
-            style={{ background: "var(--bg-page)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-semibold mb-4">Grant Portal Access</h2>
-            <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-sm mb-1" style={{ color: "var(--text-dim)" }}>
               Grant portal access to:
             </p>
             <p className="text-sm font-semibold mb-1">{promoteContact.name}</p>
             <p className="text-sm mb-4" style={{ color: "var(--accent)" }}>{promoteContact.email}</p>
-            <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs mb-5" style={{ color: "var(--text-faint)" }}>
               They will receive an email invitation to set up their account and log in.
             </p>
 
             {promoteError && (
-              <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "#4a1a1a", color: "#ef4444" }}>
+              <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>
                 {promoteError}
               </p>
             )}
@@ -1547,7 +1577,7 @@ export default function TalentPartnerNetworkPage() {
                 onClick={() => { setPromoteContact(null); setPromoteError(""); }}
                 disabled={promoting}
                 className="px-4 py-2 rounded-lg text-sm cursor-pointer"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--text-faint)" }}
               >
                 Cancel
               </button>
@@ -1555,7 +1585,7 @@ export default function TalentPartnerNetworkPage() {
                 onClick={handlePromoteToPortal}
                 disabled={promoting}
                 className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                style={{ background: "var(--accent)", color: "#000", opacity: promoting ? 0.6 : 1 }}
+                style={{ background: "var(--accent)", color: "var(--cta-text)", opacity: promoting ? 0.6 : 1 }}
               >
                 {promoting ? "Sending Invite..." : "Grant Access & Send Invite"}
               </button>
@@ -1573,7 +1603,7 @@ export default function TalentPartnerNetworkPage() {
         >
           <div
             className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">
@@ -1582,7 +1612,7 @@ export default function TalentPartnerNetworkPage() {
               <button
                 onClick={() => setShowExternalModal(false)}
                 className="text-lg cursor-pointer"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--text-faint)" }}
               >
                 ✕
               </button>
@@ -1591,7 +1621,7 @@ export default function TalentPartnerNetworkPage() {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                   Name *
                 </label>
                 <input
@@ -1607,7 +1637,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Email + Phone */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                     Email
                   </label>
                   <input
@@ -1620,7 +1650,7 @@ export default function TalentPartnerNetworkPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                     Phone
                   </label>
                   <input
@@ -1636,7 +1666,7 @@ export default function TalentPartnerNetworkPage() {
 
               {/* Specialty */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                   Specialty *
                 </label>
                 <select
@@ -1655,7 +1685,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Other specialty free text */}
               {externalForm.specialty === "Other" && (
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                     Describe specialty
                   </label>
                   <input
@@ -1671,7 +1701,7 @@ export default function TalentPartnerNetworkPage() {
 
               {/* States they cover */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                   States They Cover
                 </label>
                 <div className="relative">
@@ -1687,7 +1717,7 @@ export default function TalentPartnerNetworkPage() {
                   {showFormStateDrop && (
                     <div
                       className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full"
-                      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+                      style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
                     >
                       {externalForm.states.length > 0 && (
                         <button
@@ -1705,8 +1735,8 @@ export default function TalentPartnerNetworkPage() {
                             onClick={() => toggleFormState(s)}
                             className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
                             style={{
-                              background: externalForm.states.includes(s) ? "var(--accent)" : "var(--bg-hover)",
-                              color: externalForm.states.includes(s) ? "#000" : "var(--text-secondary)",
+                              background: externalForm.states.includes(s) ? "var(--accent)" : "var(--pad-elev)",
+                              color: externalForm.states.includes(s) ? "var(--cta-text)" : "var(--text-dim)",
                             }}
                           >
                             {s}
@@ -1721,7 +1751,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Firm (linked) */}
               {firms.length > 0 && (
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                     Attach to Firm
                   </label>
                   <select
@@ -1741,7 +1771,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Company Name — only show if not attached to a firm */}
               {!externalForm.firm_id && (
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>
                     Company Name (optional)
                   </label>
                   <input
@@ -1775,7 +1805,7 @@ export default function TalentPartnerNetworkPage() {
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Role</label>
+                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Role</label>
                         <select
                           value={externalForm.hierarchy_level_id}
                           onChange={(e) => setExternalForm({ ...externalForm, hierarchy_level_id: e.target.value, reports_to_id: "" })}
@@ -1789,9 +1819,9 @@ export default function TalentPartnerNetworkPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Reports To</label>
+                        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Reports To</label>
                         {selectedLevel && selectedLevel.level_number === 1 ? (
-                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>Top level — no one</div>
+                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-faint)" }}>Top level — no one</div>
                         ) : reportsToOptions.length > 0 ? (
                           <select
                             value={externalForm.reports_to_id}
@@ -1805,7 +1835,7 @@ export default function TalentPartnerNetworkPage() {
                             ))}
                           </select>
                         ) : (
-                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-muted)" }}>
+                          <div className="px-3 py-2 rounded-lg text-sm" style={{ ...inputStyle, color: "var(--text-faint)" }}>
                             {!selectedLevel ? "Select a role first" : "No one at the level above yet"}
                           </div>
                         )}
@@ -1818,7 +1848,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Region + Market — always available */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Region</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Region</label>
                   <input
                     type="text"
                     value={externalForm.region}
@@ -1829,7 +1859,7 @@ export default function TalentPartnerNetworkPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Market</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Market</label>
                   <input
                     type="text"
                     value={externalForm.market}
@@ -1845,8 +1875,8 @@ export default function TalentPartnerNetworkPage() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => setShowExternalModal(false)}
-                  className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
-                  style={{ color: "var(--text-secondary)" }}
+                  className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]"
+                  style={{ color: "var(--text-dim)" }}
                 >
                   Cancel
                 </button>
@@ -1854,7 +1884,7 @@ export default function TalentPartnerNetworkPage() {
                   onClick={handleSaveExternal}
                   disabled={saving || !externalForm.name.trim() || !externalForm.specialty}
                   className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50"
-                  style={{ background: "var(--accent)", color: "#000" }}
+                  style={{ background: "var(--accent)", color: "var(--cta-text)" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
                 >
@@ -1875,7 +1905,7 @@ export default function TalentPartnerNetworkPage() {
         >
           <div
             className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">{firmDetail.name}</h2>
@@ -1883,10 +1913,10 @@ export default function TalentPartnerNetworkPage() {
                 {isSuperAdmin && (
                   <button
                     onClick={() => { setFirmDetailId(null); openEditFirm(firmDetail); }}
-                    className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
+                    className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]"
                     title="Edit Firm"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
@@ -1895,7 +1925,7 @@ export default function TalentPartnerNetworkPage() {
                 <button
                   onClick={() => setFirmDetailId(null)}
                   className="text-lg cursor-pointer"
-                  style={{ color: "var(--text-muted)" }}
+                  style={{ color: "var(--text-faint)" }}
                 >
                   ✕
                 </button>
@@ -1906,37 +1936,37 @@ export default function TalentPartnerNetworkPage() {
             <div className="grid grid-cols-2 gap-3 mb-5">
               {firmDetail.entity_type && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Type</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Type</span>
                   <span className="text-sm">{firmDetail.entity_type}</span>
                 </div>
               )}
               {(firmDetail.city || firmDetail.state) && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Location</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Location</span>
                   <span className="text-sm">{[firmDetail.city, firmDetail.state].filter(Boolean).join(", ")}</span>
                 </div>
               )}
               {firmDetail.contact_name && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Primary Contact</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Primary Contact</span>
                   <span className="text-sm">{firmDetail.contact_name}</span>
                 </div>
               )}
               {firmDetail.contact_email && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Email</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Email</span>
                   <a href={`mailto:${firmDetail.contact_email}`} className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.contact_email}</a>
                 </div>
               )}
               {firmDetail.contact_phone && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Phone</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Phone</span>
                   <span className="text-sm">{firmDetail.contact_phone}</span>
                 </div>
               )}
               {firmDetail.website && (
                 <div>
-                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-muted)" }}>Website</span>
+                  <span className="text-[10px] font-medium block" style={{ color: "var(--text-faint)" }}>Website</span>
                   <span className="text-sm" style={{ color: "var(--accent)" }}>{firmDetail.website}</span>
                 </div>
               )}
@@ -1945,10 +1975,10 @@ export default function TalentPartnerNetworkPage() {
             {/* States */}
             {firmDetail.states && firmDetail.states.length > 0 && (
               <div className="mb-5">
-                <span className="text-[10px] font-medium block mb-1.5" style={{ color: "var(--text-muted)" }}>States Covered</span>
+                <span className="text-[10px] font-medium block mb-1.5" style={{ color: "var(--text-faint)" }}>States Covered</span>
                 <div className="flex flex-wrap gap-1">
                   {firmDetail.states.sort().map((s: string) => (
-                    <span key={s} className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>{s}</span>
+                    <span key={s} className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: "var(--pad-elev)", color: "var(--text-dim)" }}>{s}</span>
                   ))}
                 </div>
               </div>
@@ -1957,12 +1987,12 @@ export default function TalentPartnerNetworkPage() {
             {/* Attached contacts — org tree if hierarchy exists, flat list otherwise */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }}>
                   People at this firm ({firmDetailContacts.length})
                 </span>
               </div>
               {firmDetailContacts.length === 0 ? (
-                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No contacts attached to this firm yet.</p>
+                <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>No contacts attached to this firm yet.</p>
               ) : (() => {
                 const firmLevels = allHierarchyLevels
                   .filter((l) => l.firm_id === firmDetailId)
@@ -1975,17 +2005,17 @@ export default function TalentPartnerNetworkPage() {
                       {firmDetailContacts.map((c) => {
                         const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
                         return (
-                          <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                          <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                             <div>
                               <span className="text-sm font-medium">{c.name}</span>
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "color-mix(in srgb, var(--violet) 14%, var(--pad))", color: "var(--violet)" }}>{displaySpec}</span>
                               {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
                               {(c.region || c.market) && (
-                                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{[c.region, c.market].filter(Boolean).join(" · ")}</p>
+                                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-faint)" }}>{[c.region, c.market].filter(Boolean).join(" · ")}</p>
                               )}
                             </div>
                             {c.user_id && (
-                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)" }}>PORTAL</span>
                             )}
                           </div>
                         );
@@ -2004,25 +2034,25 @@ export default function TalentPartnerNetworkPage() {
                       return (
                         <div key={level.id}>
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-faint)" }}>
                               {level.label}
                             </span>
-                            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>({levelContacts.length})</span>
+                            <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>({levelContacts.length})</span>
                           </div>
                           <div className="space-y-1.5" style={{ marginLeft: `${(level.level_number - 1) * 16}px` }}>
                             {levelContacts.map((c) => {
                               const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
                               return (
-                                <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                                <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-medium">{c.name}</span>
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--violet) 14%, var(--pad))", color: "var(--violet)" }}>{displaySpec}</span>
                                       {c.user_id && (
-                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#1a3a2a", color: "#4ade80" }}>PORTAL</span>
+                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)" }}>PORTAL</span>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-2 mt-0.5 text-[10px]" style={{ color: "var(--text-muted)" }}>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[10px]" style={{ color: "var(--text-faint)" }}>
                                       {c.reports_to_name && <span>↳ {c.reports_to_name}</span>}
                                       {c.region && <span>{c.region}</span>}
                                       {c.market && <span>{c.market}</span>}
@@ -2038,17 +2068,17 @@ export default function TalentPartnerNetworkPage() {
                     })}
                     {unassigned.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-faint)" }}>
                           Unassigned ({unassigned.length})
                         </span>
                         <div className="space-y-1.5 mt-1.5">
                           {unassigned.map((c) => {
                             const displaySpec = c.specialty === "Other" ? (c.specialty_other ?? "Other") : c.specialty;
                             return (
-                              <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                              <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                                 <div>
                                   <span className="text-sm font-medium">{c.name}</span>
-                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "#2d1b4e", color: "#a78bfa" }}>{displaySpec}</span>
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-2" style={{ background: "color-mix(in srgb, var(--violet) 14%, var(--pad))", color: "var(--violet)" }}>{displaySpec}</span>
                                   {c.email && <p className="text-[11px] mt-0.5" style={{ color: "var(--accent)" }}>{c.email}</p>}
                                 </div>
                               </div>
@@ -2064,18 +2094,18 @@ export default function TalentPartnerNetworkPage() {
 
             {/* Deactivate firm */}
             {isSuperAdmin && (
-              <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
+              <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
                 {deactivateFirmConfirm === firmDetail.id ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs" style={{ color: "#ef4444" }}>Remove this firm and unlink all contacts?</span>
-                    <button onClick={() => handleDeactivateFirm(firmDetail.id)} className="px-3 py-1.5 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Yes, Remove</button>
-                    <button onClick={() => setDeactivateFirmConfirm(null)} className="px-3 py-1.5 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel</button>
+                    <span className="text-xs" style={{ color: "var(--red)" }}>Remove this firm and unlink all contacts?</span>
+                    <button onClick={() => handleDeactivateFirm(firmDetail.id)} className="px-3 py-1.5 rounded text-xs font-medium cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Yes, Remove</button>
+                    <button onClick={() => setDeactivateFirmConfirm(null)} className="px-3 py-1.5 rounded text-xs cursor-pointer" style={{ color: "var(--text-faint)" }}>Cancel</button>
                   </div>
                 ) : (
                   <button
                     onClick={() => setDeactivateFirmConfirm(firmDetail.id)}
                     className="text-xs cursor-pointer"
-                    style={{ color: "#ef4444" }}
+                    style={{ color: "var(--red)" }}
                   >
                     Remove Firm
                   </button>
@@ -2095,17 +2125,17 @@ export default function TalentPartnerNetworkPage() {
         >
           <div
             className="rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">{editingFirmId ? "Edit Firm" : "New Firm"}</h2>
-              <button onClick={() => setShowFirmModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowFirmModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
 
             <div className="space-y-4">
               {/* Firm Name */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Firm Name *</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Firm Name *</label>
                 <input
                   type="text"
                   value={firmForm.name}
@@ -2119,7 +2149,7 @@ export default function TalentPartnerNetworkPage() {
               {/* Entity Type + Location */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Type</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Type</label>
                   <select
                     value={firmForm.entity_type}
                     onChange={(e) => setFirmForm({ ...firmForm, entity_type: e.target.value })}
@@ -2131,7 +2161,7 @@ export default function TalentPartnerNetworkPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>City</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>City</label>
                   <input
                     type="text"
                     value={firmForm.city}
@@ -2142,7 +2172,7 @@ export default function TalentPartnerNetworkPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>State</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>State</label>
                   <select
                     value={firmForm.state}
                     onChange={(e) => setFirmForm({ ...firmForm, state: e.target.value })}
@@ -2158,28 +2188,28 @@ export default function TalentPartnerNetworkPage() {
               {/* Primary Contact */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Name</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Contact Name</label>
                   <input type="text" value={firmForm.contact_name} onChange={(e) => setFirmForm({ ...firmForm, contact_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="Name..." />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Email</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Contact Email</label>
                   <input type="email" value={firmForm.contact_email} onChange={(e) => setFirmForm({ ...firmForm, contact_email: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="email@..." />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Contact Phone</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Contact Phone</label>
                   <input type="text" value={firmForm.contact_phone} onChange={(e) => setFirmForm({ ...firmForm, contact_phone: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="(555)..." />
                 </div>
               </div>
 
               {/* Website */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Website</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Website</label>
                 <input type="text" value={firmForm.website} onChange={(e) => setFirmForm({ ...firmForm, website: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} placeholder="www.example.com" />
               </div>
 
               {/* States Covered */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>States Covered</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>States Covered</label>
                 <div className="relative">
                   <button
                     onClick={() => setShowFirmStateDrop(!showFirmStateDrop)}
@@ -2189,7 +2219,7 @@ export default function TalentPartnerNetworkPage() {
                     {firmForm.states.length > 0 ? firmForm.states.join(", ") : "Select states..."}
                   </button>
                   {showFirmStateDrop && (
-                    <div className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+                    <div className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto w-full" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
                       {firmForm.states.length > 0 && (
                         <button onClick={() => setFirmForm({ ...firmForm, states: [] })} className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer mb-1" style={{ color: "var(--accent)" }}>Clear all</button>
                       )}
@@ -2199,7 +2229,7 @@ export default function TalentPartnerNetworkPage() {
                             key={s}
                             onClick={() => setFirmForm((prev) => ({ ...prev, states: prev.states.includes(s) ? prev.states.filter((x) => x !== s) : [...prev.states, s] }))}
                             className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
-                            style={{ background: firmForm.states.includes(s) ? "var(--accent)" : "var(--bg-hover)", color: firmForm.states.includes(s) ? "#000" : "var(--text-secondary)" }}
+                            style={{ background: firmForm.states.includes(s) ? "var(--accent)" : "var(--pad-elev)", color: firmForm.states.includes(s) ? "var(--cta-text)" : "var(--text-dim)" }}
                           >
                             {s}
                           </button>
@@ -2215,29 +2245,29 @@ export default function TalentPartnerNetworkPage() {
                 <button
                   onClick={() => setShowHierarchySection(!showHierarchySection)}
                   className="flex items-center gap-2 text-xs font-medium cursor-pointer"
-                  style={{ color: "var(--text-secondary)" }}
+                  style={{ color: "var(--text-dim)" }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showHierarchySection ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                   Organization Levels
                   {firmLevelEdits.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--pad-elev)", color: "var(--text-faint)" }}>
                       {firmLevelEdits.length}
                     </span>
                   )}
                 </button>
 
                 {showHierarchySection && (
-                  <div className="mt-2 space-y-2 pl-4" style={{ borderLeft: "2px solid var(--border-color)" }}>
+                  <div className="mt-2 space-y-2 pl-4" style={{ borderLeft: "2px solid var(--border)" }}>
                     {firmLevelEdits.length === 0 && (
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-xs" style={{ color: "var(--text-faint)" }}>
                         No hierarchy defined — contacts will be stored as a flat list.
                       </p>
                     )}
                     {firmLevelEdits.map((level, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold w-5 text-center shrink-0" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                        <span className="text-[10px] font-semibold w-5 text-center shrink-0" style={{ color: "var(--text-faint)" }}>{idx + 1}</span>
                         <input
                           type="text"
                           value={level.label}
@@ -2258,7 +2288,7 @@ export default function TalentPartnerNetworkPage() {
                               setFirmLevelEdits(updated);
                             }}
                             className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
-                            style={{ color: "var(--text-muted)" }}
+                            style={{ color: "var(--text-faint)" }}
                             title="Move up"
                           >▲</button>
                         )}
@@ -2270,21 +2300,21 @@ export default function TalentPartnerNetworkPage() {
                               setFirmLevelEdits(updated);
                             }}
                             className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
-                            style={{ color: "var(--text-muted)" }}
+                            style={{ color: "var(--text-faint)" }}
                             title="Move down"
                           >▼</button>
                         )}
                         <button
                           onClick={() => setFirmLevelEdits(firmLevelEdits.filter((_, i) => i !== idx))}
                           className="text-[10px] px-1.5 py-1 rounded cursor-pointer"
-                          style={{ color: "#ef4444" }}
+                          style={{ color: "var(--red)" }}
                           title="Remove level"
                         >✕</button>
                       </div>
                     ))}
                     <button
                       onClick={() => setFirmLevelEdits([...firmLevelEdits, { level_number: firmLevelEdits.length + 1, label: "" }])}
-                      className="flex items-center gap-1 text-xs font-medium cursor-pointer px-2 py-1 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+                      className="flex items-center gap-1 text-xs font-medium cursor-pointer px-2 py-1 rounded-lg transition-colors hover:bg-[var(--pad-elev)]"
                       style={{ color: "var(--accent)" }}
                     >
                       <span>+</span> Add Level
@@ -2295,12 +2325,12 @@ export default function TalentPartnerNetworkPage() {
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={() => setShowFirmModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button onClick={() => setShowFirmModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Cancel</button>
                 <button
                   onClick={handleSaveFirm}
                   disabled={savingFirm || !firmForm.name.trim()}
                   className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50"
-                  style={{ background: "var(--accent)", color: "#000" }}
+                  style={{ background: "var(--accent)", color: "var(--cta-text)" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
                 >
@@ -2344,7 +2374,7 @@ function StateDropdown({
   return (
     <div
       className="absolute top-full left-0 mt-1 z-40 rounded-lg p-2 max-h-60 overflow-y-auto"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", minWidth: 200 }}
+      style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", minWidth: 200 }}
     >
       {selected.length > 0 && (
         <button
@@ -2362,8 +2392,8 @@ function StateDropdown({
             onClick={() => onToggle(s)}
             className="px-2 py-1 rounded text-[11px] font-medium cursor-pointer transition-colors"
             style={{
-              background: selected.includes(s) ? "var(--accent)" : "var(--bg-hover)",
-              color: selected.includes(s) ? "#000" : "var(--text-secondary)",
+              background: selected.includes(s) ? "var(--accent)" : "var(--pad-elev)",
+              color: selected.includes(s) ? "var(--cta-text)" : "var(--text-dim)",
             }}
           >
             {s}
@@ -2409,13 +2439,13 @@ function MetricCard({
       </svg>
     ),
     available: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="1.8">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="1.8">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
     ),
     alert: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={highlight ? "#ef4444" : "var(--accent)"} strokeWidth="1.8">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={highlight ? "var(--red)" : "var(--accent)"} strokeWidth="1.8">
         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -2432,20 +2462,20 @@ function MetricCard({
     <div
       className="rounded-xl p-5"
       style={{
-        background: "var(--bg-surface)",
-        border: highlight ? "1px solid #3a3520" : "1px solid var(--border-color)",
+        background: "var(--pad)",
+        border: highlight ? "1px solid color-mix(in srgb, var(--amber) 40%, transparent)" : "1px solid var(--border)",
         borderRadius: 10,
       }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+        <span className="text-xs font-medium" style={{ color: "var(--text-dim)" }}>
           {label}
         </span>
         {iconPaths[icon]}
       </div>
       <p className="text-2xl font-bold">{value}</p>
       {sub && (
-        <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[11px] mt-0.5" style={{ color: "var(--text-faint)" }}>
           {sub}
         </p>
       )}
@@ -2469,14 +2499,14 @@ function AnalyticsBar({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</span>
+        <span className="text-xs" style={{ color: "var(--text-dim)" }}>{label}</span>
         <span className="text-xs font-semibold" style={{ color }}>
-          {count} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({pct}%)</span>
+          {count} <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>({pct}%)</span>
         </span>
       </div>
       <div
         className="w-full rounded-full overflow-hidden"
-        style={{ background: "var(--bg-hover)", height: 6 }}
+        style={{ background: "var(--pad-elev)", height: 6 }}
       >
         <div
           className="rounded-full transition-all"
@@ -2491,15 +2521,15 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div
       className="rounded-xl p-12 text-center"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+      style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
     >
-      <svg className="mx-auto mb-3" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+      <svg className="mx-auto mb-3" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
-      <p style={{ color: "var(--text-secondary)" }}>{message}</p>
+      <p style={{ color: "var(--text-dim)" }}>{message}</p>
     </div>
   );
 }

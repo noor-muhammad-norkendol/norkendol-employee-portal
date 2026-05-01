@@ -115,19 +115,19 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  system_admin: { bg: "#4a1a1a", text: "#ef4444" },
-  super_admin: { bg: "#2d1b4e", text: "#a78bfa" },
-  admin: { bg: "#1e3a5f", text: "#60a5fa" },
-  ep_admin: { bg: "#1a3a2a", text: "#4ade80" },
-  ep_user: { bg: "#3a3520", text: "#facc15" },
-  user: { bg: "#2a2a2a", text: "#888888" },
+  system_admin: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
+  super_admin: { bg: "color-mix(in srgb, var(--violet) 14%, var(--pad))", text: "var(--violet)" },
+  admin: { bg: "color-mix(in srgb, var(--info) 18%, var(--pad))", text: "var(--info)" },
+  ep_admin: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  ep_user: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  user: { bg: "var(--pad-elev)", text: "var(--text-faint)" },
 };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  active: { bg: "#1a3a2a", text: "#4ade80" },
-  pending: { bg: "#3a3520", text: "#facc15" },
-  inactive: { bg: "#2a2a2a", text: "#888888" },
-  rejected: { bg: "#4a1a1a", text: "#ef4444" },
+  active: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  pending: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  inactive: { bg: "var(--pad-elev)", text: "var(--text-faint)" },
+  rejected: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
 };
 
 const FEATURE_TOGGLES: { key: keyof PermissionRow; label: string; description: string }[] = [
@@ -194,7 +194,7 @@ function initials(name: string) {
 
 export default function UserManagementPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Loading...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>Loading...</div>}>
       <UserManagementInner />
     </Suspense>
   );
@@ -549,9 +549,9 @@ function UserManagementInner() {
   /* ── input helpers ─────────────────────────────────── */
 
   const inputStyle = {
-    background: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
+    background: "var(--pad)",
+    border: "1px solid var(--border)",
+    color: "var(--text)",
   };
 
   function Field({ label, value, onChange, type = "text", placeholder = "" }: {
@@ -559,7 +559,7 @@ function UserManagementInner() {
   }) {
     return (
       <div>
-        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>{label}</label>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>{label}</label>
         <input
           type={type}
           value={value}
@@ -577,7 +577,7 @@ function UserManagementInner() {
   }) {
     return (
       <div>
-        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>{label}</label>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>{label}</label>
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -598,21 +598,21 @@ function UserManagementInner() {
     return (
       <label className="flex items-center justify-between py-2 cursor-pointer group">
         <div>
-          <span className="text-sm" style={{ color: "var(--text-primary)" }}>{label}</span>
+          <span className="text-sm" style={{ color: "var(--text)" }}>{label}</span>
           {description && (
-            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{description}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-faint)" }}>{description}</p>
           )}
         </div>
         <button
           type="button"
           onClick={() => onChange(!checked)}
           className="w-9 h-5 rounded-full transition-colors shrink-0 ml-4 cursor-pointer"
-          style={{ background: checked ? "var(--accent)" : "var(--bg-hover)" }}
+          style={{ background: checked ? "var(--accent)" : "var(--pad-elev)" }}
         >
           <div
             className="w-3.5 h-3.5 rounded-full transition-transform"
             style={{
-              background: "#fff",
+              background: "var(--cta-text)",
               transform: checked ? "translateX(18px)" : "translateX(3px)",
             }}
           />
@@ -622,9 +622,9 @@ function UserManagementInner() {
   }
 
   const APPROVAL_COLORS: Record<string, { bg: string; text: string }> = {
-    pending: { bg: "#3a3520", text: "#facc15" },
-    approved: { bg: "#1a3a2a", text: "#4ade80" },
-    rejected: { bg: "#4a1a1a", text: "#ef4444" },
+    pending: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+    approved: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+    rejected: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
   };
 
   /* ── render ─────────────────────────────────────────── */
@@ -634,15 +634,37 @@ function UserManagementInner() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">User Management</h1>
-          <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "#1e3a5f", color: "#60a5fa" }}>
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "3rem",
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-display)",
+              margin: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "var(--accent)",
+                textShadow: "var(--accent-text-shadow)",
+                fontWeight: 800,
+              }}
+            >
+              User
+            </span>{" "}
+            <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+              Management
+            </span>
+          </h1>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--info) 18%, var(--pad))", color: "var(--info)" }}>
             {filtered.length} user{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
         {activeTab !== "approvals" && (
           <button
             className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-            style={{ background: "var(--accent)", color: "#fff" }}
+            style={{ background: "var(--accent)", color: "var(--cta-text)" }}
             onClick={() => {
               /* TODO: Add user modal */
               alert("Add user coming soon");
@@ -653,25 +675,52 @@ function UserManagementInner() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-4">
-        {(["internal", "external", "approvals"] as const).map((tab) => {
-          const count = tab === "approvals" ? pendingCount : users.filter((u) => u.user_type === tab).length;
+      {/* Tabs — segmented buttons (TLS Phase pattern) */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        {([
+          { key: "internal", label: "Internal Users", token: "--accent" },
+          { key: "external", label: "External Partners", token: "--violet" },
+          { key: "approvals", label: "Pending Approvals", token: "--amber" },
+        ] as const).map((tab) => {
+          const tokenVar = `var(${tab.token})`;
+          const count = tab.key === "approvals" ? pendingCount : users.filter((u) => u.user_type === tab.key).length;
+          const active = activeTab === tab.key;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="px-7 py-3.5 text-[14px] font-bold uppercase cursor-pointer transition-all flex items-center gap-2"
               style={{
-                background: activeTab === tab ? "var(--bg-hover)" : "transparent",
-                color: activeTab === tab ? "var(--text-primary)" : "var(--text-muted)",
+                background: active
+                  ? `color-mix(in srgb, ${tokenVar} 14%, var(--bg))`
+                  : "var(--bg)",
+                color: tokenVar,
+                borderWidth: "2px",
+                borderStyle: "solid",
+                borderColor: tokenVar,
+                borderRadius: 8,
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.10em",
+                textShadow: active ? `0 0 8px color-mix(in srgb, ${tokenVar} 70%, transparent)` : undefined,
+                boxShadow: active
+                  ? `0 0 16px color-mix(in srgb, ${tokenVar} 40%, transparent)`
+                  : "none",
               }}
             >
-              {tab === "internal" ? "Internal Users" : tab === "external" ? "External Partners" : "Pending Approvals"}
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{
-                background: tab === "approvals" ? "#3a3520" : "#1e3a5f",
-                color: tab === "approvals" ? "#facc15" : "#60a5fa",
-              }}>
+              {tab.label}
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: "0.04em",
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  background: `color-mix(in srgb, ${tokenVar} 16%, transparent)`,
+                  color: tokenVar,
+                  border: `1px solid color-mix(in srgb, ${tokenVar} 40%, transparent)`,
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
                 {count}
               </span>
             </button>
@@ -694,25 +743,48 @@ function UserManagementInner() {
           placeholder="Search by name, email, position..."
         />
 
-        <div className="flex items-center gap-1">
-          {["all", ...STATUSES].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize cursor-pointer transition-colors"
-              style={{
-                background: filterStatus === s ? "var(--bg-hover)" : "transparent",
-                color: filterStatus === s
-                  ? s === "all" ? "var(--text-primary)" : (STATUS_COLORS[s]?.text ?? "var(--text-primary)")
-                  : "var(--text-muted)",
-              }}
-            >
-              {s}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 items-center">
+          {([
+            { key: "all", label: "All", token: "--accent" },
+            { key: "pending", label: "Pending", token: "--amber" },
+            { key: "active", label: "Active", token: "--green" },
+            { key: "inactive", label: "Inactive", token: "--text-faint" },
+            { key: "rejected", label: "Rejected", token: "--red" },
+          ] as const).map((f) => {
+            const tokenVar = `var(${f.token})`;
+            const active = filterStatus === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilterStatus(f.key)}
+                className="text-[12px] font-bold uppercase cursor-pointer transition-all"
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  letterSpacing: "0.10em",
+                  fontFamily: "var(--font-display)",
+                  background: active
+                    ? `color-mix(in srgb, ${tokenVar} 14%, var(--pad))`
+                    : "var(--pad)",
+                  color: active ? tokenVar : "var(--text-dim)",
+                  borderWidth: "1.5px",
+                  borderStyle: "solid",
+                  borderColor: active ? tokenVar : "var(--border)",
+                  textShadow: active
+                    ? `0 0 8px color-mix(in srgb, ${tokenVar} 70%, transparent)`
+                    : undefined,
+                  boxShadow: active
+                    ? `0 0 0 1px ${tokenVar} inset, 0 0 18px color-mix(in srgb, ${tokenVar} 50%, transparent), 0 0 36px color-mix(in srgb, ${tokenVar} 22%, transparent)`
+                    : "none",
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="w-px h-5" style={{ background: "var(--border-color)" }} />
+        <div className="w-px h-5" style={{ background: "var(--border)" }} />
 
         <select
           value={filterRole}
@@ -729,31 +801,31 @@ function UserManagementInner() {
 
       {/* Table */}
       {loading ? (
-        <p style={{ color: "var(--text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--text-dim)" }}>Loading...</p>
       ) : filtered.length === 0 ? (
         <div
           className="rounded-xl p-12 text-center"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
         >
-          <p style={{ color: "var(--text-secondary)" }}>
+          <p style={{ color: "var(--text-dim)" }}>
             {users.length === 0 ? "No users yet." : "No users match your filters."}
           </p>
         </div>
       ) : (
         <div
           className="rounded-xl overflow-hidden"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
         >
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}></th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}>Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}>Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}>Role</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}>Department</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-muted)" }}>Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: "var(--text-muted)" }}>Actions</th>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}></th>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}>Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}>Email</th>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}>Role</th>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}>Department</th>
+                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: "var(--text-faint)" }}>Status</th>
+                <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: "var(--text-faint)" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -762,10 +834,10 @@ function UserManagementInner() {
                   key={u.id}
                   className="transition-colors cursor-pointer"
                   style={{
-                    borderBottom: "1px solid var(--border-color)",
+                    borderBottom: "1px solid var(--border)",
                     opacity: u.status === "inactive" || u.status === "rejected" ? 0.5 : 1,
                     background: u.status === "pending"
-                      ? `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(250, 204, 21, 0.04) 10px, rgba(250, 204, 21, 0.04) 20px)`
+                      ? `repeating-linear-gradient(45deg, transparent, transparent 10px, color-mix(in srgb, var(--red) 8%, transparent) 10px, color-mix(in srgb, var(--red) 8%, transparent) 20px)`
                       : undefined,
                   }}
                   onClick={() => openEdit(u)}
@@ -777,7 +849,7 @@ function UserManagementInner() {
                     ) : (
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold"
-                        style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
+                        style={{ background: "var(--pad-elev)", color: "var(--text)" }}
                       >
                         {initials(u.full_name)}
                       </div>
@@ -801,11 +873,11 @@ function UserManagementInner() {
 
                   {/* Role */}
                   <td className="px-4 py-3">
-                    <Badge label={ROLE_LABELS[u.role] || u.role} colors={ROLE_COLORS[u.role] ?? { bg: "#2a2a2a", text: "#888" }} />
+                    <Badge label={ROLE_LABELS[u.role] || u.role} colors={ROLE_COLORS[u.role] ?? { bg: "var(--pad-elev)", text: "var(--text-faint)" }} />
                   </td>
 
                   {/* Department */}
-                  <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
+                  <td className="px-4 py-3" style={{ color: "var(--text-dim)" }}>
                     {u.department || "—"}
                   </td>
 
@@ -816,7 +888,7 @@ function UserManagementInner() {
                       className="cursor-pointer"
                       title={u.status === "active" ? "Click to deactivate" : "Click to activate"}
                     >
-                      <Badge label={u.status === "active" ? "Active" : u.status === "inactive" ? "Deactivated" : u.status} colors={STATUS_COLORS[u.status] ?? { bg: "#2a2a2a", text: "#888" }} />
+                      <Badge label={u.status === "active" ? "Active" : u.status === "inactive" ? "Deactivated" : u.status} colors={STATUS_COLORS[u.status] ?? { bg: "var(--pad-elev)", text: "var(--text-faint)" }} />
                     </button>
                   </td>
 
@@ -826,10 +898,10 @@ function UserManagementInner() {
                       <button
                         onClick={() => openEdit(u)}
                         className="p-1.5 rounded-lg cursor-pointer transition-colors"
-                        style={{ color: "var(--text-muted)" }}
+                        style={{ color: "var(--red)" }}
                         title="Edit user"
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "transparent"; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "color-mix(in srgb, var(--red) 14%, var(--pad))"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>
@@ -843,10 +915,10 @@ function UserManagementInner() {
                           }
                         }}
                         className="p-1.5 rounded-lg cursor-pointer transition-colors"
-                        style={{ color: deleteConfirm === u.id ? "#ef4444" : "var(--text-muted)" }}
+                        style={{ color: "var(--red)" }}
                         title={deleteConfirm === u.id ? "Click again to confirm" : "Delete user"}
-                        onMouseEnter={(e) => { if (deleteConfirm !== u.id) { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#4a1a1a"; } }}
-                        onMouseLeave={(e) => { if (deleteConfirm !== u.id) { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "transparent"; } }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "color-mix(in srgb, var(--red) 14%, var(--pad))"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                       </button>
@@ -871,7 +943,7 @@ function UserManagementInner() {
         >
           <div
             className="rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -879,16 +951,16 @@ function UserManagementInner() {
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold"
-                  style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
+                  style={{ background: "var(--pad-elev)", color: "var(--text)" }}
                 >
                   {initials(editUser.full_name)}
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold">{editUser.full_name}</h2>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{editUser.email}</p>
+                  <p className="text-xs" style={{ color: "var(--text-faint)" }}>{editUser.email}</p>
                 </div>
               </div>
-              <button onClick={closeEdit} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={closeEdit} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
 
             {/* Tabs */}
@@ -899,18 +971,18 @@ function UserManagementInner() {
                   onClick={() => setEditStep(tab)}
                   className="px-4 py-2 rounded-lg text-sm font-medium capitalize cursor-pointer transition-colors"
                   style={{
-                    background: editStep === tab ? "var(--bg-hover)" : "transparent",
-                    color: editStep === tab ? "var(--text-primary)" : "var(--text-muted)",
+                    background: editStep === tab ? "var(--pad-elev)" : "transparent",
+                    color: editStep === tab ? "var(--text)" : "var(--text-faint)",
                   }}
                 >
                   {tab}
                   {tab === "licenses" && editLicenses.length > 0 && (
-                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#1e3a5f", color: "#60a5fa" }}>
+                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--info) 18%, var(--pad))", color: "var(--info)" }}>
                       {editLicenses.length}
                     </span>
                   )}
                   {tab === "bonds" && editBonds.length > 0 && (
-                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#1e3a5f", color: "#60a5fa" }}>
+                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, var(--info) 18%, var(--pad))", color: "var(--info)" }}>
                       {editBonds.length}
                     </span>
                   )}
@@ -952,7 +1024,7 @@ function UserManagementInner() {
                   </div>
                   <Field label="Work Email" value={editUser.work_email ?? ""} onChange={(v) => setEditUser({ ...editUser, work_email: v })} type="email" />
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Bio</label>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Bio</label>
                     <textarea
                       value={editUser.bio ?? ""}
                       onChange={(e) => setEditUser({ ...editUser, bio: e.target.value })}
@@ -971,7 +1043,7 @@ function UserManagementInner() {
                       onClick={saveProfile}
                       disabled={saving}
                       className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                      style={{ background: "var(--accent)", color: "#fff", opacity: saving ? 0.5 : 1 }}
+                      style={{ background: "var(--accent)", color: "var(--cta-text)", opacity: saving ? 0.5 : 1 }}
                     >
                       {saving ? "Saving..." : "Save Profile"}
                     </button>
@@ -984,8 +1056,8 @@ function UserManagementInner() {
                 <div className="space-y-6">
                   {/* Feature toggles */}
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Feature Toggles</h3>
-                    <div className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-faint)" }}>Feature Toggles</h3>
+                    <div className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       {FEATURE_TOGGLES.map((f) => (
                         <Toggle
                           key={f.key}
@@ -999,8 +1071,8 @@ function UserManagementInner() {
                   </div>
                   {/* User sidebar */}
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>User Sidebar</h3>
-                    <div className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-faint)" }}>User Sidebar</h3>
+                    <div className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       {USER_SIDEBAR.map((f) => (
                         <Toggle key={f.key} label={f.label} checked={!!editPerms[f.key]} onChange={(v) => setEditPerms({ ...editPerms, [f.key]: v })} />
                       ))}
@@ -1008,8 +1080,8 @@ function UserManagementInner() {
                   </div>
                   {/* Manager sidebar */}
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Manager Sidebar</h3>
-                    <div className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-faint)" }}>Manager Sidebar</h3>
+                    <div className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       {MANAGER_SIDEBAR.map((f) => (
                         <Toggle key={f.key} label={f.label} checked={!!editPerms[f.key]} onChange={(v) => setEditPerms({ ...editPerms, [f.key]: v })} />
                       ))}
@@ -1017,8 +1089,8 @@ function UserManagementInner() {
                   </div>
                   {/* Admin sidebar */}
                   <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Admin Sidebar</h3>
-                    <div className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-faint)" }}>Admin Sidebar</h3>
+                    <div className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       {ADMIN_SIDEBAR.map((f) => (
                         <Toggle key={f.key} label={f.label} checked={!!editPerms[f.key]} onChange={(v) => setEditPerms({ ...editPerms, [f.key]: v })} />
                       ))}
@@ -1028,7 +1100,7 @@ function UserManagementInner() {
                     onClick={savePermissions}
                     disabled={saving}
                     className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors"
-                    style={{ background: "var(--accent)", color: "#fff", opacity: saving ? 0.5 : 1 }}
+                    style={{ background: "var(--accent)", color: "var(--cta-text)", opacity: saving ? 0.5 : 1 }}
                   >
                     {saving ? "Saving..." : "Save Permissions"}
                   </button>
@@ -1039,38 +1111,38 @@ function UserManagementInner() {
               {editStep === "licenses" && (
                 <div className="space-y-4">
                   {editLicenses.length === 0 && (
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>No licenses on file.</p>
+                    <p className="text-sm" style={{ color: "var(--text-faint)" }}>No licenses on file.</p>
                   )}
                   {editLicenses.map((lic) => (
-                    <div key={lic.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <div key={lic.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       <div>
                         <div className="text-sm font-medium">{lic.license_type || "License"} — {lic.state}</div>
-                        <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        <div className="text-[11px]" style={{ color: "var(--text-faint)" }}>
                           {lic.license_number && `#${lic.license_number}`} {lic.issuer && `· ${lic.issuer}`} {lic.expiry_date && `· Exp ${formatDate(lic.expiry_date)}`}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge label={lic.status} colors={APPROVAL_COLORS[lic.status] ?? { bg: "#2a2a2a", text: "#888" }} />
+                        <Badge label={lic.status} colors={APPROVAL_COLORS[lic.status] ?? { bg: "var(--pad-elev)", text: "var(--text-faint)" }} />
                         {lic.status === "pending" && (
                           <>
-                            <button onClick={() => updateLicenseStatus(lic.id, "approved")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "#1a3a2a", color: "#4ade80" }}>Approve</button>
-                            <button onClick={() => updateLicenseStatus(lic.id, "rejected")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Reject</button>
+                            <button onClick={() => updateLicenseStatus(lic.id, "approved")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)" }}>Approve</button>
+                            <button onClick={() => updateLicenseStatus(lic.id, "rejected")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Reject</button>
                           </>
                         )}
-                        <button onClick={() => deleteLicense(lic.id)} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ color: "#ef4444" }}>Delete</button>
+                        <button onClick={() => deleteLicense(lic.id)} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ color: "var(--red)" }}>Delete</button>
                       </div>
                     </div>
                   ))}
                   {/* Add form */}
-                  <div className="rounded-lg p-3 space-y-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
-                    <h4 className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Add License</h4>
+                  <div className="rounded-lg p-3 space-y-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
+                    <h4 className="text-xs font-semibold" style={{ color: "var(--text-faint)" }}>Add License</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <input placeholder="Type (e.g. PA License)" value={newLicense.license_type} onChange={(e) => setNewLicense({ ...newLicense, license_type: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input placeholder="State *" value={newLicense.state} onChange={(e) => setNewLicense({ ...newLicense, state: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input placeholder="License #" value={newLicense.license_number} onChange={(e) => setNewLicense({ ...newLicense, license_number: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input placeholder="Issuer" value={newLicense.issuer} onChange={(e) => setNewLicense({ ...newLicense, issuer: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input type="date" placeholder="Expiry" value={newLicense.expiry_date} onChange={(e) => setNewLicense({ ...newLicense, expiry_date: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                      <button onClick={addLicense} className="px-3 py-2 rounded-lg text-sm font-medium cursor-pointer" style={{ background: "var(--accent)", color: "#fff" }}>Add License</button>
+                      <button onClick={addLicense} className="px-3 py-2 rounded-lg text-sm font-medium cursor-pointer" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>Add License</button>
                     </div>
                   </div>
                 </div>
@@ -1080,31 +1152,31 @@ function UserManagementInner() {
               {editStep === "bonds" && (
                 <div className="space-y-4">
                   {editBonds.length === 0 && (
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>No bonds on file.</p>
+                    <p className="text-sm" style={{ color: "var(--text-faint)" }}>No bonds on file.</p>
                   )}
                   {editBonds.map((bond) => (
-                    <div key={bond.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                    <div key={bond.id} className="rounded-lg p-3 flex items-center justify-between" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                       <div>
                         <div className="text-sm font-medium">{bond.bond_type || "Bond"} — {bond.state}</div>
-                        <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        <div className="text-[11px]" style={{ color: "var(--text-faint)" }}>
                           {bond.bond_number && `#${bond.bond_number}`} {bond.issuer && `· ${bond.issuer}`} {bond.amount && `· $${bond.amount.toLocaleString()}`} {bond.expiry_date && `· Exp ${formatDate(bond.expiry_date)}`}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge label={bond.status} colors={APPROVAL_COLORS[bond.status] ?? { bg: "#2a2a2a", text: "#888" }} />
+                        <Badge label={bond.status} colors={APPROVAL_COLORS[bond.status] ?? { bg: "var(--pad-elev)", text: "var(--text-faint)" }} />
                         {bond.status === "pending" && (
                           <>
-                            <button onClick={() => updateBondStatus(bond.id, "approved")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "#1a3a2a", color: "#4ade80" }}>Approve</button>
-                            <button onClick={() => updateBondStatus(bond.id, "rejected")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Reject</button>
+                            <button onClick={() => updateBondStatus(bond.id, "approved")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "color-mix(in srgb, var(--green) 14%, var(--pad))", color: "var(--green)" }}>Approve</button>
+                            <button onClick={() => updateBondStatus(bond.id, "rejected")} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Reject</button>
                           </>
                         )}
-                        <button onClick={() => deleteBond(bond.id)} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ color: "#ef4444" }}>Delete</button>
+                        <button onClick={() => deleteBond(bond.id)} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ color: "var(--red)" }}>Delete</button>
                       </div>
                     </div>
                   ))}
                   {/* Add form */}
-                  <div className="rounded-lg p-3 space-y-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
-                    <h4 className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Add Bond</h4>
+                  <div className="rounded-lg p-3 space-y-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
+                    <h4 className="text-xs font-semibold" style={{ color: "var(--text-faint)" }}>Add Bond</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <input placeholder="Type (e.g. Surety Bond)" value={newBond.bond_type} onChange={(e) => setNewBond({ ...newBond, bond_type: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input placeholder="State *" value={newBond.state} onChange={(e) => setNewBond({ ...newBond, state: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
@@ -1112,7 +1184,7 @@ function UserManagementInner() {
                       <input placeholder="Issuer" value={newBond.issuer} onChange={(e) => setNewBond({ ...newBond, issuer: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input placeholder="Amount" value={newBond.amount} onChange={(e) => setNewBond({ ...newBond, amount: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input type="date" placeholder="Expiry" value={newBond.expiry_date} onChange={(e) => setNewBond({ ...newBond, expiry_date: e.target.value })} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                      <button onClick={addBond} className="px-3 py-2 rounded-lg text-sm font-medium cursor-pointer col-span-2" style={{ background: "var(--accent)", color: "#fff" }}>Add Bond</button>
+                      <button onClick={addBond} className="px-3 py-2 rounded-lg text-sm font-medium cursor-pointer col-span-2" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>Add Bond</button>
                     </div>
                   </div>
                 </div>

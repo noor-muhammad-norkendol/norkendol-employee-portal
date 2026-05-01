@@ -4,27 +4,99 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useClaimLookup, type ClaimLookupMatch, type LookupField } from "@/hooks/useClaimLookup";
 import ClaimMatchBanner from "@/components/ClaimMatchBanner";
-import { cardStyle, inputStyle, labelStyle, selectStyle, btnPrimary, btnOutline } from "@/lib/styles";
-const blueBar: React.CSSProperties = {
-  background: "#1e3a5f", color: "#60a5fa", borderRadius: 8,
-  padding: "14px 20px", fontSize: 18, fontWeight: 700, marginBottom: 16,
-  display: "flex", justifyContent: "space-between", alignItems: "center",
+/* ───── local spec-token styles (replaces @/lib/styles imports) ───── */
+const cardStyle: React.CSSProperties = {
+  background: "var(--pad)",
+  borderRadius: "var(--radius-card)",
+  padding: "18px 22px",
+  borderWidth: "1.5px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  boxShadow: "var(--card-shadow)",
+  position: "relative",
+  zIndex: 1,
 };
-const greenBar: React.CSSProperties = {
-  background: "#1a3a2a", color: "#4ade80", borderRadius: 8,
-  padding: "14px 20px", fontSize: 18, fontWeight: 700, marginBottom: 16,
-  display: "flex", justifyContent: "space-between", alignItems: "center",
+const inputStyle: React.CSSProperties = {
+  background: "var(--pad-input)",
+  borderWidth: "1px",
+  borderStyle: "solid",
+  borderColor: "var(--border)",
+  color: "var(--text)",
+  borderRadius: 8,
+  padding: "8px 12px",
+  fontSize: 13,
+  width: "100%",
+  outline: "none",
+  fontFamily: "var(--font-body)",
 };
-const orangeBar: React.CSSProperties = {
-  background: "#3a2a1a", color: "#fb923c", borderRadius: 8,
-  padding: "14px 20px", fontSize: 18, fontWeight: 700, marginBottom: 16,
-  display: "flex", justifyContent: "space-between", alignItems: "center",
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  color: "var(--text-dim)",
+  display: "block",
+  marginBottom: 6,
+  fontFamily: "var(--font-ui)",
 };
-const redBar: React.CSSProperties = {
-  background: "#4a1a1a", color: "#ef4444", borderRadius: 8,
-  padding: "14px 20px", fontSize: 18, fontWeight: 700, marginBottom: 16,
-  display: "flex", justifyContent: "space-between", alignItems: "center",
+const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
+
+const btnPrimary: React.CSSProperties = {
+  background: "var(--cta-bg)",
+  color: "var(--cta-text)",
+  border: "none",
+  borderRadius: 8,
+  padding: "10px 20px",
+  fontSize: 13,
+  fontWeight: 800,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  fontFamily: "var(--font-display)",
+  cursor: "pointer",
+  boxShadow: "var(--cta-shadow)",
 };
+const btnOutline: React.CSSProperties = {
+  background: "var(--bg)",
+  color: "var(--accent)",
+  borderWidth: "2px",
+  borderStyle: "solid",
+  borderColor: "var(--accent)",
+  borderRadius: 8,
+  padding: "8px 16px",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+  fontFamily: "var(--font-display)",
+  cursor: "pointer",
+};
+
+/* ───── status bars (semantic-token, no hex) — kept as named consts so existing call sites keep working ───── */
+function makeBar(token: string): React.CSSProperties {
+  const tokenVar = `var(${token})`;
+  return {
+    background: `linear-gradient(180deg, color-mix(in srgb, ${tokenVar} 14%, var(--pad)) 0%, var(--pad) 100%)`,
+    color: tokenVar,
+    borderRadius: 10,
+    padding: "14px 20px",
+    fontSize: 18,
+    fontWeight: 700,
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: "1.5px",
+    borderStyle: "solid",
+    borderColor: `color-mix(in srgb, ${tokenVar} 50%, transparent)`,
+    boxShadow: `0 0 22px color-mix(in srgb, ${tokenVar} 22%, transparent)`,
+    fontFamily: "var(--font-display)",
+    letterSpacing: "0.04em",
+  };
+}
+const blueBar: React.CSSProperties = makeBar("--info");
+const greenBar: React.CSSProperties = makeBar("--green");
+const orangeBar: React.CSSProperties = makeBar("--orange");
+const redBar: React.CSSProperties = makeBar("--red");
 
 /* ───── helpers ───── */
 const fmt = (n: number) =>
@@ -33,7 +105,7 @@ const p = (s: string) => parseFloat(s) || 0;
 let _id = 1;
 const uid = () => _id++;
 
-/* ───── Section component ───── */
+/* ───── Section component (themed-card) ───── */
 function Section({
   title, open, onToggle, extra, children,
 }: {
@@ -41,10 +113,21 @@ function Section({
   extra?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div style={{ ...cardStyle, marginBottom: 16 }}>
+    <div className="themed-card" style={{ marginBottom: 16, padding: "18px 22px" }}>
+      <div className="themed-card-stripe" aria-hidden />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={onToggle}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-          {open ? "▼" : "▶"} {title}
+        <h3
+          className="page-title"
+          style={{
+            fontSize: 16,
+            fontWeight: 600,
+            color: "var(--text)",
+            margin: 0,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span style={{ color: "var(--accent)", marginRight: 8 }}>{open ? "▼" : "▶"}</span>
+          {title}
         </h3>
         {extra && <div onClick={(e) => e.stopPropagation()}>{extra}</div>}
       </div>
@@ -557,14 +640,34 @@ export default function ClaimCalculatorPage() {
   return (
     <>
       <style>{`@media print { .no-print { display: none !important; } .print-only { display: block !important; } }`}</style>
-      <div className="no-print" style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 24 }}>
-          Claim Breakdown Calculator
+      <div className="no-print" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 16px" }}>
+        <h1
+          className="page-title"
+          style={{
+            fontSize: "3rem",
+            lineHeight: 1,
+            letterSpacing: "-0.01em",
+            marginBottom: 28,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span
+            style={{
+              color: "var(--accent)",
+              textShadow: "var(--accent-text-shadow)",
+              fontWeight: 800,
+            }}
+          >
+            Claim
+          </span>{" "}
+          <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+            Breakdown Calculator
+          </span>
         </h1>
 
         {/* ── 0. Claim Info ── */}
         <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim Info</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-faint)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Claim Info</p>
           {/* Row 1 — Identifiers */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
             <div>
@@ -601,7 +704,7 @@ export default function ClaimCalculatorPage() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Peril Other {peril !== 'Other' && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(only if peril = Other)</span>}</label>
+              <label style={labelStyle}>Peril Other {peril !== 'Other' && <span style={{ color: "var(--text-faint)", fontWeight: 400 }}>(only if peril = Other)</span>}</label>
               <input style={inputStyle} value={perilOther} onChange={(e) => setPerilOther(e.target.value)} placeholder="Free text" disabled={peril !== 'Other'} />
             </div>
             <div>
@@ -633,7 +736,7 @@ export default function ClaimCalculatorPage() {
         {/* ── 0b. Saved Runs (Spoke #8 — versioned per-claim history) ── */}
         {savedRuns.length > 0 && (
           <div style={{ ...cardStyle, marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-faint)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Saved Runs ({savedRuns.length}) — click a row to load
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -644,10 +747,10 @@ export default function ClaimCalculatorPage() {
                   style={{
                     textAlign: "left",
                     padding: "8px 12px",
-                    border: "1px solid var(--border-color)",
+                    border: "1px solid var(--border)",
                     borderRadius: 6,
-                    background: "var(--bg-page)",
-                    color: "var(--text-primary)",
+                    background: "var(--bg)",
+                    color: "var(--text)",
                     cursor: "pointer",
                     fontSize: 13,
                     display: "grid",
@@ -658,14 +761,14 @@ export default function ClaimCalculatorPage() {
                 >
                   <span style={{
                     fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                    color: run.status === 'final' ? "#22c55e" : "#fb923c",
+                    color: run.status === 'final' ? "var(--green)" : "var(--orange)",
                   }}>{run.status}</span>
-                  <span style={{ color: "var(--text-secondary)" }}>
+                  <span style={{ color: "var(--text-dim)" }}>
                     {new Date(run.created_at).toLocaleDateString()} {new Date(run.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <span>Coverage: {run.total_coverage != null ? fmt(Number(run.total_coverage)) : "—"}</span>
                   <span>Final: {run.final_balance != null ? fmt(Number(run.final_balance)) : "—"}</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ color: "var(--text-faint)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {run.notes || "—"}
                   </span>
                 </button>
@@ -710,9 +813,9 @@ export default function ClaimCalculatorPage() {
                 <input style={inputStyle} type="number" placeholder="0.00" value={policyLimitA} onChange={(e) => setPolicyLimitA(e.target.value)} />
               </div>
               {overageA > 0 && (
-                <div style={{ marginTop: 8, padding: "8px 12px", background: "#3a2a1a", borderRadius: 6, fontSize: 12 }}>
-                  <span style={{ color: "#fb923c" }}>Overage: {fmt(overageA)}</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }}>
+                <div style={{ marginTop: 8, padding: "8px 12px", background: "color-mix(in srgb, var(--orange) 14%, var(--pad))", borderRadius: 6, fontSize: 12, border: "1px solid color-mix(in srgb, var(--orange) 35%, transparent)" }}>
+                  <span style={{ color: "var(--orange)", fontWeight: 600 }}>Overage: {fmt(overageA)}</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, cursor: "pointer", color: "var(--text-dim)", fontSize: 12 }}>
                     <input type="checkbox" checked={overageAppliedToDeductible.A}
                       onChange={() => setOverageAppliedToDeductible((prev) => ({ ...prev, A: !prev.A }))} />
                     Apply to Deductible
@@ -721,9 +824,9 @@ export default function ClaimCalculatorPage() {
               )}
 
               {/* Sub-limits / Endorsements */}
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border-color)" }}>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Sub-Limits / Endorsements</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-dim)" }}>Sub-Limits / Endorsements</span>
                   <button style={btnOutline} onClick={() => setCustomSubLimits((prev) => [...prev, { id: uid(), type: "", amount: "", policyLimit: "", checked: true }])}>+ Add</button>
                 </div>
                 {customSubLimits.map((sl, idx) => (
@@ -740,7 +843,7 @@ export default function ClaimCalculatorPage() {
                     <input style={{ ...inputStyle, flex: 1 }} type="number" placeholder="Limit" value={sl.policyLimit} onChange={(e) => {
                       const u = [...customSubLimits]; u[idx] = { ...u[idx], policyLimit: e.target.value }; setCustomSubLimits(u);
                     }} />
-                    <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setCustomSubLimits((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+                    <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setCustomSubLimits((prev) => prev.filter((_, i) => i !== idx))}>X</button>
                   </div>
                 ))}
               </div>
@@ -761,9 +864,9 @@ export default function ClaimCalculatorPage() {
                     <input style={inputStyle} type="number" placeholder="0.00" value={cov.lim} onChange={(e) => cov.setLim(e.target.value)} />
                   </div>
                   {cov.overage > 0 && (
-                    <div style={{ marginTop: 4, padding: "6px 10px", background: "#3a2a1a", borderRadius: 6, fontSize: 12 }}>
-                      <span style={{ color: "#fb923c" }}>Overage: {fmt(cov.overage)}</span>
-                      <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, cursor: "pointer", color: "var(--text-secondary)", fontSize: 12 }}>
+                    <div style={{ marginTop: 4, padding: "6px 10px", background: "color-mix(in srgb, var(--orange) 14%, var(--pad))", borderRadius: 6, fontSize: 12, border: "1px solid color-mix(in srgb, var(--orange) 35%, transparent)" }}>
+                      <span style={{ color: "var(--orange)", fontWeight: 600 }}>Overage: {fmt(cov.overage)}</span>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, cursor: "pointer", color: "var(--text-dim)", fontSize: 12 }}>
                         <input type="checkbox" checked={overageAppliedToDeductible[cov.key]}
                           onChange={() => setOverageAppliedToDeductible((prev) => ({ ...prev, [cov.key]: !prev[cov.key] }))} />
                         Apply to Deductible
@@ -802,7 +905,7 @@ export default function ClaimCalculatorPage() {
             ))}
           </div>
           {customPaymentDeductions.length > 0 && (
-            <div style={{ marginTop: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
+            <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
               <span style={{ ...labelStyle, marginBottom: 8 }}>Custom Deductions</span>
               {customPaymentDeductions.map((d, idx) => (
                 <div key={d.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
@@ -815,7 +918,7 @@ export default function ClaimCalculatorPage() {
                   <input style={{ ...inputStyle, flex: 1 }} type="number" placeholder="0.00" value={d.amount} onChange={(e) => {
                     const u = [...customPaymentDeductions]; u[idx] = { ...u[idx], amount: e.target.value }; setCustomPaymentDeductions(u);
                   }} />
-                  <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setCustomPaymentDeductions((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+                  <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setCustomPaymentDeductions((prev) => prev.filter((_, i) => i !== idx))}>X</button>
                 </div>
               ))}
             </div>
@@ -829,7 +932,7 @@ export default function ClaimCalculatorPage() {
           onToggle={() => toggle("priorPayments")}
           extra={
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-dim)", cursor: "pointer" }}>
                 <input type="checkbox" checked={checkedItems.priorPayments} onChange={() => ck("priorPayments")} />
                 Enable
               </label>
@@ -837,7 +940,7 @@ export default function ClaimCalculatorPage() {
             </div>
           }
         >
-          {priorPayments.length === 0 && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>No prior payments added.</p>}
+          {priorPayments.length === 0 && <p style={{ fontSize: 12, color: "var(--text-faint)" }}>No prior payments added.</p>}
           {priorPayments.map((pp, idx) => (
             <div key={pp.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
               <input style={{ ...inputStyle, flex: 1, minWidth: 100 }} type="number" placeholder="Amount" value={pp.amount} onChange={(e) => {
@@ -846,7 +949,7 @@ export default function ClaimCalculatorPage() {
               <input style={{ ...inputStyle, flex: 2, minWidth: 140 }} placeholder="Description" value={pp.description} onChange={(e) => {
                 const u = [...priorPayments]; u[idx] = { ...u[idx], description: e.target.value }; setPriorPayments(u);
               }} />
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
                 <input type="checkbox" checked={pp.paFeesChecked} onChange={() => {
                   const u = [...priorPayments]; u[idx] = { ...u[idx], paFeesChecked: !u[idx].paFeesChecked }; setPriorPayments(u);
                 }} />
@@ -857,8 +960,8 @@ export default function ClaimCalculatorPage() {
                   <input style={{ ...inputStyle, width: 60 }} type="number" placeholder="%" value={pp.paFeesPercent} onChange={(e) => {
                     const u = [...priorPayments]; u[idx] = { ...u[idx], paFeesPercent: e.target.value }; setPriorPayments(u);
                   }} />
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{fmt(pp.paFeesAmount)}</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-faint)", whiteSpace: "nowrap" }}>{fmt(pp.paFeesAmount)}</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-faint)", whiteSpace: "nowrap" }}>
                     <input type="checkbox" checked={pp.paFeesPaid} onChange={() => {
                       const u = [...priorPayments]; u[idx] = { ...u[idx], paFeesPaid: !u[idx].paFeesPaid }; setPriorPayments(u);
                     }} />
@@ -866,7 +969,7 @@ export default function ClaimCalculatorPage() {
                   </label>
                 </>
               )}
-              <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setPriorPayments((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+              <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setPriorPayments((prev) => prev.filter((_, i) => i !== idx))}>X</button>
             </div>
           ))}
         </Section>
@@ -888,7 +991,7 @@ export default function ClaimCalculatorPage() {
                   const u = [...paymentsWithoutFees]; u[idx] = { ...u[idx], typeName: e.target.value }; setPaymentsWithoutFees(u);
                 }} />
               ) : (
-                <span style={{ flex: 2, fontSize: 13, color: "var(--text-primary)" }}>{pw.typeName}</span>
+                <span style={{ flex: 2, fontSize: 13, color: "var(--text)" }}>{pw.typeName}</span>
               )}
               {pw.checked && (
                 <input style={{ ...inputStyle, flex: 1 }} type="number" placeholder="0.00" value={pw.amount} onChange={(e) => {
@@ -896,7 +999,7 @@ export default function ClaimCalculatorPage() {
                 }} />
               )}
               {pw.type === "custom" && (
-                <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setPaymentsWithoutFees((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+                <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setPaymentsWithoutFees((prev) => prev.filter((_, i) => i !== idx))}>X</button>
               )}
             </div>
           ))}
@@ -907,11 +1010,11 @@ export default function ClaimCalculatorPage() {
           <label style={labelStyle}>Deductible</label>
           <input style={inputStyle} type="number" placeholder="0.00" value={deductible} onChange={(e) => setDeductible(e.target.value)} />
           <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Effective Deductible</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{fmt(effectiveDeductible)}</span>
+            <span style={{ fontSize: 13, color: "var(--text-dim)" }}>Effective Deductible</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{fmt(effectiveDeductible)}</span>
           </div>
           {totalOverageApplied > 0 && (
-            <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-faint)" }}>
               Overage applied: {fmt(totalOverageApplied)} (Original: {fmt(p(deductible))})
             </div>
           )}
@@ -926,8 +1029,8 @@ export default function ClaimCalculatorPage() {
         {/* ── 9. PA Fees ── */}
         <Section title="PA Fees" open={openSections.paFees} onToggle={() => toggle("paFees")}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Total PA Fees</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{fmt(totalPAFees)}</span>
+            <span style={{ fontSize: 13, color: "var(--text-dim)" }}>Total PA Fees</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{fmt(totalPAFees)}</span>
           </div>
           <div style={{ ...blueBar, fontSize: 14, padding: "10px 16px", marginBottom: 8 }}>
             <span>Current PA Fees</span>
@@ -956,9 +1059,9 @@ export default function ClaimCalculatorPage() {
                 ["Coverage D", coverageDFeePercent, setCoverageDFeePercent],
               ] as [string, string, React.Dispatch<React.SetStateAction<string>>][]).map(([label, val, setter]) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 80 }}>{label}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-dim)", minWidth: 80 }}>{label}</span>
                   <input style={{ ...inputStyle, width: 70 }} type="number" value={val} onChange={(e) => setter(e.target.value)} />
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>%</span>
+                  <span style={{ fontSize: 12, color: "var(--text-faint)" }}>%</span>
                 </div>
               ))}
             </div>
@@ -1025,7 +1128,7 @@ export default function ClaimCalculatorPage() {
             ))}
           </div>
           {customInsuredRepairs.length > 0 && (
-            <div style={{ marginTop: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
+            <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
               {customInsuredRepairs.map((r, idx) => (
                 <div key={r.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <input type="checkbox" checked={r.checked} onChange={() => {
@@ -1037,7 +1140,7 @@ export default function ClaimCalculatorPage() {
                   <input style={{ ...inputStyle, flex: 1 }} type="number" placeholder="0.00" value={r.amount} onChange={(e) => {
                     const u = [...customInsuredRepairs]; u[idx] = { ...u[idx], amount: e.target.value }; setCustomInsuredRepairs(u);
                   }} />
-                  <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setCustomInsuredRepairs((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+                  <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setCustomInsuredRepairs((prev) => prev.filter((_, i) => i !== idx))}>X</button>
                 </div>
               ))}
             </div>
@@ -1062,7 +1165,7 @@ export default function ClaimCalculatorPage() {
             <div key={r.key} style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input type="checkbox" checked={checkedItems[r.key]} onChange={() => ck(r.key)} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{r.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{r.label}</span>
               </div>
               {checkedItems[r.key] && (
                 <div style={{ display: "flex", gap: 8, marginTop: 6, marginLeft: 24 }}>
@@ -1076,14 +1179,14 @@ export default function ClaimCalculatorPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={labelStyle}>Cost {r.unitLabel}</label>
-                    <div style={{ ...inputStyle, background: "var(--bg-secondary)", cursor: "default" }}>{fmt(r.perUnit)}</div>
+                    <div style={{ ...inputStyle, background: "var(--pad-elev)", cursor: "default" }}>{fmt(r.perUnit)}</div>
                   </div>
                 </div>
               )}
             </div>
           ))}
           {customContractorRepairs.length > 0 && (
-            <div style={{ marginTop: 12, borderTop: "1px solid var(--border-color)", paddingTop: 12 }}>
+            <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
               {customContractorRepairs.map((r, idx) => (
                 <div key={r.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <input type="checkbox" checked={r.checked} onChange={() => {
@@ -1095,7 +1198,7 @@ export default function ClaimCalculatorPage() {
                   <input style={{ ...inputStyle, flex: 1 }} type="number" placeholder="0.00" value={r.amount} onChange={(e) => {
                     const u = [...customContractorRepairs]; u[idx] = { ...u[idx], amount: e.target.value }; setCustomContractorRepairs(u);
                   }} />
-                  <button style={{ ...btnOutline, padding: "4px 8px", color: "#ef4444" }} onClick={() => setCustomContractorRepairs((prev) => prev.filter((_, i) => i !== idx))}>X</button>
+                  <button style={{ ...btnOutline, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => setCustomContractorRepairs((prev) => prev.filter((_, i) => i !== idx))}>X</button>
                 </div>
               ))}
             </div>
@@ -1103,23 +1206,69 @@ export default function ClaimCalculatorPage() {
         </Section>
 
         {/* ── 17. Final Balance Card ── */}
-        <div style={{
-          background: trafficLight === "green" ? "#1a3a2a" : trafficLight === "yellow" ? "#3a3520" : "#4a1a1a",
-          color: trafficLight === "green" ? "#4ade80" : trafficLight === "yellow" ? "#fbbf24" : "#ef4444",
-          borderRadius: 10, padding: "20px 24px", marginBottom: 16, textAlign: "center",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>
-            {trafficLight === "green" ? "Final Balance" : trafficLight === "yellow" ? "You Can Possibly Recover" : "Additional Cost to Insured"}
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{fmt(Math.abs(finalBalanceAmount))}</div>
-          {totalRepairCosts > 0 && (
-            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.7 }}>Total Repair Costs: {fmt(totalRepairCosts)}</div>
-          )}
-        </div>
+        {(() => {
+          const tlToken =
+            trafficLight === "green" ? "--green" :
+            trafficLight === "yellow" ? "--amber" :
+            "--red";
+          const tlVar = `var(${tlToken})`;
+          return (
+            <div
+              style={{
+                background: `linear-gradient(180deg, color-mix(in srgb, ${tlVar} 18%, var(--pad)) 0%, var(--pad) 100%)`,
+                color: tlVar,
+                borderRadius: "var(--radius-card)",
+                padding: "24px 28px",
+                marginBottom: 16,
+                textAlign: "center",
+                borderWidth: "1.5px",
+                borderStyle: "solid",
+                borderColor: `color-mix(in srgb, ${tlVar} 60%, transparent)`,
+                boxShadow: `0 0 0 1px ${tlVar} inset, 0 0 28px color-mix(in srgb, ${tlVar} 40%, transparent), 0 0 56px color-mix(in srgb, ${tlVar} 18%, transparent)`,
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  marginBottom: 10,
+                  opacity: 0.9,
+                }}
+              >
+                {trafficLight === "green" ? "Final Balance" : trafficLight === "yellow" ? "You Can Possibly Recover" : "Additional Cost to Insured"}
+              </div>
+              <div
+                style={{
+                  fontSize: 36,
+                  fontWeight: 800,
+                  fontFamily: "var(--font-mono)",
+                  textShadow: `0 0 18px color-mix(in srgb, ${tlVar} 70%, transparent)`,
+                }}
+              >
+                {fmt(Math.abs(finalBalanceAmount))}
+              </div>
+              {totalRepairCosts > 0 && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    marginTop: 8,
+                    color: "var(--text-dim)",
+                    fontFamily: "var(--font-ui)",
+                  }}
+                >
+                  Total Repair Costs: {fmt(totalRepairCosts)}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── 17b. Save Run (Spoke #8) ── */}
         <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Save This Run</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-faint)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Save This Run</p>
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle}>Notes (optional)</label>
             <textarea
@@ -1145,7 +1294,7 @@ export default function ClaimCalculatorPage() {
               {saving ? "Saving..." : "Save as Final"}
             </button>
             {saveMsg && (
-              <span style={{ fontSize: 13, color: saveMsg.startsWith("Save failed") ? "#ef4444" : "var(--text-secondary)" }}>
+              <span style={{ fontSize: 13, color: saveMsg.startsWith("Save failed") ? "var(--red)" : "var(--text-dim)" }}>
                 {saveMsg}
               </span>
             )}
@@ -1160,18 +1309,18 @@ export default function ClaimCalculatorPage() {
         {/* ── Print Preview Modal ── */}
         {showPrintPreview && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "var(--bg-surface)", borderRadius: 12, padding: 24, maxWidth: 700, width: "90%", maxHeight: "90vh", overflow: "auto", color: "var(--text-primary)" }}>
+            <div style={{ background: "var(--pad)", borderRadius: 12, padding: 24, maxWidth: 700, width: "90%", maxHeight: "90vh", overflow: "auto", color: "var(--text)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Print Preview</h2>
                 <button style={btnOutline} onClick={() => setShowPrintPreview(false)}>Close</button>
               </div>
 
               {/* print option checkboxes */}
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border-color)" }}>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
                 {([
                   ["legalFees", "Legal Fees"], ["paFees", "PA Fees"], ["priorPayments", "Prior Payments"], ["repairs", "Repairs"], ["subLimits", "Sub-Limits"],
                 ] as const).map(([k, label]) => (
-                  <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <label key={k} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-dim)", cursor: "pointer" }}>
                     <input type="checkbox" checked={printOptions[k]} onChange={() => setPrintOptions((prev) => ({ ...prev, [k]: !prev[k] }))} />
                     {label}
                   </label>
@@ -1181,7 +1330,7 @@ export default function ClaimCalculatorPage() {
               {/* formatted summary */}
               <div style={{ fontSize: 13, lineHeight: 1.8 }}>
                 <p style={{ fontWeight: 600, marginBottom: 8 }}>{releaseType} Settlement Breakdown</p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{openingStatement}</p>
+                <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 16 }}>{openingStatement}</p>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <tbody>
@@ -1192,14 +1341,14 @@ export default function ClaimCalculatorPage() {
                     {printOptions.subLimits && endorsementTotal > 0 && (
                       <tr><td style={{ padding: "4px 0" }}>Endorsements / Sub-Limits</td><td style={{ textAlign: "right" }}>{fmt(endorsementTotal)}</td></tr>
                     )}
-                    <tr style={{ borderTop: "1px solid var(--border-color)", fontWeight: 700 }}><td style={{ padding: "6px 0" }}>Total Coverage</td><td style={{ textAlign: "right" }}>{fmt(totalCoverage)}</td></tr>
+                    <tr style={{ borderTop: "1px solid var(--border)", fontWeight: 700 }}><td style={{ padding: "6px 0" }}>Total Coverage</td><td style={{ textAlign: "right" }}>{fmt(totalCoverage)}</td></tr>
 
-                    {totalDeductions > 0 && <tr><td style={{ padding: "4px 0", color: "#ef4444" }}>Less: Deductions</td><td style={{ textAlign: "right", color: "#ef4444" }}>({fmt(totalDeductions)})</td></tr>}
-                    {printOptions.priorPayments && priorPaymentsTotal > 0 && <tr><td style={{ padding: "4px 0", color: "#ef4444" }}>Less: Prior Payments</td><td style={{ textAlign: "right", color: "#ef4444" }}>({fmt(priorPaymentsTotal)})</td></tr>}
-                    {printOptions.legalFees && paymentsWithoutFeesTotal > 0 && <tr><td style={{ padding: "4px 0", color: "#ef4444" }}>Less: Payments Without Fees</td><td style={{ textAlign: "right", color: "#ef4444" }}>({fmt(paymentsWithoutFeesTotal)})</td></tr>}
-                    <tr><td style={{ padding: "4px 0", color: "#ef4444" }}>Less: Deductible</td><td style={{ textAlign: "right", color: "#ef4444" }}>({fmt(effectiveDeductible)})</td></tr>
+                    {totalDeductions > 0 && <tr><td style={{ padding: "4px 0", color: "var(--red)" }}>Less: Deductions</td><td style={{ textAlign: "right", color: "var(--red)" }}>({fmt(totalDeductions)})</td></tr>}
+                    {printOptions.priorPayments && priorPaymentsTotal > 0 && <tr><td style={{ padding: "4px 0", color: "var(--red)" }}>Less: Prior Payments</td><td style={{ textAlign: "right", color: "var(--red)" }}>({fmt(priorPaymentsTotal)})</td></tr>}
+                    {printOptions.legalFees && paymentsWithoutFeesTotal > 0 && <tr><td style={{ padding: "4px 0", color: "var(--red)" }}>Less: Payments Without Fees</td><td style={{ textAlign: "right", color: "var(--red)" }}>({fmt(paymentsWithoutFeesTotal)})</td></tr>}
+                    <tr><td style={{ padding: "4px 0", color: "var(--red)" }}>Less: Deductible</td><td style={{ textAlign: "right", color: "var(--red)" }}>({fmt(effectiveDeductible)})</td></tr>
 
-                    <tr style={{ borderTop: "1px solid var(--border-color)", fontWeight: 700 }}><td style={{ padding: "6px 0" }}>Balance Before PA Fees</td><td style={{ textAlign: "right" }}>{fmt(balanceBeforePAFees)}</td></tr>
+                    <tr style={{ borderTop: "1px solid var(--border)", fontWeight: 700 }}><td style={{ padding: "6px 0" }}>Balance Before PA Fees</td><td style={{ textAlign: "right" }}>{fmt(balanceBeforePAFees)}</td></tr>
 
                     {printOptions.paFees && (
                       <>
@@ -1208,16 +1357,16 @@ export default function ClaimCalculatorPage() {
                       </>
                     )}
 
-                    <tr style={{ borderTop: "1px solid var(--border-color)", fontWeight: 700, color: "#4ade80" }}><td style={{ padding: "6px 0" }}>Balance After PA Fees</td><td style={{ textAlign: "right" }}>{fmt(finalBalance)}</td></tr>
-                    <tr style={{ fontWeight: 700, color: "#4ade80" }}><td style={{ padding: "4px 0" }}>Balance + Deductible</td><td style={{ textAlign: "right" }}>{fmt(balancePlusDeductible)}</td></tr>
+                    <tr style={{ borderTop: "1px solid var(--border)", fontWeight: 700, color: "var(--green)" }}><td style={{ padding: "6px 0" }}>Balance After PA Fees</td><td style={{ textAlign: "right" }}>{fmt(finalBalance)}</td></tr>
+                    <tr style={{ fontWeight: 700, color: "var(--green)" }}><td style={{ padding: "4px 0" }}>Balance + Deductible</td><td style={{ textAlign: "right" }}>{fmt(balancePlusDeductible)}</td></tr>
 
-                    {printOptions.repairs && totalRepairCosts > 0 && <tr><td style={{ padding: "4px 0", color: "#ef4444" }}>Less: Total Repair Costs</td><td style={{ textAlign: "right", color: "#ef4444" }}>({fmt(totalRepairCosts)})</td></tr>}
+                    {printOptions.repairs && totalRepairCosts > 0 && <tr><td style={{ padding: "4px 0", color: "var(--red)" }}>Less: Total Repair Costs</td><td style={{ textAlign: "right", color: "var(--red)" }}>({fmt(totalRepairCosts)})</td></tr>}
 
-                    <tr style={{ borderTop: "2px solid var(--border-color)", fontWeight: 700 }}>
-                      <td style={{ padding: "8px 0", color: trafficLight === "green" ? "#4ade80" : trafficLight === "yellow" ? "#fbbf24" : "#ef4444" }}>
+                    <tr style={{ borderTop: "2px solid var(--border)", fontWeight: 700 }}>
+                      <td style={{ padding: "8px 0", color: trafficLight === "green" ? "var(--green)" : trafficLight === "yellow" ? "var(--amber)" : "var(--red)" }}>
                         {trafficLight === "green" ? "Final Balance" : trafficLight === "yellow" ? "Possibly Recoverable" : "Additional Cost to Insured"}
                       </td>
-                      <td style={{ textAlign: "right", color: trafficLight === "green" ? "#4ade80" : trafficLight === "yellow" ? "#fbbf24" : "#ef4444" }}>
+                      <td style={{ textAlign: "right", color: trafficLight === "green" ? "var(--green)" : trafficLight === "yellow" ? "var(--amber)" : "var(--red)" }}>
                         {fmt(Math.abs(finalBalanceAmount))}
                       </td>
                     </tr>

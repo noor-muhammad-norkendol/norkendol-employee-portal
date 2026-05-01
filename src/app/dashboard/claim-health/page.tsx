@@ -98,7 +98,7 @@ export default function ClaimHealthPage() {
   }
 
   if (isLoading) {
-    return <div style={{ padding: 40, color: "var(--text-secondary)" }}>Loading claim health records…</div>;
+    return <div style={{ padding: 40, color: "var(--text-dim)" }}>Loading claim health records…</div>;
   }
 
   return (
@@ -108,7 +108,29 @@ export default function ClaimHealthPage() {
       <div className="no-print" style={{ padding: "24px 32px", maxWidth: 1200, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Claim Health</h1>
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "3rem",
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-display)",
+              margin: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "var(--accent)",
+                textShadow: "var(--accent-text-shadow)",
+                fontWeight: 800,
+              }}
+            >
+              Claim
+            </span>{" "}
+            <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+              Health
+            </span>
+          </h1>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={tab === "claims" ? btnPrimary : btnOutline} onClick={() => { setTab("claims"); setEditId(null); setForm({ ...EMPTY_FORM }); }}>My Claims</button>
             <button style={tab === "add" ? btnPrimary : btnOutline} onClick={() => { setTab("add"); setEditId(null); setForm({ ...EMPTY_FORM }); }}>
@@ -119,7 +141,7 @@ export default function ClaimHealthPage() {
 
         {/* Incomplete banner */}
         {incomplete.length > 0 && tab === "claims" && (
-          <div style={{ background: "#3a2a1a", border: "1px solid #fb923c", borderRadius: 8, padding: "12px 16px", marginBottom: 16, color: "#fb923c", fontSize: 13 }}>
+          <div style={{ background: "color-mix(in srgb, var(--orange) 14%, var(--pad))", border: "1px solid color-mix(in srgb, var(--orange) 40%, transparent)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, color: "var(--orange)", fontSize: 13 }}>
             <strong>{incomplete.length} claim{incomplete.length > 1 ? "s" : ""} need your attention</strong> — auto-created from Settlement Tracker. Click to complete the missing details.
           </div>
         )}
@@ -128,7 +150,7 @@ export default function ClaimHealthPage() {
         {tab === "claims" && (
           <div style={cardStyle}>
             {records.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: 40 }}>
+              <p style={{ color: "var(--text-faint)", fontSize: 13, textAlign: "center", padding: 40 }}>
                 No claim health records yet. Add your first claim or wait for one to auto-populate from the Settlement Tracker.
               </p>
             ) : (
@@ -160,7 +182,7 @@ export default function ClaimHealthPage() {
                             <span style={{
                               display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
                               background: r.is_settled ? "rgba(74,222,128,0.15)" : "rgba(96,165,250,0.15)",
-                              color: r.is_settled ? "#4ade80" : "#60a5fa",
+                              color: r.is_settled ? "var(--green)" : "var(--info)",
                             }}>
                               {r.is_settled ? "Settled" : "Active"}
                             </span>
@@ -168,22 +190,22 @@ export default function ClaimHealthPage() {
                           <td style={tdStyle}>{r.start_date}</td>
                           <td style={tdStyle}>{fmt(r.starting_value)}</td>
                           <td style={tdStyle}>{fmt(r.final_settlement_value)}</td>
-                          <td style={{ ...tdStyle, color: m.percentageChange != null && m.percentageChange > 0 ? "#4ade80" : m.percentageChange != null && m.percentageChange < 0 ? "#ef4444" : "var(--text-muted)" }}>
+                          <td style={{ ...tdStyle, color: m.percentageChange != null && m.percentageChange > 0 ? "var(--green)" : m.percentageChange != null && m.percentageChange < 0 ? "var(--red)" : "var(--text-faint)" }}>
                             {pct(m.percentageChange)}
                           </td>
                           <td style={tdStyle}>{m.daysToSettlement ?? m.daysClaimOpen}d</td>
                           <td style={tdStyle}>{m.communicationFrequency}</td>
                           <td style={tdStyle}>
                             {r.is_complete
-                              ? <span style={{ color: "#4ade80", fontSize: 11 }}>✓</span>
-                              : <span style={{ color: "#fb923c", fontSize: 11 }}>Incomplete</span>
+                              ? <span style={{ color: "var(--green)", fontSize: 11 }}>✓</span>
+                              : <span style={{ color: "var(--orange)", fontSize: 11 }}>Incomplete</span>
                             }
                           </td>
                           <td style={tdStyle}>
                             <div style={{ display: "flex", gap: 6 }}>
                               <button style={{ ...btnOutline, fontSize: 11, padding: "3px 8px" }} onClick={() => startEdit(r)}>Edit</button>
                               <button style={{ ...btnOutline, fontSize: 11, padding: "3px 8px" }} onClick={() => setPrintRecord(r)}>Print</button>
-                              <button style={{ ...btnOutline, fontSize: 11, padding: "3px 8px", color: "#ef4444", borderColor: "#ef4444" }} onClick={() => { if (confirm("Delete this record?")) deleteMut.mutate(r.id); }}>×</button>
+                              <button style={{ ...btnOutline, fontSize: 11, padding: "3px 8px", color: "var(--red)", borderColor: "var(--red)" }} onClick={() => { if (confirm("Delete this record?")) deleteMut.mutate(r.id); }}>×</button>
                             </div>
                           </td>
                         </tr>
@@ -199,7 +221,7 @@ export default function ClaimHealthPage() {
         {/* ═══ ADD / EDIT TAB ═══ */}
         {tab === "add" && (
           <div style={cardStyle}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", marginBottom: 16 }}>
               {editId ? "Edit Claim Health Record" : "New Claim Health Record"}
             </h2>
 
@@ -313,7 +335,7 @@ export default function ClaimHealthPage() {
           const m = calculateClaimMetrics(r);
           return (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ background: "var(--bg-surface)", borderRadius: 12, padding: 24, maxWidth: 600, width: "90%", maxHeight: "90vh", overflow: "auto", color: "var(--text-primary)" }}>
+              <div style={{ background: "var(--bg-surface)", borderRadius: 12, padding: 24, maxWidth: 600, width: "90%", maxHeight: "90vh", overflow: "auto", color: "var(--text)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Contractor Report Card</h2>
                   <button style={btnOutline} onClick={() => setPrintRecord(null)}>Close</button>
@@ -321,7 +343,7 @@ export default function ClaimHealthPage() {
 
                 <div style={{ fontSize: 13, lineHeight: 1.8 }}>
                   <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{r.file_number} — {r.client_name}</p>
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 16 }}>
                     Referral: {r.referral_source} ({r.referral_representative}) | Status: {r.is_settled ? "Settled" : "Active"}
                   </p>
 
@@ -338,7 +360,7 @@ export default function ClaimHealthPage() {
                       {r.final_settlement_value != null && <tr><td style={{ padding: "4px 0", paddingLeft: 12 }}>Final Settlement Value</td><td style={{ textAlign: "right" }}>{fmt(r.final_settlement_value)}</td></tr>}
                       {m.percentageChange != null && (
                         <tr><td style={{ padding: "4px 0", paddingLeft: 12 }}>Value Change</td>
-                          <td style={{ textAlign: "right", color: m.percentageChange > 0 ? "#4ade80" : "#ef4444" }}>{pct(m.percentageChange)}</td>
+                          <td style={{ textAlign: "right", color: m.percentageChange > 0 ? "var(--green)" : "var(--red)" }}>{pct(m.percentageChange)}</td>
                         </tr>
                       )}
 
@@ -357,7 +379,7 @@ export default function ClaimHealthPage() {
                       {r.additional_details && (
                         <>
                           <tr><td style={{ padding: "6px 0", fontWeight: 600, paddingTop: 12 }}>Additional Details</td><td></td></tr>
-                          <tr><td colSpan={2} style={{ padding: "4px 0", paddingLeft: 12, fontSize: 12, color: "var(--text-secondary)" }}>{r.additional_details}</td></tr>
+                          <tr><td colSpan={2} style={{ padding: "4px 0", paddingLeft: 12, fontSize: 12, color: "var(--text-dim)" }}>{r.additional_details}</td></tr>
                         </>
                       )}
                     </tbody>

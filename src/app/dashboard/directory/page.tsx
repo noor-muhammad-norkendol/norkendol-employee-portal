@@ -40,7 +40,7 @@ function initials(name: string) {
 
 function IconGrid({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--accent)" : "var(--text-muted)"} strokeWidth="2">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--accent)" : "var(--text-faint)"} strokeWidth="2">
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -51,7 +51,7 @@ function IconGrid({ active }: { active: boolean }) {
 
 function IconList({ active }: { active: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--accent)" : "var(--text-muted)"} strokeWidth="2">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--accent)" : "var(--text-faint)"} strokeWidth="2">
       <line x1="8" y1="6" x2="21" y2="6" />
       <line x1="8" y1="12" x2="21" y2="12" />
       <line x1="8" y1="18" x2="21" y2="18" />
@@ -151,36 +151,80 @@ export default function DirectoryPage() {
 
   /* ── styles ────────────────────────────────────────────── */
 
-  const inputStyle = {
-    background: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
+  const inputStyle: React.CSSProperties = {
+    background: "var(--pad-input)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "var(--border)",
+    color: "var(--text)",
+    fontFamily: "var(--font-body)",
   };
 
   /* ── render ────────────────────────────────────────────── */
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-semibold">Employee Directory</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          <h1
+            className="page-title"
+            style={{
+              fontSize: "3rem",
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-display)",
+              margin: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "var(--accent)",
+                textShadow: "var(--accent-text-shadow)",
+                fontWeight: 800,
+              }}
+            >
+              Employee
+            </span>{" "}
+            <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+              Directory
+            </span>
+          </h1>
+          <p
+            className="mt-3 text-sm"
+            style={{ color: "var(--text-dim)" }}
+          >
             Find and connect with your colleagues
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: "var(--bg-surface)" }}>
+        <div
+          className="flex items-center gap-1 p-1"
+          style={{
+            background: "var(--pad)",
+            borderRadius: 10,
+            borderWidth: "1px",
+            borderStyle: "solid",
+            borderColor: "var(--border)",
+            boxShadow: "var(--card-shadow)",
+          }}
+        >
           <button
             onClick={() => setViewMode("grid")}
             className="p-2 rounded-md cursor-pointer transition-colors"
-            style={{ background: viewMode === "grid" ? "var(--bg-hover)" : "transparent" }}
+            style={{
+              background: viewMode === "grid" ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "transparent",
+              boxShadow: viewMode === "grid" ? "0 0 12px color-mix(in srgb, var(--accent) 30%, transparent)" : undefined,
+            }}
           >
             <IconGrid active={viewMode === "grid"} />
           </button>
           <button
             onClick={() => setViewMode("list")}
             className="p-2 rounded-md cursor-pointer transition-colors"
-            style={{ background: viewMode === "list" ? "var(--bg-hover)" : "transparent" }}
+            style={{
+              background: viewMode === "list" ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "transparent",
+              boxShadow: viewMode === "list" ? "0 0 12px color-mix(in srgb, var(--accent) 30%, transparent)" : undefined,
+            }}
           >
             <IconList active={viewMode === "list"} />
           </button>
@@ -190,7 +234,15 @@ export default function DirectoryPage() {
       {/* Filters */}
       <div
         className="rounded-xl p-4 mb-6"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+        style={{
+          background: "var(--pad)",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--border)",
+          boxShadow: "var(--card-shadow)",
+          position: "relative",
+          zIndex: 1,
+        }}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search */}
@@ -245,7 +297,7 @@ export default function DirectoryPage() {
           </select>
         </div>
 
-        <div className="flex items-center justify-between mt-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <div className="flex items-center justify-between mt-3 text-xs" style={{ color: "var(--text-dim)" }}>
           <span>
             Showing {filtered.length} of {employees.length} employees
           </span>
@@ -263,13 +315,21 @@ export default function DirectoryPage() {
 
       {/* Content */}
       {loading ? (
-        <p style={{ color: "var(--text-secondary)" }}>Loading directory...</p>
+        <p style={{ color: "var(--text-dim)" }}>Loading directory...</p>
       ) : filtered.length === 0 ? (
         <div
           className="rounded-xl p-12 text-center"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          style={{
+            background: "var(--pad)",
+            borderWidth: "1px",
+            borderStyle: "solid",
+            borderColor: "var(--border)",
+            boxShadow: "var(--card-shadow)",
+            position: "relative",
+            zIndex: 1,
+          }}
         >
-          <p style={{ color: "var(--text-secondary)" }}>
+          <p style={{ color: "var(--text-dim)" }}>
             {employees.length === 0 ? "No active employees yet." : "No employees match your filters."}
           </p>
         </div>
@@ -280,7 +340,15 @@ export default function DirectoryPage() {
             <div
               key={e.id}
               className="rounded-xl p-5 transition-colors"
-              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+              style={{
+                background: "var(--pad)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+                borderColor: "var(--border)",
+                boxShadow: "var(--card-shadow)",
+                position: "relative",
+                zIndex: 1,
+              }}
             >
               {/* Top row: avatar + name */}
               <div className="flex items-center gap-3 mb-4">
@@ -288,23 +356,31 @@ export default function DirectoryPage() {
                   <img src={e.profile_picture_url} alt={e.full_name} className="w-11 h-11 rounded-full object-cover shrink-0" />
                 ) : (
                   <div
-                    className="w-11 h-11 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                    style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{
+                      background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+                      color: "var(--accent)",
+                      borderWidth: "1px",
+                      borderStyle: "solid",
+                      borderColor: "var(--border-active)",
+                      textShadow: "var(--accent-text-shadow)",
+                      fontFamily: "var(--font-display)",
+                    }}
                   >
                     {initials(e.full_name)}
                   </div>
                 )}
                 <div className="min-w-0">
                   <div className="text-sm font-semibold truncate">{e.full_name}</div>
-                  <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{e.position || "—"}</div>
+                  <div className="text-xs truncate" style={{ color: "var(--text-dim)" }}>{e.position || "—"}</div>
                   {e.employee_id && (
-                    <div className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>ID: {e.employee_id}</div>
+                    <div className="text-[10px] truncate" style={{ color: "var(--text-faint)" }}>ID: {e.employee_id}</div>
                   )}
                 </div>
               </div>
 
               {/* Details */}
-              <div className="space-y-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+              <div className="space-y-2 text-xs" style={{ color: "var(--text-dim)" }}>
                 {e.department && (
                   <div className="flex items-center gap-2">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M3 7v14M21 7v14M6 11h.01M6 15h.01M6 19h.01M10 11h.01M10 15h.01M10 19h.01M14 11h.01M14 15h.01M14 19h.01M18 11h.01M18 15h.01M18 19h.01M3 7l9-4 9 4" /></svg>
@@ -343,14 +419,22 @@ export default function DirectoryPage() {
         /* ── List View ──────────────────────────────────── */
         <div
           className="rounded-xl overflow-hidden"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}
+          style={{
+            background: "var(--pad)",
+            borderWidth: "1px",
+            borderStyle: "solid",
+            borderColor: "var(--border)",
+            boxShadow: "var(--card-shadow)",
+            position: "relative",
+            zIndex: 1,
+          }}
         >
           {filtered.map((e, i) => (
             <div
               key={e.id}
               className="flex items-center justify-between px-5 py-4 transition-colors"
               style={{
-                borderTop: i > 0 ? "1px solid var(--border-color)" : undefined,
+                borderTop: i > 0 ? "1px solid var(--border)" : undefined,
               }}
             >
               {/* Left: avatar + info */}
@@ -359,25 +443,33 @@ export default function DirectoryPage() {
                   <img src={e.profile_picture_url} alt={e.full_name} className="w-10 h-10 rounded-full object-cover shrink-0" />
                 ) : (
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                    style={{ background: "var(--bg-hover)", color: "var(--text-primary)" }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{
+                      background: "color-mix(in srgb, var(--accent) 14%, var(--pad))",
+                      color: "var(--accent)",
+                      borderWidth: "1px",
+                      borderStyle: "solid",
+                      borderColor: "var(--border-active)",
+                      textShadow: "var(--accent-text-shadow)",
+                      fontFamily: "var(--font-display)",
+                    }}
                   >
                     {initials(e.full_name)}
                   </div>
                 )}
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">{e.full_name}</div>
-                  <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <div className="text-xs" style={{ color: "var(--text-dim)" }}>
                     {e.position || "—"} {e.department ? `· ${e.department}` : ""}
                   </div>
                   {e.employee_id && (
-                    <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>ID: {e.employee_id}</div>
+                    <div className="text-[10px]" style={{ color: "var(--text-faint)" }}>ID: {e.employee_id}</div>
                   )}
                 </div>
               </div>
 
               {/* Right: contact info */}
-              <div className="flex items-center gap-6 text-xs shrink-0" style={{ color: "var(--text-secondary)" }}>
+              <div className="flex items-center gap-6 text-xs shrink-0" style={{ color: "var(--text-dim)" }}>
                 {e.location && (
                   <span className="hidden md:flex items-center gap-1">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
