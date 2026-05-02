@@ -10,6 +10,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DraggableAttributes,
+  DraggableSyntheticListeners,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -192,8 +194,8 @@ function DragHandle({
   listeners,
   attributes,
 }: {
-  listeners: Record<string, Function> | undefined;
-  attributes: Record<string, unknown>;
+  listeners: DraggableSyntheticListeners;
+  attributes: DraggableAttributes;
 }) {
   return (
     <button
@@ -225,8 +227,8 @@ function SortablePanel({
 }: {
   id: string;
   children: (props: {
-    listeners: Record<string, Function> | undefined;
-    attributes: Record<string, unknown>;
+    listeners: DraggableSyntheticListeners;
+    attributes: DraggableAttributes;
   }) => React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -431,8 +433,8 @@ export default function DashboardPage() {
   const panels: Record<
     string,
     (dragProps: {
-      listeners: Record<string, Function> | undefined;
-      attributes: Record<string, unknown>;
+      listeners: DraggableSyntheticListeners;
+      attributes: DraggableAttributes;
     }) => React.ReactNode
   > = {
     "company-updates": ({ listeners, attributes }) => (

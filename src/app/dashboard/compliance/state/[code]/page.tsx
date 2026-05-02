@@ -88,15 +88,6 @@ function stoplightColors(status: StateStatus) {
 
 /* ── Silo definitions ─────────────────────────────────── */
 
-interface Silo {
-  key: string;
-  title: string;
-  icon: string;
-  color: string;
-  description: string;
-  questions: string[];
-}
-
 interface SiloDef {
   key: string;
   title: string;

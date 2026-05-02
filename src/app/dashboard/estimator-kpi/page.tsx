@@ -521,7 +521,7 @@ export default function EstimatorKPIPage() {
       {(tab === "current" || tab === "history") && (() => {
         const rows = tab === "current" ? tileFilteredCurrent : filteredHistory;
         const sectionLabel = tab === "current"
-          ? (statusFilter ? STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label || statusFilter : `Current ${timeFilter === "day" ? "Day" : timeFilter === "week" ? "Week" : "Month"}`)
+          ? (statusFilter ? (STATUS_OPTIONS.find((s) => s === statusFilter) ?? statusFilter) : `Current ${timeFilter === "day" ? "Day" : timeFilter === "week" ? "Week" : "Month"}`)
           : "History";
         const STATUS_TOKEN_MAP: Record<string, string> = {
           "assigned": "--text-dim",
