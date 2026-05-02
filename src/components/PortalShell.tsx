@@ -30,6 +30,9 @@ const HIDE_TEXT_SIDEBAR_ON: Set<string> = new Set([
   "/dashboard/talent-partner-network",
   "/dashboard/claim-health",
   "/dashboard/user-management",
+  "/dashboard/training",
+  "/dashboard/dashboard-admin",
+  "/dashboard/departments",
 ]);
 
 // Path prefixes that also hide the secondary sidebar — covers dynamic sub-routes

@@ -94,22 +94,22 @@ interface ProgressRecord {
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
-  beginner: { bg: "#1a3a2a", text: "#4ade80" },
-  intermediate: { bg: "#3a3520", text: "#facc15" },
-  advanced: { bg: "#3a1a1a", text: "#f87171" },
+  beginner: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  intermediate: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  advanced: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
 };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  assigned: { bg: "#3a3520", text: "#facc15" },
-  in_progress: { bg: "#1e3a5f", text: "#60a5fa" },
-  completed: { bg: "#1a3a2a", text: "#4ade80" },
-  failed: { bg: "#4a1a1a", text: "#ef4444" },
+  assigned: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
+  in_progress: { bg: "color-mix(in srgb, var(--info) 18%, var(--pad))", text: "var(--info)" },
+  completed: { bg: "color-mix(in srgb, var(--green) 14%, var(--pad))", text: "var(--green)" },
+  failed: { bg: "color-mix(in srgb, var(--red) 14%, var(--pad))", text: "var(--red)" },
 };
 
 const LESSON_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  video: { bg: "#1e3a5f", text: "#60a5fa" },
-  document: { bg: "#2d1b4e", text: "#a78bfa" },
-  quiz: { bg: "#3a3520", text: "#facc15" },
+  video: { bg: "color-mix(in srgb, var(--info) 18%, var(--pad))", text: "var(--info)" },
+  document: { bg: "color-mix(in srgb, var(--violet) 14%, var(--pad))", text: "var(--violet)" },
+  quiz: { bg: "color-mix(in srgb, var(--amber) 14%, var(--pad))", text: "var(--amber)" },
 };
 
 function Badge({ label, colors }: { label: string; colors: { bg: string; text: string } }) {
@@ -771,42 +771,64 @@ export default function TrainingPage() {
     { key: "analytics", label: "Analytics" },
   ] as const;
 
-  if (loading) return <p style={{ color: "var(--text-secondary)" }}>Loading...</p>;
+  if (loading) return <p style={{ color: "var(--text-dim)" }}>Loading...</p>;
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">University Admin</h1>
+        <h1
+          className="page-title"
+          style={{
+            fontSize: "3rem",
+            lineHeight: 1,
+            letterSpacing: "-0.01em",
+            fontFamily: "var(--font-display)",
+            margin: 0,
+          }}
+        >
+          <span
+            style={{
+              color: "var(--accent)",
+              textShadow: "var(--accent-text-shadow)",
+              fontWeight: 800,
+            }}
+          >
+            University
+          </span>{" "}
+          <span style={{ color: "var(--text)", fontWeight: 500, opacity: 0.92 }}>
+            Admin
+          </span>
+        </h1>
         {tab === "courses" && (
-          <button onClick={openCreateCourse} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+          <button onClick={openCreateCourse} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
             <span className="text-lg">+</span> Create Course
           </button>
         )}
         {tab === "categories" && (
-          <button onClick={openCreateCat} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+          <button onClick={openCreateCat} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
             <span className="text-lg">+</span> Add Category
           </button>
         )}
         {tab === "assignments" && (
-          <button onClick={() => openAssign()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+          <button onClick={() => openAssign()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
             <span className="text-lg">+</span> Assign Course
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-6" style={{ borderBottom: "1px solid var(--border-color)" }}>
+      <div className="flex items-center gap-1 mb-6" style={{ borderBottom: "1px solid var(--border)" }}>
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className="px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors relative"
-            style={{ color: tab === t.key ? "var(--text-primary)" : "var(--text-muted)", borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent", marginBottom: "-1px" }}
+            style={{ color: tab === t.key ? "var(--text)" : "var(--text-faint)", borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent", marginBottom: "-1px" }}
           >
             {t.label}
             {"count" in t && t.count !== undefined && (
-              <span className="ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}>{t.count}</span>
+              <span className="ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--pad-elev)", color: "var(--text-faint)" }}>{t.count}</span>
             )}
           </button>
         ))}
@@ -816,32 +838,32 @@ export default function TrainingPage() {
       {tab === "courses" && (
         <div className="space-y-2">
           {courses.length === 0 ? (
-            <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-              <p style={{ color: "var(--text-secondary)" }}>No courses yet. Create your first one!</p>
+            <div className="rounded-xl p-12 text-center" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+              <p style={{ color: "var(--text-dim)" }}>No courses yet. Create your first one!</p>
             </div>
           ) : (
             courses.map((c) => (
-              <div key={c.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", opacity: c.is_published ? 1 : 0.6 }}>
+              <div key={c.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", opacity: c.is_published ? 1 : 0.6 }}>
                 {/* Thumbnail */}
                 {c.thumbnail_url ? (
-                  <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border-color)" }}>
+                  <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }}>
                     <img src={c.thumbnail_url} alt="" className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  <div className="w-20 h-14 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
+                  <div className="w-20 h-14 rounded-lg shrink-0 flex items-center justify-center" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1" opacity="0.3"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="text-sm font-semibold">{c.title}</h3>
                     <Badge label={c.level} colors={LEVEL_COLORS[c.level]} />
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: c.is_published ? "#1a3a2a" : "#2a2a2a", color: c.is_published ? "#4ade80" : "#888" }}>
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: c.is_published ? "color-mix(in srgb, var(--green) 14%, var(--pad))" : "var(--pad-elev)", color: c.is_published ? "var(--green)" : "var(--text-faint)" }}>
                       {c.is_published ? "Published" : "Draft"}
                     </span>
                   </div>
-                  {c.description && <p className="text-sm mb-1 truncate" style={{ color: "var(--text-secondary)" }}>{c.description}</p>}
-                  <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  {c.description && <p className="text-sm mb-1 truncate" style={{ color: "var(--text-dim)" }}>{c.description}</p>}
+                  <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-faint)" }}>
                     <span>{getCatName(c.category_id)}</span>
                     {c.instructor_name && <span>Instructor: {c.instructor_name}</span>}
                     <span>Pass: {c.passing_score}%</span>
@@ -850,30 +872,30 @@ export default function TrainingPage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {/* Assign */}
-                  <button onClick={() => openAssign(c.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Assign to Users">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
+                  <button onClick={() => openAssign(c.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Assign to Users">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" /></svg>
                   </button>
                   {/* Lessons */}
-                  <button onClick={() => openLessonBuilder(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Manage Lessons">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+                  <button onClick={() => openLessonBuilder(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Manage Lessons">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
                   </button>
                   {/* Publish toggle */}
-                  <button onClick={() => togglePublish(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title={c.is_published ? "Unpublish" : "Publish"}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.is_published ? "#4ade80" : "var(--text-muted)"} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <button onClick={() => togglePublish(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title={c.is_published ? "Unpublish" : "Publish"}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.is_published ? "var(--green)" : "var(--text-faint)"} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                   </button>
                   {/* Edit */}
-                  <button onClick={() => openEditCourse(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Edit">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                  <button onClick={() => openEditCourse(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Edit">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                   </button>
                   {/* Delete */}
                   {deleteConfirm === c.id ? (
                     <div className="flex items-center gap-1">
-                      <button onClick={() => deleteCourse(c.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Delete</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>No</button>
+                      <button onClick={() => deleteCourse(c.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Delete</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-faint)" }}>No</button>
                     </div>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(c.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Delete">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                    <button onClick={() => setDeleteConfirm(c.id)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Delete">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                     </button>
                   )}
                 </div>
@@ -887,39 +909,39 @@ export default function TrainingPage() {
       {tab === "categories" && (
         <div className="space-y-2">
           {categories.length === 0 ? (
-            <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-              <p style={{ color: "var(--text-secondary)" }}>No categories yet. Add your first one!</p>
+            <div className="rounded-xl p-12 text-center" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+              <p style={{ color: "var(--text-dim)" }}>No categories yet. Add your first one!</p>
             </div>
           ) : (
             categories.map((c) => (
-              <div key={c.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", opacity: c.is_active ? 1 : 0.5 }}>
+              <div key={c.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", opacity: c.is_active ? 1 : 0.5 }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-sm font-semibold">{c.name}</h3>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: c.is_active ? "#1a3a2a" : "#2a2a2a", color: c.is_active ? "#4ade80" : "#888" }}>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: c.is_active ? "color-mix(in srgb, var(--green) 14%, var(--pad))" : "var(--pad-elev)", color: c.is_active ? "var(--green)" : "var(--text-faint)" }}>
                       {c.is_active ? "Active" : "Inactive"}
                     </span>
-                    <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
                       {courses.filter((co) => co.category_id === c.id).length} courses
                     </span>
                   </div>
-                  {c.description && <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{c.description}</p>}
+                  {c.description && <p className="text-sm" style={{ color: "var(--text-dim)" }}>{c.description}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => toggleCatActive(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title={c.is_active ? "Deactivate" : "Activate"}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.is_active ? "#4ade80" : "var(--text-muted)"} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <button onClick={() => toggleCatActive(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title={c.is_active ? "Deactivate" : "Activate"}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.is_active ? "var(--green)" : "var(--text-faint)"} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                   </button>
-                  <button onClick={() => openEditCat(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Edit">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                  <button onClick={() => openEditCat(c)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Edit">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                   </button>
                   {deleteConfirm === `cat-${c.id}` ? (
                     <div className="flex items-center gap-1">
-                      <button onClick={() => deleteCat(c.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Delete</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>No</button>
+                      <button onClick={() => deleteCat(c.id)} className="px-2 py-1 rounded text-xs font-medium cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Delete</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 rounded text-xs cursor-pointer" style={{ color: "var(--text-faint)" }}>No</button>
                     </div>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(`cat-${c.id}`)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Delete">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                    <button onClick={() => setDeleteConfirm(`cat-${c.id}`)} className="p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Delete">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                     </button>
                   )}
                 </div>
@@ -933,22 +955,22 @@ export default function TrainingPage() {
       {tab === "assignments" && (
         <div className="space-y-2">
           {assignments.length === 0 ? (
-            <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-              <p style={{ color: "var(--text-secondary)" }}>No assignments yet. Assign a course to get started!</p>
+            <div className="rounded-xl p-12 text-center" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+              <p style={{ color: "var(--text-dim)" }}>No assignments yet. Assign a course to get started!</p>
             </div>
           ) : (
             assignments.map((a) => (
-              <div key={a.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", opacity: a.status === "completed" ? 0.5 : 1 }}>
+              <div key={a.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", opacity: a.status === "completed" ? 0.5 : 1 }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="text-sm font-semibold">{getCourseName(a.course_id)}</h3>
                     <Badge label={a.status} colors={STATUS_COLORS[a.status]} />
                   </div>
-                  <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  <div className="flex items-center gap-4 text-[11px]" style={{ color: "var(--text-faint)" }}>
                     <span>Assigned to: {a.assigned_to_name ?? "Unknown"}</span>
                     {a.assigned_by_name && <span>By: {a.assigned_by_name}</span>}
                     {a.due_date && (
-                      <span style={{ color: new Date(a.due_date) < new Date() && a.status !== "completed" ? "#ef4444" : "var(--text-muted)" }}>
+                      <span style={{ color: new Date(a.due_date) < new Date() && a.status !== "completed" ? "var(--red)" : "var(--text-faint)" }}>
                         Due: {formatDate(a.due_date)}{new Date(a.due_date) < new Date() && a.status !== "completed" && " (Overdue)"}
                       </span>
                     )}
@@ -966,8 +988,8 @@ export default function TrainingPage() {
       {tab === "certifications" && (
         <div>
           {certificates.length === 0 ? (
-            <div className="rounded-xl p-12 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No certificates issued yet</p>
+            <div className="rounded-xl p-12 text-center" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+              <p className="text-sm" style={{ color: "var(--text-faint)" }}>No certificates issued yet</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -975,24 +997,24 @@ export default function TrainingPage() {
                 const course = courses.find((c) => c.id === cert.course_id);
                 const user = users.find((u) => u.id === cert.user_id);
                 return (
-                  <div key={cert.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: "#0a2a1a" }}>🎓</div>
+                  <div key={cert.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: "color-mix(in srgb, var(--green) 18%, var(--pad))" }}>🎓</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{course?.title ?? "Unknown Course"}</p>
-                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{user?.full_name ?? "Unknown User"} — #{cert.certificate_number}</p>
+                      <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>{user?.full_name ?? "Unknown User"} — #{cert.certificate_number}</p>
                     </div>
                     <div className="text-right shrink-0">
                       {cert.final_grade && (
-                        <p className="text-sm font-bold" style={{ color: cert.final_grade.startsWith("A") ? "#4ade80" : cert.final_grade.startsWith("B") ? "#60a5fa" : cert.final_grade.startsWith("C") ? "#facc15" : "#ef4444" }}>
+                        <p className="text-sm font-bold" style={{ color: cert.final_grade.startsWith("A") ? "var(--green)" : cert.final_grade.startsWith("B") ? "var(--info)" : cert.final_grade.startsWith("C") ? "var(--amber)" : "var(--red)" }}>
                           {cert.final_grade} ({cert.final_score}%)
                         </p>
                       )}
-                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{formatDate(cert.issued_at)}</p>
+                      <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>{formatDate(cert.issued_at)}</p>
                     </div>
                     <div className="shrink-0">
                       <span className="text-[11px] px-2 py-0.5 rounded-full capitalize" style={{
-                        background: cert.review_status === "flagged" ? "#4a1a1a" : "#1a3a2a",
-                        color: cert.review_status === "flagged" ? "#ef4444" : "#4ade80",
+                        background: cert.review_status === "flagged" ? "color-mix(in srgb, var(--red) 14%, var(--pad))" : "color-mix(in srgb, var(--green) 14%, var(--pad))",
+                        color: cert.review_status === "flagged" ? "var(--red)" : "var(--green)",
                       }}>
                         {cert.review_status.replace("_", " ")}
                       </span>
@@ -1011,13 +1033,13 @@ export default function TrainingPage() {
           {/* Metric cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: "Total Courses", value: courses.length, color: "#60a5fa" },
-              { label: "Published", value: publishedCourses.length, color: "#4ade80" },
-              { label: "Total Assignments", value: totalAssignments, color: "#a78bfa" },
-              { label: "Completion Rate", value: `${completionRate}%`, color: "#facc15" },
+              { label: "Total Courses", value: courses.length, color: "var(--info)" },
+              { label: "Published", value: publishedCourses.length, color: "var(--green)" },
+              { label: "Total Assignments", value: totalAssignments, color: "var(--violet)" },
+              { label: "Completion Rate", value: `${completionRate}%`, color: "var(--amber)" },
             ].map((m) => (
-              <div key={m.label} className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{m.label}</p>
+              <div key={m.label} className="rounded-xl p-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-faint)" }}>{m.label}</p>
                 <p className="text-2xl font-bold" style={{ color: m.color }}>{m.value}</p>
               </div>
             ))}
@@ -1025,7 +1047,7 @@ export default function TrainingPage() {
 
           {/* Status breakdown */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            <div className="rounded-xl p-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
               <h3 className="text-sm font-semibold mb-3">Assignment Status</h3>
               {["assigned", "in_progress", "completed", "failed"].map((s) => {
                 const count = assignments.filter((a) => a.status === s).length;
@@ -1033,30 +1055,30 @@ export default function TrainingPage() {
                 return (
                   <div key={s} className="flex items-center gap-3 mb-2">
                     <span className="text-xs capitalize w-24" style={{ color: STATUS_COLORS[s].text }}>{s.replace("_", " ")}</span>
-                    <div className="flex-1 h-2 rounded-full" style={{ background: "var(--bg-hover)" }}>
+                    <div className="flex-1 h-2 rounded-full" style={{ background: "var(--pad-elev)" }}>
                       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: STATUS_COLORS[s].text }} />
                     </div>
-                    <span className="text-xs w-8 text-right" style={{ color: "var(--text-muted)" }}>{count}</span>
+                    <span className="text-xs w-8 text-right" style={{ color: "var(--text-faint)" }}>{count}</span>
                   </div>
                 );
               })}
             </div>
 
-            <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            <div className="rounded-xl p-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
               <h3 className="text-sm font-semibold mb-3">Courses by Category</h3>
               {categories.filter((c) => c.is_active).map((cat) => {
                 const count = courses.filter((c) => c.category_id === cat.id).length;
                 return (
                   <div key={cat.id} className="flex items-center justify-between mb-2">
-                    <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{cat.name}</span>
-                    <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{count}</span>
+                    <span className="text-xs" style={{ color: "var(--text-dim)" }}>{cat.name}</span>
+                    <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{count}</span>
                   </div>
                 );
               })}
               {courses.filter((c) => !c.category_id).length > 0 && (
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>Uncategorized</span>
-                  <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{courses.filter((c) => !c.category_id).length}</span>
+                  <span className="text-xs" style={{ color: "var(--text-dim)" }}>Uncategorized</span>
+                  <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{courses.filter((c) => !c.category_id).length}</span>
                 </div>
               )}
             </div>
@@ -1064,15 +1086,15 @@ export default function TrainingPage() {
 
           {/* Overdue */}
           {overdueAssignments > 0 && (
-            <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-              <h3 className="text-sm font-semibold mb-3" style={{ color: "#ef4444" }}>Overdue Assignments ({overdueAssignments})</h3>
+            <div className="rounded-xl p-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--red)" }}>Overdue Assignments ({overdueAssignments})</h3>
               {assignments.filter((a) => a.due_date && new Date(a.due_date) < new Date() && a.status !== "completed").map((a) => (
                 <div key={a.id} className="flex items-center justify-between mb-2">
                   <div>
                     <span className="text-xs font-medium">{getCourseName(a.course_id)}</span>
-                    <span className="text-[11px] ml-2" style={{ color: "var(--text-muted)" }}>{a.assigned_to_name}</span>
+                    <span className="text-[11px] ml-2" style={{ color: "var(--text-faint)" }}>{a.assigned_to_name}</span>
                   </div>
-                  <span className="text-[11px]" style={{ color: "#ef4444" }}>Due {formatDate(a.due_date!)}</span>
+                  <span className="text-[11px]" style={{ color: "var(--red)" }}>Due {formatDate(a.due_date!)}</span>
                 </div>
               ))}
             </div>
@@ -1101,18 +1123,18 @@ export default function TrainingPage() {
 
             if (problemQuizzes.length === 0) return null;
             return (
-              <div className="rounded-xl p-4 mt-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                <h3 className="text-sm font-semibold mb-3" style={{ color: "#fb923c" }}>Training Gaps — Quizzes with Most Failures</h3>
-                <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>These quizzes have the most failures across all users — may indicate training content that needs improvement.</p>
+              <div className="rounded-xl p-4 mt-6" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--orange)" }}>Training Gaps — Quizzes with Most Failures</h3>
+                <p className="text-[11px] mb-3" style={{ color: "var(--text-faint)" }}>These quizzes have the most failures across all users — may indicate training content that needs improvement.</p>
                 {problemQuizzes.map(([lessonId, data]) => (
                   <div key={lessonId} className="flex items-center justify-between mb-2">
                     <div>
                       <span className="text-xs font-medium">{data.courseName}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px]" style={{ color: "#ef4444" }}>{data.failures} failed</span>
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{data.attempts} attempts</span>
-                      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Avg: {Math.round(data.avgScore)}%</span>
+                      <span className="text-[11px]" style={{ color: "var(--red)" }}>{data.failures} failed</span>
+                      <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>{data.attempts} attempts</span>
+                      <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>Avg: {Math.round(data.avgScore)}%</span>
                     </div>
                   </div>
                 ))}
@@ -1123,12 +1145,12 @@ export default function TrainingPage() {
           {/* Certification Summary */}
           <div className="grid grid-cols-3 gap-4 mt-6">
             {[
-              { label: "Certificates Issued", value: certificates.length, color: "#4ade80" },
-              { label: "Auto Approved", value: certificates.filter((c) => c.review_status === "auto_approved").length, color: "#60a5fa" },
-              { label: "Flagged for Review", value: certificates.filter((c) => c.review_status === "flagged").length, color: "#ef4444" },
+              { label: "Certificates Issued", value: certificates.length, color: "var(--green)" },
+              { label: "Auto Approved", value: certificates.filter((c) => c.review_status === "auto_approved").length, color: "var(--info)" },
+              { label: "Flagged for Review", value: certificates.filter((c) => c.review_status === "flagged").length, color: "var(--red)" },
             ].map((m) => (
-              <div key={m.label} className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
-                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{m.label}</p>
+              <div key={m.label} className="rounded-xl p-4" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }}>
+                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-faint)" }}>{m.label}</p>
                 <p className="text-2xl font-bold" style={{ color: m.color }}>{m.value}</p>
               </div>
             ))}
@@ -1143,10 +1165,10 @@ export default function TrainingPage() {
       {/* ── Course Creation Wizard (Video-First) ──────── */}
       {showWizard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowWizard(false)}>
-          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">Create Course</h2>
-              <button onClick={() => setShowWizard(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowWizard(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
 
             {/* Step indicators */}
@@ -1157,11 +1179,11 @@ export default function TrainingPage() {
                 { step: 3, label: "Quiz (Optional)" },
               ].map((s) => (
                 <button key={s.step} onClick={() => { if (s.step === 1 || (s.step === 2 && wizardVideo.url) || (s.step === 3 && wizardCourse.title)) setWizardStep(s.step as 1 | 2 | 3); }} className="flex items-center gap-2 cursor-pointer">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: wizardStep >= s.step ? "var(--accent)" : "var(--bg-surface)", color: wizardStep >= s.step ? "#000" : "var(--text-muted)", border: `1px solid ${wizardStep >= s.step ? "var(--accent)" : "var(--border-color)"}` }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: wizardStep >= s.step ? "var(--accent)" : "var(--pad)", color: wizardStep >= s.step ? "var(--cta-text)" : "var(--text-faint)", border: `1px solid ${wizardStep >= s.step ? "var(--accent)" : "var(--border)"}` }}>
                     {wizardStep > s.step ? "✓" : s.step}
                   </div>
-                  <span className="text-xs font-medium" style={{ color: wizardStep === s.step ? "var(--text-primary)" : "var(--text-muted)" }}>{s.label}</span>
-                  {s.step < 3 && <div className="w-8 h-px" style={{ background: "var(--border-color)" }} />}
+                  <span className="text-xs font-medium" style={{ color: wizardStep === s.step ? "var(--text)" : "var(--text-faint)" }}>{s.label}</span>
+                  {s.step < 3 && <div className="w-8 h-px" style={{ background: "var(--border)" }} />}
                 </button>
               ))}
             </div>
@@ -1169,20 +1191,20 @@ export default function TrainingPage() {
             {/* Step 1: Upload video or paste URL */}
             {wizardStep === 1 && (
               <div className="space-y-4">
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Start by adding your video — upload a file or paste a URL.</p>
+                <p className="text-sm" style={{ color: "var(--text-dim)" }}>Start by adding your video — upload a file or paste a URL.</p>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Video URL</label>
-                  <input type="text" value={wizardVideo.url} onChange={(e) => setWizardVideo({ ...wizardVideo, url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a YouTube link or video URL" />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Video URL</label>
+                  <input type="text" value={wizardVideo.url} onChange={(e) => setWizardVideo({ ...wizardVideo, url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Paste a YouTube link or video URL" />
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>or</span>
-                  <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
+                  <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+                  <span className="text-xs" style={{ color: "var(--text-faint)" }}>or</span>
+                  <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
                 </div>
 
-                <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "2px dashed var(--border-color)", color: "var(--text-secondary)" }}>
+                <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-xl cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "2px dashed var(--border)", color: "var(--text-dim)" }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                   <span className="text-sm font-medium">{uploading ? "Uploading..." : "Upload Video File"}</span>
                   <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
@@ -1195,16 +1217,16 @@ export default function TrainingPage() {
                 </label>
 
                 {wizardVideo.url && (
-                  <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "#0a2a1a", border: "1px solid #1a5a3a" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
-                    <span className="text-sm truncate flex-1" style={{ color: "#4ade80" }}>Video ready</span>
-                    <span className="text-[11px] truncate max-w-[300px]" style={{ color: "var(--text-muted)" }}>{wizardVideo.url}</span>
+                  <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "color-mix(in srgb, var(--green) 18%, var(--pad))", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span className="text-sm truncate flex-1" style={{ color: "var(--green)" }}>Video ready</span>
+                    <span className="text-[11px] truncate max-w-[300px]" style={{ color: "var(--text-faint)" }}>{wizardVideo.url}</span>
                   </div>
                 )}
 
                 <div className="flex items-center justify-between pt-2">
-                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} className="text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Skip — no video</button>
-                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} disabled={!wizardVideo.url} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} className="text-xs cursor-pointer" style={{ color: "var(--text-faint)" }}>Skip — no video</button>
+                  <button onClick={() => { setWizardStep(2); if (!wizardCourse.title && wizardVideo.title) setWizardCourse((prev) => ({ ...prev, title: wizardVideo.title })); }} disabled={!wizardVideo.url} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>
                     Next
                   </button>
                 </div>
@@ -1219,7 +1241,7 @@ export default function TrainingPage() {
                   <button
                     onClick={() => { setShowTranscriptModal(true); setTranscript(""); setGenerateError(""); setQuizCount(5); }}
                     className="py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2"
-                    style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%)", border: "1px solid #3b5998", color: "#a78bfa" }}
+                    style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--info) 18%, var(--pad)) 0%, color-mix(in srgb, var(--violet) 14%, var(--pad)) 100%)", border: "1px solid color-mix(in srgb, var(--info) 35%, transparent)", color: "var(--violet)" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" /></svg>
                     Generate from Transcript
@@ -1228,27 +1250,27 @@ export default function TrainingPage() {
                     onClick={generateFromVideo}
                     disabled={!wizardVideo.url || generatingFromVideo}
                     className="py-3 rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: "linear-gradient(135deg, #1e5a3f 0%, #1e3a5f 100%)", border: "1px solid #2a7a5a", color: "#4ade80" }}
+                    style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--green) 18%, var(--pad)) 0%, color-mix(in srgb, var(--info) 18%, var(--pad)) 100%)", border: "1px solid color-mix(in srgb, var(--green) 35%, transparent)", color: "var(--green)" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>
                     {generatingFromVideo ? videoGenStatus || "Analyzing..." : "Generate from Video"}
                   </button>
                 </div>
                 {!wizardVideo.url && (
-                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Upload a video file in Step 1 to use &quot;Generate from Video&quot; — YouTube links are not supported for frame extraction.</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>Upload a video file in Step 1 to use &quot;Generate from Video&quot; — YouTube links are not supported for frame extraction.</p>
                 )}
-                {generateError && <p className="text-xs" style={{ color: "#ef4444" }}>{generateError}</p>}
+                {generateError && <p className="text-xs" style={{ color: "var(--red)" }}>{generateError}</p>}
 
                 {/* Cover image (optional) */}
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Cover Image <span style={{ color: "var(--text-muted)" }}>(optional)</span></label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Cover Image <span style={{ color: "var(--text-faint)" }}>(optional)</span></label>
                   {wizardCoverUrl ? (
-                    <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)", maxHeight: "160px" }}>
+                    <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)", maxHeight: "160px" }}>
                       <img src={wizardCoverUrl} alt="Cover" className="w-full h-40 object-cover" />
-                      <button onClick={() => setWizardCoverUrl("")} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
+                      <button onClick={() => setWizardCoverUrl("")} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "var(--cta-text)" }}>✕</button>
                     </div>
                   ) : (
-                    <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                    <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "1px dashed var(--border)", color: "var(--text-faint)" }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                       <span className="text-xs font-medium">{uploading ? "Uploading..." : "Upload cover image"}</span>
                       <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
@@ -1263,24 +1285,24 @@ export default function TrainingPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Title</label>
-                  <input type="text" value={wizardCourse.title} onChange={(e) => setWizardCourse({ ...wizardCourse, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Course title..." />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Title</label>
+                  <input type="text" value={wizardCourse.title} onChange={(e) => setWizardCourse({ ...wizardCourse, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Course title..." />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Description</label>
-                  <textarea value={wizardCourse.description} onChange={(e) => setWizardCourse({ ...wizardCourse, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="What is this course about?" />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Description</label>
+                  <textarea value={wizardCourse.description} onChange={(e) => setWizardCourse({ ...wizardCourse, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="What is this course about?" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Category</label>
-                    <select value={wizardCourse.category_id} onChange={(e) => setWizardCourse({ ...wizardCourse, category_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Category</label>
+                    <select value={wizardCourse.category_id} onChange={(e) => setWizardCourse({ ...wizardCourse, category_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                       <option value="">No category</option>
                       {categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Level</label>
-                    <select value={wizardCourse.level} onChange={(e) => setWizardCourse({ ...wizardCourse, level: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Level</label>
+                    <select value={wizardCourse.level} onChange={(e) => setWizardCourse({ ...wizardCourse, level: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                       <option value="beginner">Beginner</option>
                       <option value="intermediate">Intermediate</option>
                       <option value="advanced">Advanced</option>
@@ -1289,28 +1311,28 @@ export default function TrainingPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Passing Score (%)</label>
-                    <input type="number" min={0} max={100} value={wizardCourse.passing_score} onChange={(e) => setWizardCourse({ ...wizardCourse, passing_score: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Passing Score (%)</label>
+                    <input type="number" min={0} max={100} value={wizardCourse.passing_score} onChange={(e) => setWizardCourse({ ...wizardCourse, passing_score: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Instructor Name</label>
-                    <input type="text" value={wizardCourse.instructor_name} onChange={(e) => setWizardCourse({ ...wizardCourse, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Optional" />
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Instructor Name</label>
+                    <input type="text" value={wizardCourse.instructor_name} onChange={(e) => setWizardCourse({ ...wizardCourse, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Optional" />
                   </div>
                 </div>
 
                 {/* Publish toggle */}
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={wizardPublish} onChange={(e) => setWizardPublish(e.target.checked)} className="cursor-pointer" />
-                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Publish immediately</span>
+                  <span className="text-sm" style={{ color: "var(--text-dim)" }}>Publish immediately</span>
                 </label>
 
                 <div className="flex items-center justify-between pt-2">
-                  <button onClick={() => setWizardStep(1)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Back</button>
+                  <button onClick={() => setWizardStep(1)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Back</button>
                   <div className="flex items-center gap-2">
-                    <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50" style={{ color: "var(--text-secondary)" }}>
+                    <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)] disabled:opacity-50" style={{ color: "var(--text-dim)" }}>
                       {saving ? "Saving..." : "Save Without Quiz"}
                     </button>
-                    <button onClick={() => setWizardStep(3)} disabled={!wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                    <button onClick={() => setWizardStep(3)} disabled={!wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>
                       Add Quiz
                     </button>
                   </div>
@@ -1321,31 +1343,31 @@ export default function TrainingPage() {
             {/* Step 3: Quiz questions (optional) */}
             {wizardStep === 3 && (
               <div className="space-y-4">
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Add quiz questions. Users must pass with {wizardCourse.passing_score}% to complete the course.</p>
+                <p className="text-sm" style={{ color: "var(--text-dim)" }}>Add quiz questions. Users must pass with {wizardCourse.passing_score}% to complete the course.</p>
 
                 {wizardQuestions.map((q, qi) => (
-                  <div key={qi} className="rounded-lg p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                  <div key={qi} className="rounded-lg p-4" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>Question {qi + 1}</span>
-                      <button onClick={() => setWizardQuestions((prev) => prev.filter((_, i) => i !== qi))} className="text-xs cursor-pointer" style={{ color: "#ef4444" }}>Remove</button>
+                      <span className="text-xs font-bold" style={{ color: "var(--text-faint)" }}>Question {qi + 1}</span>
+                      <button onClick={() => setWizardQuestions((prev) => prev.filter((_, i) => i !== qi))} className="text-xs cursor-pointer" style={{ color: "var(--red)" }}>Remove</button>
                     </div>
-                    <textarea value={q.question_text} onChange={(e) => { const updated = [...wizardQuestions]; updated[qi] = { ...updated[qi], question_text: e.target.value }; setWizardQuestions(updated); }} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y mb-2" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Enter your question..." />
+                    <textarea value={q.question_text} onChange={(e) => { const updated = [...wizardQuestions]; updated[qi] = { ...updated[qi], question_text: e.target.value }; setWizardQuestions(updated); }} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y mb-2" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Enter your question..." />
                     {q.options.map((opt, oi) => (
                       <div key={oi} className="flex items-center gap-2 mb-1.5">
                         <input type="checkbox" checked={opt.is_correct} onChange={() => { const updated = [...wizardQuestions]; const newOpts = [...updated[qi].options]; newOpts[oi] = { ...newOpts[oi], is_correct: !newOpts[oi].is_correct }; updated[qi] = { ...updated[qi], options: newOpts }; setWizardQuestions(updated); }} className="cursor-pointer" />
-                        <input type="text" value={opt.label} onChange={(e) => { const updated = [...wizardQuestions]; const newOpts = [...updated[qi].options]; newOpts[oi] = { ...newOpts[oi], label: e.target.value }; updated[qi] = { ...updated[qi], options: newOpts }; setWizardQuestions(updated); }} className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
+                        <input type="text" value={opt.label} onChange={(e) => { const updated = [...wizardQuestions]; const newOpts = [...updated[qi].options]; newOpts[oi] = { ...newOpts[oi], label: e.target.value }; updated[qi] = { ...updated[qi], options: newOpts }; setWizardQuestions(updated); }} className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder={`Option ${String.fromCharCode(65 + oi)}`} />
                       </div>
                     ))}
                   </div>
                 ))}
 
-                <button onClick={() => setWizardQuestions((prev) => [...prev, { question_text: "", options: [{ label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }] }])} className="w-full py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-secondary)" }}>
+                <button onClick={() => setWizardQuestions((prev) => [...prev, { question_text: "", options: [{ label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }] }])} className="w-full py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "1px dashed var(--border)", color: "var(--text-dim)" }}>
                   + Add Question
                 </button>
 
                 <div className="flex items-center justify-between pt-2">
-                  <button onClick={() => setWizardStep(2)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Back</button>
-                  <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                  <button onClick={() => setWizardStep(2)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Back</button>
+                  <button onClick={saveWizard} disabled={saving || !wizardCourse.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
                     {saving ? "Creating Course..." : `Create Course${wizardQuestions.length > 0 ? ` with ${wizardQuestions.length} Questions` : ""}`}
                   </button>
                 </div>
@@ -1358,12 +1380,12 @@ export default function TrainingPage() {
       {/* ── AI Transcript Modal ──────────────────────────── */}
       {showTranscriptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowTranscriptModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Generate Course from Transcript</h2>
-              <button onClick={() => setShowTranscriptModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowTranscriptModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
-            <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-sm mb-3" style={{ color: "var(--text-dim)" }}>
               Paste a training transcript below. AI will generate a course title, description, category, difficulty level, and quiz questions.
             </p>
             <textarea
@@ -1371,24 +1393,24 @@ export default function TrainingPage() {
               onChange={(e) => setTranscript(e.target.value)}
               rows={12}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y flex-1 mb-2"
-              style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)", minHeight: "200px" }}
+              style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)", minHeight: "200px" }}
               placeholder="Paste your training transcript here..."
               disabled={generating}
             />
             <div className="flex items-center gap-4 mb-3">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Quiz Questions:</label>
-                <input type="number" min={2} max={15} value={quizCount} onChange={(e) => setQuizCount(Math.min(15, Math.max(2, parseInt(e.target.value) || 5)))} className="w-16 px-2 py-1 rounded-md text-sm text-center outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                <label className="text-xs font-medium" style={{ color: "var(--text-dim)" }}>Quiz Questions:</label>
+                <input type="number" min={2} max={15} value={quizCount} onChange={(e) => setQuizCount(Math.min(15, Math.max(2, parseInt(e.target.value) || 5)))} className="w-16 px-2 py-1 rounded-md text-sm text-center outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
               </div>
-              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>2–15 questions</span>
+              <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>2–15 questions</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: transcript.length > 50000 ? "#ef4444" : "var(--text-muted)" }}>
+              <span className="text-xs" style={{ color: transcript.length > 50000 ? "var(--red)" : "var(--text-faint)" }}>
                 {transcript.length.toLocaleString()} / 50,000 characters
               </span>
               <div className="flex items-center gap-2">
-                {generateError && <span className="text-xs" style={{ color: "#ef4444" }}>{generateError}</span>}
-                <button onClick={() => setShowTranscriptModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                {generateError && <span className="text-xs" style={{ color: "var(--red)" }}>{generateError}</span>}
+                <button onClick={() => setShowTranscriptModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer" style={{ color: "var(--text-dim)" }}>Cancel</button>
                 <button
                   onClick={async () => {
                     if (!transcript.trim() || transcript.length > 50000) return;
@@ -1433,7 +1455,7 @@ export default function TrainingPage() {
                   }}
                   disabled={generating || !transcript.trim() || transcript.length > 50000}
                   className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50 flex items-center gap-2"
-                  style={{ background: generating ? "#1e3a5f" : "linear-gradient(135deg, #6366f1 0%, #a78bfa 100%)", color: "#fff" }}
+                  style={{ background: generating ? "color-mix(in srgb, var(--info) 18%, var(--pad))" : "linear-gradient(135deg, var(--info) 0%, var(--violet) 100%)", color: "var(--cta-text)" }}
                 >
                   {generating ? (
                     <>
@@ -1451,31 +1473,31 @@ export default function TrainingPage() {
       {/* ── Course Edit Modal ─────────────────────────────── */}
       {showCourseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowCourseModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-lg" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-lg" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">Edit Course</h2>
-              <button onClick={() => setShowCourseModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowCourseModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Title</label>
-                <input type="text" value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Course title..." />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Title</label>
+                <input type="text" value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Course title..." />
               </div>
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Description</label>
-                <textarea value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="What is this course about?" />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Description</label>
+                <textarea value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="What is this course about?" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Category</label>
-                  <select value={courseForm.category_id} onChange={(e) => setCourseForm({ ...courseForm, category_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Category</label>
+                  <select value={courseForm.category_id} onChange={(e) => setCourseForm({ ...courseForm, category_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                     <option value="">No category</option>
                     {categories.filter((c) => c.is_active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Level</label>
-                  <select value={courseForm.level} onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Level</label>
+                  <select value={courseForm.level} onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                     <option value="beginner">Beginner</option>
                     <option value="intermediate">Intermediate</option>
                     <option value="advanced">Advanced</option>
@@ -1484,24 +1506,24 @@ export default function TrainingPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Passing Score (%)</label>
-                  <input type="number" min={0} max={100} value={courseForm.passing_score} onChange={(e) => setCourseForm({ ...courseForm, passing_score: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Passing Score (%)</label>
+                  <input type="number" min={0} max={100} value={courseForm.passing_score} onChange={(e) => setCourseForm({ ...courseForm, passing_score: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Instructor Name</label>
-                  <input type="text" value={courseForm.instructor_name} onChange={(e) => setCourseForm({ ...courseForm, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Optional" />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Instructor Name</label>
+                  <input type="text" value={courseForm.instructor_name} onChange={(e) => setCourseForm({ ...courseForm, instructor_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Optional" />
                 </div>
               </div>
               {/* Cover Image */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Cover Image <span style={{ color: "var(--text-muted)" }}>(optional)</span></label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Cover Image <span style={{ color: "var(--text-faint)" }}>(optional)</span></label>
                 {courseForm.thumbnail_url ? (
-                  <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-color)", maxHeight: "160px" }}>
+                  <div className="relative rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)", maxHeight: "160px" }}>
                     <img src={courseForm.thumbnail_url} alt="Cover" className="w-full h-40 object-cover" />
-                    <button onClick={() => setCourseForm({ ...courseForm, thumbnail_url: "" })} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff" }}>✕</button>
+                    <button onClick={() => setCourseForm({ ...courseForm, thumbnail_url: "" })} className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ background: "rgba(0,0,0,0.7)", color: "var(--cta-text)" }}>✕</button>
                   </div>
                 ) : (
-                  <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                  <label className="flex items-center justify-center gap-2 px-4 py-4 rounded-lg cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "1px dashed var(--border)", color: "var(--text-faint)" }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                     <span className="text-xs font-medium">{uploading ? "Uploading..." : "Upload cover image"}</span>
                     <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
@@ -1515,8 +1537,8 @@ export default function TrainingPage() {
                 )}
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={() => setShowCourseModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={saveCourse} disabled={saving || !courseForm.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                <button onClick={() => setShowCourseModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Cancel</button>
+                <button onClick={saveCourse} disabled={saving || !courseForm.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
@@ -1528,23 +1550,23 @@ export default function TrainingPage() {
       {/* ── Category Create/Edit Modal ────────────────── */}
       {showCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowCategoryModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">{editingCatId ? "Edit Category" : "Add Category"}</h2>
-              <button onClick={() => setShowCategoryModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowCategoryModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Name</label>
-                <input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="e.g. Onboarding, Technical, Safety..." />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Name</label>
+                <input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="e.g. Onboarding, Technical, Safety..." />
               </div>
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Description (Optional)</label>
-                <textarea value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="What this category covers..." />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Description (Optional)</label>
+                <textarea value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="What this category covers..." />
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={saveCat} disabled={saving || !catForm.name.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Cancel</button>
+                <button onClick={saveCat} disabled={saving || !catForm.name.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
                   {saving ? "Saving..." : editingCatId ? "Save Changes" : "Add Category"}
                 </button>
               </div>
@@ -1556,16 +1578,16 @@ export default function TrainingPage() {
       {/* ── Assign Course Modal ───────────────────────── */}
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowAssignModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">Assign Course</h2>
-              <button onClick={() => setShowAssignModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowAssignModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
             <div className="space-y-4">
               {/* Course picker */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Course</label>
-                <select value={assignForm.course_id} onChange={(e) => setAssignForm({ ...assignForm, course_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Course</label>
+                <select value={assignForm.course_id} onChange={(e) => setAssignForm({ ...assignForm, course_id: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                   <option value="">Select a course...</option>
                   {publishedCourses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
@@ -1573,7 +1595,7 @@ export default function TrainingPage() {
 
               {/* Assign mode */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Assign To</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Assign To</label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[
                     { key: "individual", label: "Individual" },
@@ -1582,7 +1604,7 @@ export default function TrainingPage() {
                     { key: "all_external", label: "All External" },
                     { key: "everyone", label: "Everyone" },
                   ].map((m) => (
-                    <button key={m.key} onClick={() => setAssignForm({ ...assignForm, assign_mode: m.key, selected_users: [], department: "" })} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: assignForm.assign_mode === m.key ? "var(--accent)" : "var(--bg-surface)", color: assignForm.assign_mode === m.key ? "#000" : "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                    <button key={m.key} onClick={() => setAssignForm({ ...assignForm, assign_mode: m.key, selected_users: [], department: "" })} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: assignForm.assign_mode === m.key ? "var(--accent)" : "var(--pad)", color: assignForm.assign_mode === m.key ? "var(--cta-text)" : "var(--text-dim)", border: "1px solid var(--border)" }}>
                       {m.label}
                     </button>
                   ))}
@@ -1592,18 +1614,18 @@ export default function TrainingPage() {
               {/* Individual user picker */}
               {assignForm.assign_mode === "individual" && (
                 <div>
-                  <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search by name..." className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
-                  <div className="max-h-48 overflow-y-auto rounded-lg" style={{ border: "1px solid var(--border-color)" }}>
+                  <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search by name..." className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <div className="max-h-48 overflow-y-auto rounded-lg" style={{ border: "1px solid var(--border)" }}>
                     {users.filter((u) => u.full_name.toLowerCase().includes(userSearch.toLowerCase())).map((u) => (
-                      <label key={u.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: "1px solid var(--border-color)" }}>
+                      <label key={u.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ borderBottom: "1px solid var(--border)" }}>
                         <input type="checkbox" checked={assignForm.selected_users.includes(u.id)} onChange={() => toggleUserSelection(u.id)} className="cursor-pointer" />
                         <span className="text-sm">{u.full_name}</span>
-                        <span className="text-[11px] ml-auto" style={{ color: "var(--text-muted)" }}>{u.department ?? u.user_type}</span>
+                        <span className="text-[11px] ml-auto" style={{ color: "var(--text-faint)" }}>{u.department ?? u.user_type}</span>
                       </label>
                     ))}
                   </div>
                   {assignForm.selected_users.length > 0 && (
-                    <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>{assignForm.selected_users.length} selected</p>
+                    <p className="text-[11px] mt-1" style={{ color: "var(--text-faint)" }}>{assignForm.selected_users.length} selected</p>
                   )}
                 </div>
               )}
@@ -1611,7 +1633,7 @@ export default function TrainingPage() {
               {/* Department picker */}
               {assignForm.assign_mode === "department" && (
                 <div>
-                  <select value={assignForm.department} onChange={(e) => setAssignForm({ ...assignForm, department: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <select value={assignForm.department} onChange={(e) => setAssignForm({ ...assignForm, department: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                     <option value="">Select department...</option>
                     {departments.map((d) => <option key={d} value={d}>{d} ({users.filter((u) => u.department === d).length} people)</option>)}
                   </select>
@@ -1621,12 +1643,12 @@ export default function TrainingPage() {
               {/* Due date + priority */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Due Date (Optional)</label>
-                  <input type="date" value={assignForm.due_date} onChange={(e) => setAssignForm({ ...assignForm, due_date: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Due Date (Optional)</label>
+                  <input type="date" value={assignForm.due_date} onChange={(e) => setAssignForm({ ...assignForm, due_date: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Priority</label>
-                  <select value={assignForm.priority} onChange={(e) => setAssignForm({ ...assignForm, priority: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Priority</label>
+                  <select value={assignForm.priority} onChange={(e) => setAssignForm({ ...assignForm, priority: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none cursor-pointer" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -1636,8 +1658,8 @@ export default function TrainingPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={saveAssignment} disabled={saving || !assignForm.course_id} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Cancel</button>
+                <button onClick={saveAssignment} disabled={saving || !assignForm.course_id} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
                   {saving ? "Assigning..." : "Assign"}
                 </button>
               </div>
@@ -1649,55 +1671,55 @@ export default function TrainingPage() {
       {/* ── Lesson Builder Modal ──────────────────────── */}
       {showLessonBuilder && builderCourseId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowLessonBuilder(false)}>
-          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-lg font-semibold">Lesson Builder</h2>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{builderCourseName}</p>
+                <p className="text-xs" style={{ color: "var(--text-faint)" }}>{builderCourseName}</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={openCreateLesson} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "#000" }}>
+                <button onClick={openCreateLesson} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>
                   <span>+</span> Add Lesson
                 </button>
-                <button onClick={() => setShowLessonBuilder(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+                <button onClick={() => setShowLessonBuilder(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
               </div>
             </div>
 
             {lessons.length === 0 ? (
-              <div className="rounded-xl p-8 text-center" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
-                <p style={{ color: "var(--text-secondary)" }}>No lessons yet. Add videos, documents, or quizzes.</p>
+              <div className="rounded-xl p-8 text-center" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
+                <p style={{ color: "var(--text-dim)" }}>No lessons yet. Add videos, documents, or quizzes.</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {lessons.map((l, idx) => (
-                  <div key={l.id} className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                  <div key={l.id} className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold w-6 text-center" style={{ color: "var(--text-muted)" }}>{idx + 1}</span>
+                      <span className="text-xs font-bold w-6 text-center" style={{ color: "var(--text-faint)" }}>{idx + 1}</span>
                       <Badge label={l.lesson_type} colors={LESSON_TYPE_COLORS[l.lesson_type]} />
                       <span className="text-sm font-medium flex-1">{l.title}</span>
                       {l.lesson_type === "quiz" && (
-                        <button onClick={() => openQuizQuestions(l.id)} className="text-[11px] px-2 py-0.5 rounded cursor-pointer" style={{ background: "#3a3520", color: "#facc15" }}>
+                        <button onClick={() => openQuizQuestions(l.id)} className="text-[11px] px-2 py-0.5 rounded cursor-pointer" style={{ background: "color-mix(in srgb, var(--amber) 14%, var(--pad))", color: "var(--amber)" }}>
                           {(quizQuestions[l.id] ?? []).length} questions
                         </button>
                       )}
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => moveLessonUp(idx)} disabled={idx === 0} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-30" title="Move up">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M18 15l-6-6-6 6" /></svg>
+                        <button onClick={() => moveLessonUp(idx)} disabled={idx === 0} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--pad-elev)] disabled:opacity-30" title="Move up">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2"><path d="M18 15l-6-6-6 6" /></svg>
                         </button>
-                        <button onClick={() => moveLessonDown(idx)} disabled={idx >= lessons.length - 1} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-30" title="Move down">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+                        <button onClick={() => moveLessonDown(idx)} disabled={idx >= lessons.length - 1} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--pad-elev)] disabled:opacity-30" title="Move down">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
                         </button>
-                        <button onClick={() => openEditLesson(l)} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Edit">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        <button onClick={() => openEditLesson(l)} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </button>
                         {deleteConfirm === `lesson-${l.id}` ? (
                           <div className="flex items-center gap-1">
-                            <button onClick={() => deleteLesson(l.id)} className="px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer" style={{ background: "#4a1a1a", color: "#ef4444" }}>Yes</button>
-                            <button onClick={() => setDeleteConfirm(null)} className="px-1.5 py-0.5 rounded text-[10px] cursor-pointer" style={{ color: "var(--text-muted)" }}>No</button>
+                            <button onClick={() => deleteLesson(l.id)} className="px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer" style={{ background: "color-mix(in srgb, var(--red) 14%, var(--pad))", color: "var(--red)" }}>Yes</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-1.5 py-0.5 rounded text-[10px] cursor-pointer" style={{ color: "var(--text-faint)" }}>No</button>
                           </div>
                         ) : (
-                          <button onClick={() => setDeleteConfirm(`lesson-${l.id}`)} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                          <button onClick={() => setDeleteConfirm(`lesson-${l.id}`)} className="p-1 rounded cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" title="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                           </button>
                         )}
                       </div>
@@ -1713,36 +1735,36 @@ export default function TrainingPage() {
       {/* ── Lesson Add/Edit Modal ─────────────────────── */}
       {showLessonModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowLessonModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-md" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">{editingLessonId ? "Edit Lesson" : "Add Lesson"}</h2>
-              <button onClick={() => setShowLessonModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowLessonModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Type</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Type</label>
                 <div className="flex items-center gap-2">
                   {["video", "document", "quiz"].map((t) => (
-                    <button key={t} onClick={() => setLessonForm({ ...lessonForm, lesson_type: t })} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize cursor-pointer transition-colors" style={{ background: lessonForm.lesson_type === t ? LESSON_TYPE_COLORS[t].bg : "var(--bg-surface)", color: lessonForm.lesson_type === t ? LESSON_TYPE_COLORS[t].text : "var(--text-muted)", border: "1px solid var(--border-color)" }}>
+                    <button key={t} onClick={() => setLessonForm({ ...lessonForm, lesson_type: t })} className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize cursor-pointer transition-colors" style={{ background: lessonForm.lesson_type === t ? LESSON_TYPE_COLORS[t].bg : "var(--pad)", color: lessonForm.lesson_type === t ? LESSON_TYPE_COLORS[t].text : "var(--text-faint)", border: "1px solid var(--border)" }}>
                       {t}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Title</label>
-                <input type="text" value={lessonForm.title} onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Lesson title..." />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Title</label>
+                <input type="text" value={lessonForm.title} onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Lesson title..." />
               </div>
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Description (Optional)</label>
-                <textarea value={lessonForm.description} onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Description (Optional)</label>
+                <textarea value={lessonForm.description} onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} />
               </div>
               {lessonForm.lesson_type === "video" && (
                 <>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Video</label>
-                    <input type="text" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a YouTube or video URL, or upload below" />
-                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Video</label>
+                    <input type="text" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Paste a YouTube or video URL, or upload below" />
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text-dim)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                       {uploading ? "Uploading..." : "Upload Video File"}
                       <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={async (e) => {
@@ -1753,16 +1775,16 @@ export default function TrainingPage() {
                         e.target.value = "";
                       }} />
                     </label>
-                    {lessonForm.video_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{lessonForm.video_url}</p>}
+                    {lessonForm.video_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-faint)" }}>{lessonForm.video_url}</p>}
                   </div>
                 </>
               )}
               {lessonForm.lesson_type === "document" && (
                 <>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Document</label>
-                    <input type="text" value={lessonForm.file_url} onChange={(e) => setLessonForm({ ...lessonForm, file_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Paste a URL, or upload below" />
-                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Document</label>
+                    <input type="text" value={lessonForm.file_url} onChange={(e) => setLessonForm({ ...lessonForm, file_url: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Paste a URL, or upload below" />
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text-dim)" }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                       {uploading ? "Uploading..." : "Upload File"}
                       <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp" className="hidden" disabled={uploading} onChange={async (e) => {
@@ -1773,20 +1795,20 @@ export default function TrainingPage() {
                         e.target.value = "";
                       }} />
                     </label>
-                    {lessonForm.file_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{lessonForm.file_url}</p>}
+                    {lessonForm.file_url && <p className="text-[11px] mt-1 truncate" style={{ color: "var(--text-faint)" }}>{lessonForm.file_url}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Display Name</label>
-                    <input type="text" value={lessonForm.file_name} onChange={(e) => setLessonForm({ ...lessonForm, file_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="e.g. Safety Handbook.pdf" />
+                    <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Display Name</label>
+                    <input type="text" value={lessonForm.file_name} onChange={(e) => setLessonForm({ ...lessonForm, file_name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: "var(--pad)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="e.g. Safety Handbook.pdf" />
                   </div>
                 </>
               )}
               {lessonForm.lesson_type === "quiz" && (
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Save the lesson first, then add questions via the quiz editor.</p>
+                <p className="text-xs" style={{ color: "var(--text-faint)" }}>Save the lesson first, then add questions via the quiz editor.</p>
               )}
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button onClick={() => setShowLessonModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--bg-hover)]" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-                <button onClick={saveLesson} disabled={saving || !lessonForm.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
+                <button onClick={() => setShowLessonModal(false)} className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors hover:bg-[var(--pad-elev)]" style={{ color: "var(--text-dim)" }}>Cancel</button>
+                <button onClick={saveLesson} disabled={saving || !lessonForm.title.trim()} className="px-5 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}>
                   {saving ? "Saving..." : editingLessonId ? "Save Changes" : "Add Lesson"}
                 </button>
               </div>
@@ -1798,35 +1820,35 @@ export default function TrainingPage() {
       {/* ── Quiz Question Modal ───────────────────────── */}
       {showQuizModal && quizLessonId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowQuizModal(false)}>
-          <div className="rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold">Quiz Questions</h2>
-              <button onClick={() => setShowQuizModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-muted)" }}>✕</button>
+              <button onClick={() => setShowQuizModal(false)} className="text-lg cursor-pointer" style={{ color: "var(--text-faint)" }}>✕</button>
             </div>
 
             {/* Existing questions */}
             {(quizQuestions[quizLessonId] ?? []).length > 0 && (
               <div className="space-y-2 mb-4">
                 {(quizQuestions[quizLessonId] ?? []).map((q, qi) => (
-                  <div key={q.id} className="rounded-lg p-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+                  <div key={q.id} className="rounded-lg p-3" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
                     <div className="flex items-start gap-2">
-                      <span className="text-xs font-bold mt-0.5" style={{ color: "var(--text-muted)" }}>Q{qi + 1}</span>
+                      <span className="text-xs font-bold mt-0.5" style={{ color: "var(--text-faint)" }}>Q{qi + 1}</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium mb-1">{q.question_text}</p>
                         <div className="flex flex-wrap gap-1">
                           {q.options.map((o, oi) => (
-                            <span key={oi} className="text-[11px] px-2 py-0.5 rounded" style={{ background: o.is_correct ? "#1a3a2a" : "var(--bg-hover)", color: o.is_correct ? "#4ade80" : "var(--text-muted)" }}>
+                            <span key={oi} className="text-[11px] px-2 py-0.5 rounded" style={{ background: o.is_correct ? "color-mix(in srgb, var(--green) 14%, var(--pad))" : "var(--pad-elev)", color: o.is_correct ? "var(--green)" : "var(--text-faint)" }}>
                               {o.label} {o.is_correct && "✓"}
                             </span>
                           ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openEditQuestion(q)} className="p-1 rounded cursor-pointer hover:bg-[var(--bg-hover)]">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        <button onClick={() => openEditQuestion(q)} className="p-1 rounded cursor-pointer hover:bg-[var(--pad-elev)]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </button>
-                        <button onClick={() => deleteQuestion(q.id, quizLessonId!)} className="p-1 rounded cursor-pointer hover:bg-[var(--bg-hover)]">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                        <button onClick={() => deleteQuestion(q.id, quizLessonId!)} className="p-1 rounded cursor-pointer hover:bg-[var(--pad-elev)]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.8"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                         </button>
                       </div>
                     </div>
@@ -1836,15 +1858,15 @@ export default function TrainingPage() {
             )}
 
             {/* Add/Edit question form */}
-            <div className="rounded-lg p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-color)" }}>
+            <div className="rounded-lg p-4" style={{ background: "var(--pad)", border: "1px solid var(--border)" }}>
               <h3 className="text-sm font-semibold mb-3">{editingQuestionId ? "Edit Question" : "Add Question"}</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Question</label>
-                  <textarea value={questionForm.question_text} onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder="Enter your question..." />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Question</label>
+                  <textarea value={questionForm.question_text} onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder="Enter your question..." />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>Options (check the correct answer)</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-dim)" }}>Options (check the correct answer)</label>
                   {questionForm.options.map((opt, i) => (
                     <div key={i} className="flex items-center gap-2 mb-2">
                       <input type="checkbox" checked={opt.is_correct} onChange={() => {
@@ -1856,15 +1878,15 @@ export default function TrainingPage() {
                         const newOpts = [...questionForm.options];
                         newOpts[i] = { ...newOpts[i], label: e.target.value };
                         setQuestionForm({ ...questionForm, options: newOpts });
-                      }} className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} placeholder={`Option ${String.fromCharCode(65 + i)}`} />
+                      }} className="flex-1 px-3 py-1.5 rounded-lg text-sm outline-none" style={{ background: "var(--pad-elev)", border: "1px solid var(--border)", color: "var(--text)" }} placeholder={`Option ${String.fromCharCode(65 + i)}`} />
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   {editingQuestionId && (
-                    <button onClick={() => { setEditingQuestionId(null); setQuestionForm({ question_text: "", options: [{ label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }] }); }} className="px-3 py-1.5 rounded-lg text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>Cancel Edit</button>
+                    <button onClick={() => { setEditingQuestionId(null); setQuestionForm({ question_text: "", options: [{ label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }, { label: "", is_correct: false }] }); }} className="px-3 py-1.5 rounded-lg text-xs cursor-pointer" style={{ color: "var(--text-faint)" }}>Cancel Edit</button>
                   )}
-                  <button onClick={saveQuestion} disabled={saving || !questionForm.question_text.trim()} className="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "#000" }}>
+                  <button onClick={saveQuestion} disabled={saving || !questionForm.question_text.trim()} className="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--cta-text)" }}>
                     {saving ? "Saving..." : editingQuestionId ? "Update Question" : "Add Question"}
                   </button>
                 </div>
