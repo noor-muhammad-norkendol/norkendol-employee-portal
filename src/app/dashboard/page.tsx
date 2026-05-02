@@ -337,10 +337,15 @@ export default function DashboardPage() {
   const [leaderboardMetric, setLeaderboardMetric] = useState("Leaderboard");
   const [expandedUpdate, setExpandedUpdate] = useState<string | null>(null);
   const [panelOrder, setPanelOrder] = useState<string[]>(DEFAULT_ORDER);
+  const [mounted, setMounted] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -849,24 +854,34 @@ export default function DashboardPage() {
       </ThemedCard>
 
       {/* ── Draggable Panels ───────────────────────────── */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={panelOrder}
-          strategy={verticalListSortingStrategy}
+      {mounted ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <div className="space-y-6">
-            {panelOrder.map((panelId) => (
-              <SortablePanel key={panelId} id={panelId}>
-                {(dragProps) => panels[panelId](dragProps)}
-              </SortablePanel>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={panelOrder}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-6">
+              {panelOrder.map((panelId) => (
+                <SortablePanel key={panelId} id={panelId}>
+                  {(dragProps) => panels[panelId](dragProps)}
+                </SortablePanel>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className="space-y-6">
+          {panelOrder.map((panelId) => (
+            <div key={panelId}>
+              {panels[panelId]({ listeners: undefined, attributes: {} })}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
